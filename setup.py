@@ -8,4 +8,4 @@ setup(name = 'rltools',
       packages = find_packages(),
       ext_modules= [Extension('rltools.ext_neuro',
                               ['c-src/neurosftd_libmod.c'],
-                              libraries = ['atlas'])])
+                              libraries = ['blas'])])
