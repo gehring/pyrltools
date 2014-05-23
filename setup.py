@@ -7,5 +7,4 @@ setup(name = 'rltools',
       include_dirs=[numpy.get_include(), '/usr/include', 'c-src'],
       packages = find_packages(),
       ext_modules= [Extension('rltools.ext_neuro',
-                              ['c-src/neurosftd_libmod.c'],
-                              libraries = ['cblas'])])
+                              ['c-src/neurosftd_libmod.c'])])
