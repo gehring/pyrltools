@@ -1,6 +1,6 @@
 import numpy as np
 from ctypes import *
-import rltools.ext_neuro
+import rltools.ext_neuro as ext_neuro
 import sys
 
 class CMatrix(Structure):
