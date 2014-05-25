@@ -1,6 +1,6 @@
-from representation import IdentityProj
+from rltools.representation import IdentityProj
 import numpy as np
-from clayerneuralnet import NeuralNet
+from rltools.clayerneuralnet import NeuralNet
 # from GNeuralNet import NeuralNet
 
 class ValueFn(object):

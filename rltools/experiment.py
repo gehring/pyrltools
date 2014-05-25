@@ -1,8 +1,8 @@
-from MountainCar import MountainCar
-from agent import Sarsa
-from policy import Egreedy
-from valuefn import  NeuroSFTD
-from representation import FlatStateAction, Normalizer
+from rltools.MountainCar import MountainCar
+from rltools.agent import Sarsa
+from rltools.policy import Egreedy
+from rltools.valuefn import  NeuroSFTD
+from rltools.representation import FlatStateAction, Normalizer
 import numpy as np
 
 def evaluate_trial(domain, agent):
