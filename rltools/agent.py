@@ -34,3 +34,15 @@ class Sarsa(Agent):
 
     def proposeAction(self, state):
         return self.policy(state)
+
+
+class Sarsa_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
+
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        valuefn = params.get('valuefn')
+        policy = params.get('policy')
+        return Sarsa(policy, valuefn, **params)

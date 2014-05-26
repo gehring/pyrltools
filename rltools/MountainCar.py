@@ -70,3 +70,18 @@ class MountainCar(object):
     @property
     def discrete_actions(self):
         return self.__discrete_actions
+
+    @property
+    def state_dim(self):
+        return self.len(self.state_range[0])
+
+    @property
+    def action_dim(self):
+        return self.len(self.action_range[0])
+
+class MountainCar_Factory(object):
+    def __init__(self, **argk):
+        self.param = argk
+
+    def __call__(self, **argk):
+        return MountainCar(**self.param)

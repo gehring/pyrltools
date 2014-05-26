@@ -73,3 +73,13 @@ class NeuroSFTD(ValueFn):
         target = r + self.gamma * v_tp1
 
         self.net.backprop(target, dphi, dV)
+
+class NeuroSFTD_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
+
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        projector = params.get('projector')
+        return NeuroSFTD(projector, **params)

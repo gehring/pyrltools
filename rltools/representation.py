@@ -111,6 +111,18 @@ class Normalizer(StateActionProjector):
     def size(self):
         return self.stateactionprojector.size
 
+class Normalizer_Factory(object):
+    def __init__(self, stateactionprojector_factory, **argk):
+        self.stateactionprojector_factory = stateactionprojector_factory
+        self.param =argk
+
+    def __call__(self, **argk):
+        new_param = dict(self.param)
+        new_param.update([ x for x in argk.items()])
+        stateactionproj = self.stateactionprojector_factory(**new_param)
+        domain = new_param.get('domain')
+        return Normalizer(stateactionproj, domain.state_range, domain.action_range )
+
 class TabularAction(StateActionProjector):
     def __init__(self, state_size, num_action, projector = None, actions = None):
         super(TabularAction, self).__init__()
@@ -159,4 +171,14 @@ class FlatStateAction(StateActionProjector):
     @property
     def size(self):
         return self.projector.size + self.action_dim
+
+class FlatStateAction_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
+
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([ x for x in argk.items()])
+        domain = params.get('domain')
+        return FlatStateAction(domain.state_dim, domain.action_dim)
 

@@ -1,8 +1,3 @@
-from rltools.MountainCar import MountainCar
-from rltools.agent import Sarsa
-from rltools.policy import Egreedy
-from rltools.valuefn import  NeuroSFTD
-from rltools.representation import FlatStateAction, Normalizer
 import numpy as np
 
 def evaluate_trial(domain, agent):
@@ -41,6 +36,12 @@ def getRuns(**args):
     mommentum = args.get('mommentum')
     num_runs = args.get('num_runs', 10)
 
+    domain_factory = args.get('domain_factory')
+    projector_factory = args.get('project_factory')
+    policy_factory = args.get('policy_factory')
+    value_fn_factory = args.get('value_fn_factory')
+    agent_factory = args.get('agent_factory')
+
     param = {'alpha':alpha,
              'eta':eta,
              'epsilon':epsilon,
@@ -48,14 +49,13 @@ def getRuns(**args):
              'mommentum':mommentum}
 
     for i in range(num_runs):
-        domain = MountainCar(random_start=True, max_episode = 1000)
-        projector = Normalizer(FlatStateAction(2,1),
-                               domain.state_range,
-                               domain.action_range)
+        domain = domain_factory(**args)
+        projector = projector_factory(domain = domain, **args)
         param['layers'] = [projector.size] + args.get('layers', [40]) + [1]
-        valuefn = NeuroSFTD(projector, **param)
-        policy = Egreedy( domain.discrete_actions, valuefn)
-        agent = Sarsa(policy, valuefn)
+        valuefn = value_fn_factory(projector = projector, **param)
+        policy = policy_factory(domain = domain, valuefn = valuefn, **args)
+        agent = agent_factory(policy = policy, valuefn = valuefn, **args)
+
         yield domain, agent
 
 def get_score_list(**args):
@@ -66,25 +66,3 @@ def get_score_list(**args):
                                                     num_eval_trial,
                                                     eval_interval),
                             getRuns(**args))
-
-
-if __name__ == '__main__':
-
-    param = {   'alpha' : 0.09 ,
-                'gamma' : 0.9,
-                'eta' : 0.4,
-                'epsilon' : 0.05,
-                'num_runs' : 1,
-                'layers': [400]}
-    for domain, agent in getRuns(**param):
-        r, s_t = domain.reset()
-        last = 0
-        for i in xrange(100000):
-            if s_t == None:
-                agent.reset()
-                r, s_t = domain.reset()
-                print i - last
-                last = i
-            else:
-                r, s_t = domain.step(agent.step(r, s_t))
-
