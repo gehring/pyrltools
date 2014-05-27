@@ -73,11 +73,11 @@ class MountainCar(object):
 
     @property
     def state_dim(self):
-        return self.len(self.state_range[0])
+        return len(self.state_range[0])
 
     @property
     def action_dim(self):
-        return self.len(self.action_range[0])
+        return len(self.action_range[0])
 
 class MountainCar_Factory(object):
     def __init__(self, **argk):
