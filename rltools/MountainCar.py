@@ -13,13 +13,13 @@ class MountainCar(object):
 
     state_range =[ np.array([min_pos, -max_speed]),
                    np.array([max_pos, max_speed])]
-    action_range = [-0.001, 0.001]
+    action_range = [[-0.001], [0.001]]
 
     __discrete_actions = [ [-0.001],
                          [0],
                          [0.001]]
 
-    def __init__(self, random_start = False, max_episode = 1000):
+    def __init__(self, random_start = False, max_episode = 1000, **argk):
         self.state = np.zeros(2)
         self.random_start = random_start
         self.max_episode = max_episode
@@ -38,8 +38,8 @@ class MountainCar(object):
 
     def reset(self):
         if self.random_start:
-            self.state[:] = [np.random.uniform(*self.state_range[0]),
-                             np.random.uniform(*self.state_range[1])]
+            self.state[:] = [np.random.uniform(self.state_range[0][0], self.state_range[1][0]),
+                             np.random.uniform(self.state_range[0][1], self.state_range[1][1])]
         else:
             self.state[:] = [self.pos_start, self.vel_start]
 
