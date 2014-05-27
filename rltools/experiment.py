@@ -10,15 +10,29 @@ def evaluate_trial(domain, agent):
 
     return cum_rew
 
-def evaluateAgent(domain, agent, num_trials):
-    return [ evaluate_trial(domain, agent) for i in range(num_trials)]
+def evaluate_1000_steps(domain, agent):
+    domain_copy = domain.copy()
+    r, s_t = domain_copy.reset()
+    cum_rew = r
+    for i in xrange(1000):
+        if s_t == None:
+            agent.reset()
+            r, s_t = domain_copy.reset()
+        else:
+            r, s_t = domain_copy.step(agent.proposeAction(s_t))
+        cum_rew += r
 
-def train_agent(domain, agent, num_steps, num_eval, eval_interval):
+    return cum_rew
+
+def evaluateAgent(domain, agent, evaluator, num_trials):
+    return [ evaluator(domain, agent) for i in range(num_trials)]
+
+def train_agent(domain, agent, evaluator, num_steps, num_eval, eval_interval):
     score= []
     r, s_t = domain.reset()
     for i in xrange(num_steps):
         if i % eval_interval == 0:
-            score.append( np.mean(evaluateAgent(domain, agent, num_eval)))
+            score.append( np.mean(evaluateAgent(domain, agent, evaluator, num_eval)))
 
         if s_t == None:
             agent.reset()
@@ -62,7 +76,8 @@ def get_score_list(**args):
     num_train_steps = args.get('num_train_steps')
     num_eval_trial = args.get('num_eval_trial')
     eval_interval = args.get('eval_interval')
-    return map(lambda (d,a): train_agent(d, a, num_train_steps,
+    evaluator = args.get('evaluator')
+    return map(lambda (d,a): train_agent(d, a, evaluator, num_train_steps,
                                                     num_eval_trial,
                                                     eval_interval),
                             getRuns(**args))
