@@ -32,9 +32,8 @@ class Egreedy_Factory(object):
     def __call__(self, **argk):
         params = dict(self.params)
         params.update([x for x in argk.items()])
-        valuefn = params.get('valuefn')
         domain = params.get('domain')
-        return Egreedy(domain.discrete_actions, valuefn, **params)
+        return Egreedy(domain.discrete_actions, **params)
 
 # class GradientDescentPolicy(Policy):
 #     def __init__(self, actions, value_fn, **argk):
