@@ -50,6 +50,7 @@ class SwingPendulum(object):
         else:
             self.state[:] = [self.pos_start, self.vel_start]
 
+        self.uptime = 0
         return np.cos(self.state[0]), self.state.copy()
 
     def update(self, action):
