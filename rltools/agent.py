@@ -45,4 +45,4 @@ class Sarsa_Factory(object):
         params.update([x for x in argk.items()])
         valuefn = params.get('valuefn')
         policy = params.get('policy')
-        return Sarsa(policy, valuefn, **params)
+        return Sarsa(**params)
