@@ -37,7 +37,7 @@ def getRuns(**args):
     num_runs = args.get('num_runs', 10)
 
     domain_factory = args.get('domain_factory')
-    projector_factory = args.get('project_factory')
+    projector_factory = args.get('projector_factory')
     policy_factory = args.get('policy_factory')
     value_fn_factory = args.get('valuefn_factory')
     agent_factory = args.get('agent_factory')
