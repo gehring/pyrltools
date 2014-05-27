@@ -8,10 +8,10 @@ class Policy(object):
         pass
 
 class Egreedy(Policy):
-    def __init__(self, actions, value_fn, **argk):
+    def __init__(self, actions, valuefn, **argk):
         super(Egreedy, self).__init__()
         self.actions = actions
-        self.value_fn = value_fn
+        self.value_fn = valuefn
         self.epsilon = argk.get('epsilon', 0.1)
 
     def __call__(self, state):
