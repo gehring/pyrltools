@@ -81,5 +81,4 @@ class NeuroSFTD_Factory(object):
     def __call__(self, **argk):
         params = dict(self.params)
         params.update([x for x in argk.items()])
-        projector = params.get('projector')
-        return NeuroSFTD(projector, **params)
+        return NeuroSFTD( **params)
