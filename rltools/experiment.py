@@ -76,7 +76,7 @@ def get_score_list(**args):
     num_train_steps = args.get('num_train_steps')
     num_eval_trial = args.get('num_eval_trial')
     eval_interval = args.get('eval_interval')
-    evaluator = args.get('evaluator')
+    evaluator = args.get('evaluator', evaluate_trial)
     return map(lambda (d,a): train_agent(d, a, evaluator, num_train_steps,
                                                     num_eval_trial,
                                                     eval_interval),
