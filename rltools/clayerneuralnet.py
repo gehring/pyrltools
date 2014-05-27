@@ -178,7 +178,7 @@ class NeuronLayer(object):
         size_w = num_neuron * layer_input
         init_w = np.random.uniform(-0.1, 0.1, size_w)
         size_b = num_neuron * layer_input
-        init_b = np.random.uniform(-0.5, 0.5, size_b)
+        init_b = np.random.uniform(-0.1, 0.1, size_b)
 
 
         self.sigmoid = sigmoid

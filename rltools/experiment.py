@@ -30,6 +30,7 @@ def evaluateAgent(domain, agent, evaluator, num_trials):
 def train_agent(domain, agent, evaluator, num_steps, num_eval, eval_interval):
     score= []
     r, s_t = domain.reset()
+    agent.reset()
     for i in xrange(num_steps):
         if i % eval_interval == 0:
             score.append( np.mean(evaluateAgent(domain, agent, evaluator, num_eval)))
