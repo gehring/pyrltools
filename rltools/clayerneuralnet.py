@@ -308,6 +308,7 @@ class NeuralNet(object):
                                              dedinput,
                                              dedgradin)
             err_grad.append( (l.dedw, l.dbias))
+        return reversed(err_grad)
 
 
 
