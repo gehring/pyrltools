@@ -297,6 +297,18 @@ class NeuralNet(object):
 #             if( grad[0] != None):
 #                 l.update_weights(grad[0] * self.alpha, grad[1] * self.alpha)
 
+    def getgradient(self, target, direction, dirderiv):
+        dedinput = (1-self.eta) * (self.layers[-1].out - target)
+        dedgradin = np.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)
+                        * direction)]).T
+
+        err_grad = []
+        for l in reversed(self.layers):
+            ext_neuro.compute_gradient_from_np(l.cnlayer,
+                                             dedinput,
+                                             dedgradin)
+            err_grad.append( (l.dedw, l.dbias))
+
 
 
 
