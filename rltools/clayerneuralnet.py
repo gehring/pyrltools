@@ -307,6 +307,8 @@ class NeuralNet(object):
             ext_neuro.compute_gradient_from_np(l.cnlayer,
                                              dedinput,
                                              dedgradin)
+            dedinput = l.dedinput
+            dedgradin = l.dedgradin
             err_grad.append( (l.dedw, l.dbias))
         return reversed(err_grad)
 
