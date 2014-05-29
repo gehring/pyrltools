@@ -186,6 +186,9 @@ class NeuralNet(object):
             l.update_weights(grad[0] * self.alpha, grad[1] * self.alpha)
 
     def getgradient(self, target, direction, dirderiv):
+        norm = numpy.linalg.norm(direction)
+        direction = direction/norm
+        dirderiv /= norm
         dedinput = (1-self.eta) * (self.layers[-1].out - target)
         dedgradin = numpy.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)
                         * direction)]).T

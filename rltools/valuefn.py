@@ -68,10 +68,10 @@ class NeuroSFTD(ValueFn):
         v_t = self.net.evaluate(phi_t)[0]
 
         dphi = phi_tp1 - phi_t
-        norm = np.linalg.norm(dphi)
-        dphi /= norm
+#         norm = np.linalg.norm(dphi)
+#         dphi /= norm
         dV = v_t * (1 - self.gamma) - r
-        dV /= norm
+#         dV /= norm
 
         target = r + self.gamma * v_tp1
 
