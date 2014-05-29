@@ -70,7 +70,7 @@ class Logisticfn(object):
             out = np.zeros_like(x)
 
         ex = np.exp(x)
-        out[:] = - ex( ex - 1)/(ex+1)**3
+        out[:] = (- ex( ex - 1)/(ex+1)**3)
 #         np.exp(x, out=out)
 #         ex = np.array(out)
 #         out *= - (ex -1)
