@@ -250,6 +250,7 @@ class NeuronLayer(object):
 
         thresh = 1.0E-8
         assert np.linalg.norm(self.deda - deda) < thresh
+        print 'deda ok'
         assert np.linalg.norm(self.dedpsi - dedpsi) < thresh
         assert np.linalg.norm(self.dedw - dedw) < thresh
         assert np.linalg.norm(self.dbias - dbias) < thresh
