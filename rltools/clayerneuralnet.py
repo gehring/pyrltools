@@ -221,6 +221,42 @@ class NeuronLayer(object):
         ext_neuro.compute_gradient_from_np(self.cnlayer,
                                              errors_sig,
                                              errors_gradsig)
+
+        dsigmoid = self.sigmoid.evaluatederiv(self.a)
+        ddsigmoid = self.sigmoid.evaluatederivderiv(self.a)
+
+        # first part is the vanilla backprog, second part is to account for the
+        # errors induced by the gradient
+        deda = ddsigmoid * np.sum(self.psi*errors_gradsig, axis=0)
+        deda += dsigmoid * errors_sig
+
+        dedpsi = errors_gradsig * dsigmoid
+
+        # build the error gradient
+        dedw = dedpsi.T.dot(self.input_grad)
+
+        tmp1 = np.empty_like(dedw)
+        tmp1[:] = self.input
+        tmp2 = tmp1.T
+        tmp2 *= deda
+
+        dedw += tmp1
+
+        dbias = deda
+
+        # propagate errors to inputs
+        dedinput = self.w.T.dot(deda)
+        dedgradin = dedpsi.dot(self.w)
+
+        thresh = 1.0E-8
+        assert np.linalg.norm(self.deda - deda) < thresh
+        assert np.linalg.norm(self.dedpsi - dedpsi) < thresh
+        assert np.linalg.norm(self.dedw - dedw) < thresh
+        assert np.linalg.norm(self.dbias - dbias) < thresh
+        assert np.linalg.norm(self.dedinput - dedinput) < thresh
+        assert np.linalg.norm(self.dedgradin - dedgradin) < thresh
+
+
         return self.dedw, self.dbias, self.dedinput, self.dedgradin
 
 
@@ -280,22 +316,22 @@ class NeuralNet(object):
         dedgradin = np.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)
                         * direction)]).T
 
-#         err_grad = []
+        err_grad = []
         for l in reversed(self.layers):
-            ext_neuro.compute_gradient_from_np(l.cnlayer,
-                                             dedinput,
-                                             dedgradin)
-            ext_neuro.update_weights_from_py(l.cnlayer, self.alpha)
+#             ext_neuro.compute_gradient_from_np(l.cnlayer,
+#                                              dedinput,
+#                                              dedgradin)
+#             ext_neuro.update_weights_from_py(l.cnlayer, self.alpha)
 #             dedw = l.dedw
 #             dedb = l.dbias
-            dedinput = l.dedinput
-            dedgradin = l.dedgradin
-#             dedw, dedb, dedinput, dedgradin = l.compute_gradient(dedinput, dedgradin)
-#             err_grad.append((dedw, dedb))
+#             dedinput = l.dedinput
+#             dedgradin = l.dedgradin
+            dedw, dedb, dedinput, dedgradin = l.compute_gradient(dedinput, dedgradin)
+            err_grad.append((dedw, dedb))
 
-#         for l, grad in zip(reversed(self.layers), err_grad):
-#             if( grad[0] != None):
-#                 l.update_weights(grad[0] * self.alpha, grad[1] * self.alpha)
+        for l, grad in zip(reversed(self.layers), err_grad):
+            if( grad[0] != None):
+                l.update_weights(grad[0] * self.alpha, grad[1] * self.alpha)
 
     def getgradient(self, target, direction, dirderiv):
         dedinput = (1-self.eta) * (self.layers[-1].out - target)
