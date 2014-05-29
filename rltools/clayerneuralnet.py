@@ -253,25 +253,25 @@ class NeuronLayer(object):
         thresh = 1.0E-6
 #         print deda
 #         print self.deda
-        assert np.linalg.norm(self.deda - deda) < thresh
-#         print dedpsi
-#         print self.dedpsi
-        if np.linalg.norm(self.dedpsi - dedpsi) < thresh:
-            print self.dedpsi
-            print dedpsi
-            assert np.linalg.norm(self.dedpsi - dedpsi) < thresh
-#         print dedw
-#         print self.dedw
-        assert np.linalg.norm(self.dedw - dedw) < thresh
-#         print dbias
-#         print self.dbias
-        assert np.linalg.norm(self.dbias - dbias) < thresh
-#         print dedinput
-#         print self.dedinput
-        assert np.linalg.norm(self.dedinput - dedinput) < thresh
-#         print dedgradin
-#         print self.dedgradin
-        assert np.linalg.norm(self.dedgradin - dedgradin) < thresh
+#         assert np.linalg.norm(self.deda - deda) < thresh
+# #         print dedpsi
+# #         print self.dedpsi
+#         if np.linalg.norm(self.dedpsi - dedpsi) < thresh:
+#             print self.dedpsi
+#             print dedpsi
+#             assert np.linalg.norm(self.dedpsi - dedpsi) < thresh
+# #         print dedw
+# #         print self.dedw
+#         assert np.linalg.norm(self.dedw - dedw) < thresh
+# #         print dbias
+# #         print self.dbias
+#         assert np.linalg.norm(self.dbias - dbias) < thresh
+# #         print dedinput
+# #         print self.dedinput
+#         assert np.linalg.norm(self.dedinput - dedinput) < thresh
+# #         print dedgradin
+# #         print self.dedgradin
+#         assert np.linalg.norm(self.dedgradin - dedgradin) < thresh
 
 
         return self.dedw, self.dbias, self.dedinput, self.dedgradin
