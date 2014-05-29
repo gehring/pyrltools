@@ -244,15 +244,15 @@ class NeuralNet(object):
         self.alpha = kargs.get('alpha', 0.01)
         self.eta = kargs.get('eta', 0.0)
 
-        sigmoid = LinearRectifier()
+        sigmoid = Logisticfn()
 
         self.layers = [ NeuronLayer(layers[0],
                                     layers[i],
                                     layers[i+1],
                                     sigmoid,
-                                    ext_neuro.get_rect_sig(0),
-                                    ext_neuro.get_rect_sig(1),
-                                    ext_neuro.get_rect_sig(2),
+                                    ext_neuro.get_logistic_sig(0),
+                                    ext_neuro.get_logistic_sig(1),
+                                    ext_neuro.get_logistic_sig(2),
                                     **kargs)
                             for i in range(len(layers) - 2)]
 
