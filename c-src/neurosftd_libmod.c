@@ -129,10 +129,10 @@ void map_array(sig_fun f, double* in, double* out, uint n){
 }
 
 void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
-	double dsigmoids[layer->a->size];
+	double* dsigmoids = layer->sigd_vec->data;
 	double ddsigmoids[layer->a->size];
 
-	map_array(layer->sig_deval, layer->a->data, dsigmoids, layer->a->size);
+	// map_array(layer->sig_deval, layer->a->data, dsigmoids, layer->a->size);
 	map_array(layer->sig_ddeval, layer->a->data, ddsigmoids, layer->a->size);
 
 	uint i, j;
@@ -243,16 +243,16 @@ void evaluate_layer_from_np(PyObject* self, PyObject* args){
 void update_weights_wmommentum(NLayer* layer, double alpha, double mom){
 	uint i;
 	for ( i = 0; i < layer->prev_dw->size; ++i){
-		layer->prev_dw->data[i] = layer->prev_dw->data[i]*mom + layer->dedw->data[i] * alpha;
+		layer->prev_dw->data[i] = layer->prev_dw->data[i]*mom - layer->dedw->data[i] * alpha;
 	}
 	for ( i = 0; i < layer->prev_dbias->size; ++i){
-		layer->prev_dbias->data[i] = layer->prev_dbias->data[i]*mom + layer->dbias->data[i] * alpha;
+		layer->prev_dbias->data[i] = layer->prev_dbias->data[i]*mom - layer->dbias->data[i] * alpha;
 	}
 	for ( i = 0; i < layer->prev_dw->size; ++i){
-		layer->w->data[i] -= layer->prev_dw->data[i];
+		layer->w->data[i] += layer->prev_dw->data[i];
 	}
 	for ( i = 0; i < layer->prev_dbias->size; ++i){
-		layer->bias->data[i] -= layer->prev_dbias->data[i];
+		layer->bias->data[i] += layer->prev_dbias->data[i];
 	}
 }
 
@@ -559,10 +559,10 @@ static double log_deval(double x){
 }
 
 static double log_ddeval(double x){
-	double emx = exp(-x);
-	double emxp1 = (emx+1);
-	double emx3 = emxp1*emxp1*emxp1;
-	return -emx*(emx-1)/emx3;
+	double ex = exp(x);
+	double exp1 = (ex+1);
+	double ex3 = exp1*exp1*exp1;
+	return -ex*(ex-1)/ex3;
 }
 
 static double lin_eval(double x){
