@@ -66,16 +66,16 @@ class Logisticfn(object):
         return out
 
     def evaluatederivderiv(self, x, out=None):
-        if out == None:
-            out = np.zeros_like(x)
+#         if out == None:
+#             out = np.zeros_like(x)
 
         ex = np.exp(x)
-        out = (- ex( ex - 1)/(ex+1)**3)
+#         out =
 #         np.exp(x, out=out)
 #         ex = np.array(out)
 #         out *= - (ex -1)
 #         out /= (ex + 1)**3
-        return  out
+        return  (- ex( ex - 1)/(ex+1)**3)
 
 class Linearfn(object):
     def __init__(self):
