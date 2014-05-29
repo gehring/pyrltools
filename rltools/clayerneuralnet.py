@@ -250,7 +250,7 @@ class NeuronLayer(object):
         dedinput = self.w.T.dot(deda)
         dedgradin = dedpsi.dot(self.w)
 #
-        thresh = 1.0E-6
+        thresh = 1.0E-8
 #         print deda
 #         print self.deda
         assert np.linalg.norm(self.deda - deda) < thresh
@@ -285,7 +285,8 @@ class NeuronLayer(object):
 
     def evaluate(self, inputs, grad):
         ext_neuro.evaluate_layer_from_np(self.cnlayer,
-                                             inputs,
+                                             inputs,rneuralnet import NeuralNet
+from rltools.pyneura
                                              grad)
 #
 #         assert np.linalg.norm(inputs - self.input) < 1.0e-8
