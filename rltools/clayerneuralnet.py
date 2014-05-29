@@ -256,7 +256,7 @@ class NeuronLayer(object):
         assert np.linalg.norm(self.deda - deda) < thresh
 #         print dedpsi
 #         print self.dedpsi
-        if np.linalg.norm(self.dedpsi - dedpsi) < thresh:
+        if np.linalg.norm(self.dedpsi - dedpsi) > thresh:
             print self.dedpsi
             print dedpsi
             assert np.linalg.norm(self.dedpsi - dedpsi) < thresh
