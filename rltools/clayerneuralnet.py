@@ -69,10 +69,12 @@ class Logisticfn(object):
         if out == None:
             out = np.zeros_like(x)
 
-        np.exp(x, out=out)
-        ex = np.array(out)
-        out *= - (ex -1)
-        out /= (ex + 1)**3
+        ex = np.exp(x)
+        out[:] = - ex( ex - 1)/(ex+1)**3
+#         np.exp(x, out=out)
+#         ex = np.array(out)
+#         out *= - (ex -1)
+#         out /= (ex + 1)**3
         return  out
 
 class Linearfn(object):
@@ -254,7 +256,10 @@ class NeuronLayer(object):
         assert np.linalg.norm(self.deda - deda) < thresh
 #         print dedpsi
 #         print self.dedpsi
-        assert np.linalg.norm(self.dedpsi - dedpsi) < thresh
+        if np.linalg.norm(self.dedpsi - dedpsi) < thresh:
+            print self.dedpsi
+            print dedpsi
+            assert np.linalg.norm(self.dedpsi - dedpsi) < thresh
 #         print dedw
 #         print self.dedw
         assert np.linalg.norm(self.dedw - dedw) < thresh
