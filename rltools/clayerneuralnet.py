@@ -250,7 +250,7 @@ class NeuronLayer(object):
         dedinput = self.w.T.dot(deda)
         dedgradin = dedpsi.dot(self.w)
 #
-        thresh = 1.0E-8
+        thresh = 1.0E-6
 #         print deda
 #         print self.deda
         assert np.linalg.norm(self.deda - deda) < thresh
