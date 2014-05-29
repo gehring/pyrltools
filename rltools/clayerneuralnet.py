@@ -285,8 +285,7 @@ class NeuronLayer(object):
 
     def evaluate(self, inputs, grad):
         ext_neuro.evaluate_layer_from_np(self.cnlayer,
-                                             inputs,rneuralnet import NeuralNet
-from rltools.pyneura
+                                             inputs,
                                              grad)
 #
 #         assert np.linalg.norm(inputs - self.input) < 1.0e-8
