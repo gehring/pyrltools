@@ -81,6 +81,6 @@ def train_agent(**args):
 
 def getAllRuns(product_param):
     # returns the product of every parameter as dict then generates every independent run
-    num_runs = product_param['num_runs']
+    num_runs = product_param['num_runs'][0]
     return chain(*repeat(imap(dict,product(*(izip(repeat(k),v) for k,v in product_param.iteritems()))), num_runs))
 
