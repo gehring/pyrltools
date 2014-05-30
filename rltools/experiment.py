@@ -27,7 +27,7 @@ def evaluate_1000_steps(domain, agent):
 def evaluateAgent(domain, agent, evaluator, num_trials):
     return [ evaluator(domain, agent) for i in range(num_trials)]
 
-def train_agent(domain, agent, evaluator, num_steps, num_eval, eval_interval):
+def train_steps_agent(domain, agent, evaluator, num_steps, num_eval, eval_interval):
     score= []
     r, s_t = domain.reset()
     agent.reset()
@@ -36,11 +36,24 @@ def train_agent(domain, agent, evaluator, num_steps, num_eval, eval_interval):
             score.append( np.mean(evaluateAgent(domain, agent, evaluator, num_eval)))
 
         if s_t == None:
+            agent.step(r, s_t)
             agent.reset()
             r, s_t = domain.reset()
         else:
             r, s_t = domain.step(agent.step(r, s_t))
     return score
+
+def train_trials_agent(domain, agent, evaluator, num_trials, num_eval, eval_interval):
+    score= []
+    for i in xrange(num_trials):
+        if i % eval_interval == 0:
+                score.append( np.mean(evaluateAgent(domain, agent, evaluator, num_eval)))
+        r, s_t = domain.reset()
+        agent.reset()
+        while s_t != None:
+            r, s_t = domain.step(agent.step(r, s_t))
+        agent.step(r,s_t)
+
 
 
 def getRuns(**args):
@@ -74,11 +87,12 @@ def getRuns(**args):
         yield domain, agent
 
 def get_score_list(**args):
-    num_train_steps = args.get('num_train_steps')
+    num_train_steps = args.get('num_train')
     num_eval_trial = args.get('num_eval_trial')
     eval_interval = args.get('eval_interval')
     evaluator = args.get('evaluator', evaluate_trial)
-    return map(lambda (d,a): train_agent(d, a, evaluator, num_train_steps,
+    agent_trainer = args.get('trainer', train_steps_agent)
+    return map(lambda (d,a): agent_trainer(d, a, evaluator, num_train_steps,
                                                     num_eval_trial,
                                                     eval_interval),
                             getRuns(**args))
