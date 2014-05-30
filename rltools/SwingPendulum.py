@@ -94,4 +94,6 @@ class SwingPendulum_Factory(object):
         self.param = argk
 
     def __call__(self, **argk):
-        return SwingPendulum(**self.param)
+        params = dict(self.param)
+        params.update([x for x in argk.items()])
+        return SwingPendulum(**params)

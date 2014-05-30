@@ -84,4 +84,6 @@ class MountainCar_Factory(object):
         self.param = argk
 
     def __call__(self, **argk):
-        return MountainCar(**self.param)
+        params = dict(self.param)
+        params.update([x for x in argk.items()])
+        return MountainCar(**params)
