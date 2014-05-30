@@ -297,7 +297,10 @@ class NeuronLayer(object):
         gradout = psi * dsigmoid
 
         thresh = 1.0E-8
-        assert np.linalg.norm(inputs - self.input) < thresh
+        if np.linalg.norm(inputs - self.input) > thresh:
+            print self.input
+            print inputs
+            assert np.linalg.norm(inputs - self.input) < thresh
         assert np.linalg.norm(grad - self.input_grad) < thresh
         assert np.linalg.norm(self.a - a) < thresh
         assert np.linalg.norm(self.psi - psi) < thresh
