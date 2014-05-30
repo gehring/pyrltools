@@ -300,7 +300,7 @@ class NeuronLayer(object):
         assert np.linalg.norm(inputs - self.input) < thresh
         assert np.linalg.norm(grad - self.input_grad) < thresh
         assert np.linalg.norm(self.a - a) < thresh
-        assert np.linalg.norm(self.psi - a) < thresh
+        assert np.linalg.norm(self.psi - psi) < thresh
         assert np.linalg.norm(self.out - out) < thresh
         assert np.linalg.norm(self.gradout - gradout) < thresh
 
