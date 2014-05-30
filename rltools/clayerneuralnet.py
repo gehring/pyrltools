@@ -340,12 +340,12 @@ class NeuralNet(object):
 
     def evaluate(self, inputs):
         grad = np.eye(len(inputs))
-        inputs = np.array(inputs)
+        inputs = np.array(inputs, dtype = np.double)
         for l in self.layers:
-#             ext_neuro.evaluate_layer_from_np(l.cnlayer, inputs, grad)
-#             inputs = l.out
-#             grad = l.gradout
-            inputs, grad = l.evaluate(inputs, grad)
+            ext_neuro.evaluate_layer_from_np(l.cnlayer, inputs, grad)
+            inputs = l.out
+            grad = l.gradout
+#             inputs, grad = l.evaluate(inputs, grad)
         return self.layers[-1].out
 
     def backprop(self, target, direction, dirderiv):
