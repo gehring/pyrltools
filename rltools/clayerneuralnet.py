@@ -177,12 +177,12 @@ class NeuronLayer(object):
                  **argk):
 
         mommentum = argk.get('mommentum', 0.9)
+        init_bias_var = argk.get('init_bias_var', 0.1)
+        init_w_var = argk.get('init_w_var', 0.1)
         size_w = num_neuron * layer_input
-#         init_w = np.random.uniform(-0.1, 0.1, size_w)
-        init_w = np.random.normal(0, 0.01, size_w)
+        init_w = np.random.normal(0, init_w_var, size_w, dtype = np.double)
         size_b = num_neuron * layer_input
-#         init_b = np.random.uniform(-0.5, 0.5, size_b)
-        init_b = np.random.normal(0, 1, size_b)
+        init_b = np.random.normal(0, init_bias_var, size_b, dtype = np.double)
 
 
         self.sigmoid = sigmoid
@@ -355,7 +355,7 @@ class NeuralNet(object):
 
         dedinput = (1-self.eta) * (self.layers[-1].out - target)
         dedgradin = np.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)
-                        * direction)]).T
+                        * direction)], dtype = np.double).T
 
 #         err_grad = []
         for l in reversed(self.layers):

@@ -1,7 +1,6 @@
 from rltools.representation import IdentityProj
 import numpy as np
-from rltools.pyneuralnet import NeuralNet
-# from GNeuralNet import NeuralNet
+from rltools.clayerneuralnet import NeuralNet
 
 class ValueFn(object):
     def __init__(self):
