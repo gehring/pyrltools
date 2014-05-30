@@ -250,7 +250,7 @@ class NeuronLayer(object):
         dedinput = self.w.T.dot(deda)
         dedgradin = dedpsi.dot(self.w)
 #
-        thresh = 1.0E-6
+        thresh = 1.0E-8
 #         print deda
 #         print self.deda
         assert np.linalg.norm(self.deda - deda) < thresh
@@ -287,9 +287,22 @@ class NeuronLayer(object):
         ext_neuro.evaluate_layer_from_np(self.cnlayer,
                                              inputs,
                                              grad)
-#
-#         assert np.linalg.norm(inputs - self.input) < 1.0e-8
-#         assert np.linalg.norm(grad - self.input_grad) < 1.0e-8
+#         self.input = inputs
+#         self.input_grad = grad
+        a = self.w.dot(inputs) + self.bias
+        out = self.sigmoid.evaluate(self.a)
+
+        dsigmoid = self.sigmoid.evaluatederiv(a)
+        psi = grad.dot(self.w.T)
+        gradout = psi * dsigmoid
+
+        thresh = 1.0E-8
+        assert np.linalg.norm(inputs - self.input) < thresh
+        assert np.linalg.norm(grad - self.input_grad) < thresh
+        assert np.linalg.norm(self.a - a) < thresh
+        assert np.linalg.norm(self.psi - a) < thresh
+        assert np.linalg.norm(self.out - out) < thresh
+        assert np.linalg.norm(self.gradout - gradout) < thresh
 
         return self.out, self.gradout
 
