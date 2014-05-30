@@ -357,22 +357,22 @@ class NeuralNet(object):
         dedgradin = np.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)
                         * direction)]).T
 
-        err_grad = []
+#         err_grad = []
         for l in reversed(self.layers):
-#             ext_neuro.compute_gradient_from_np(l.cnlayer,
-#                                              dedinput,
-#                                              dedgradin)
-#             ext_neuro.update_weights_from_py(l.cnlayer, self.alpha)
+            ext_neuro.compute_gradient_from_np(l.cnlayer,
+                                             dedinput,
+                                             dedgradin)
+            ext_neuro.update_weights_from_py(l.cnlayer, self.alpha)
 #             dedw = l.dedw
 #             dedb = l.dbias
-#             dedinput = l.dedinput
-#             dedgradin = l.dedgradin
-            dedw, dedb, dedinput, dedgradin = l.compute_gradient(dedinput, dedgradin)
-            err_grad.append((dedw, dedb))
-
-        for l, grad in zip(reversed(self.layers), err_grad):
-            if( grad[0] != None):
-                l.update_weights(grad[0] * self.alpha, grad[1] * self.alpha)
+            dedinput = l.dedinput
+            dedgradin = l.dedgradin
+#             dedw, dedb, dedinput, dedgradin = l.compute_gradient(dedinput, dedgradin)
+#             err_grad.append((dedw, dedb))
+#
+#         for l, grad in zip(reversed(self.layers), err_grad):
+#             if( grad[0] != None):
+#                 l.update_weights(grad[0] * self.alpha, grad[1] * self.alpha)
 
     def getgradient(self, target, direction, dirderiv):
         norm = np.linalg.norm(direction)
