@@ -385,24 +385,16 @@ class NeuralNet(object):
 
 
         err_grad = []
-#         for l in reversed(self.layers):
-#             ext_neuro.compute_gradient_from_np(l.cnlayer,
-#                                              dedinput,
-#                                              dedgradin)
-#             dedinput = l.dedinput
-#             dedgradin = l.dedgradin
-#             err_grad.append( (l.dedw, l.dbias))
-
         for l in reversed(self.layers):
-        #             ext_neuro.compute_gradient_from_np(l.cnlayer,
-        #                                              dedinput,
-        #                                              dedgradin)
-        #             ext_neuro.update_weights_from_py(l.cnlayer, self.alpha)
-        #             dedw = l.dedw
-        #             dedb = l.dbias
-        #             dedinput = l.dedinput
-        #             dedgradin = l.dedgradin
-            dedw, dedb, dedinput, dedgradin = l.compute_gradient(dedinput, dedgradin)
+            ext_neuro.compute_gradient_from_np(l.cnlayer,
+                                            dedinput,
+                                            dedgradin)
+    #             ext_neuro.update_weights_from_py(l.cnlayer, self.alpha)
+            dedw = l.dedw
+            dedb = l.dbias
+            dedinput = l.dedinput
+            dedgradin = l.dedgradin
+    #             dedw, dedb, dedinput, dedgradin = l.compute_gradient(dedinput, dedgradin)
             err_grad.append((dedw.copy(), dedb.copy()))
         return reversed(err_grad)
 
