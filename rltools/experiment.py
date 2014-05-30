@@ -28,7 +28,7 @@ def evaluate_1000_steps(domain, agent):
 def evaluateAgent(domain, agent, evaluator, num_trials):
     return [ evaluator(domain, agent) for i in range(num_trials)]
 
-def train_steps_agent(domain, agent, evaluator, num_train_steps, num_eval, eval_interval):
+def train_steps_agent(domain, agent, evaluator, num_train_steps, num_eval, eval_interval, **args):
     score= []
     r, s_t = domain.reset()
     agent.reset()
@@ -44,7 +44,7 @@ def train_steps_agent(domain, agent, evaluator, num_train_steps, num_eval, eval_
             r, s_t = domain.step(agent.step(r, s_t))
     return score
 
-def train_trials_agent(domain, agent, evaluator, num_train_steps, num_eval, eval_interval):
+def train_trials_agent(domain, agent, evaluator, num_train_steps, num_eval, eval_interval, **args):
     score= []
     for i in xrange(num_train_steps):
         if i % eval_interval == 0:
