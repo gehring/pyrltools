@@ -180,9 +180,9 @@ class NeuronLayer(object):
         init_bias_var = argk.get('init_bias_var', 0.1)
         init_w_var = argk.get('init_w_var', 0.1)
         size_w = num_neuron * layer_input
-        init_w = np.random.normal(0, init_w_var, size_w, dtype = np.double)
+        init_w = np.random.normal(0, init_w_var, size_w)
         size_b = num_neuron * layer_input
-        init_b = np.random.normal(0, init_bias_var, size_b, dtype = np.double)
+        init_b = np.random.normal(0, init_bias_var, size_b)
 
 
         self.sigmoid = sigmoid
