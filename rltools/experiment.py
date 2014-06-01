@@ -58,7 +58,7 @@ def train_trials_agent(domain, agent, evaluator, num_train_steps, num_eval, eval
     return score
 
 def train_score_per_trial_agent(domain, agent, num_train_steps, **args):
-    score= np.empty(num_train_steps, dtype = num_train_steps)
+    score= np.empty(num_train_steps, dtype = np.double)
     for i in xrange(num_train_steps):
         r, s_t = domain.reset()
         agent.reset()
