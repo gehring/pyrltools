@@ -87,8 +87,12 @@ class LinearRectifier(object):
 class NeuronLayer(object):
     def __init__(self, input_size, layer_input, num_neuron, sigmoid, **argk):
         self.a = numpy.zeros(num_neuron)
-        self.w = numpy.random.normal(0,0.01, (num_neuron, layer_input))
-        self.bias = numpy.random.normal(0, 1, num_neuron)
+
+        init_bias_var = argk.get('init_bias_var', 0.1)
+        init_w_var = argk.get('init_w_var', 0.01)
+
+        self.w = numpy.random.normal(0, init_w_var, (num_neuron, layer_input))
+        self.bias = numpy.random.normal(0, init_bias_var, num_neuron)
 
         self.psi = numpy.zeros((num_neuron, input_size))
         self.gradout = numpy.zeros((num_neuron, input_size))
