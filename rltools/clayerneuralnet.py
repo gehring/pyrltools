@@ -232,7 +232,7 @@ class NeuronLayer(object):
         if type == 1:
             self.c = ext_neuro.get_c(self.cnlayer)
             self.dedc = ext_neuro.get_dedc(self.cnlayer)
-            self.prev_dc = ext_neuro.prev_dc(self.cnlayer)
+            self.prev_dc = ext_neuro.get_prev_dc(self.cnlayer)
 
     def compute_gradient(self, errors_sig, errors_gradsig):
         ext_neuro.compute_gradient_from_np(self.cnlayer,
