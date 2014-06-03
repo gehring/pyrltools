@@ -303,6 +303,9 @@ void evaluate_quad_layer(NLayer* layer){
 													layer->c->data[id(i,j,layer->c->m)]);
 		}
 	}
+	for( i = 0; i<layer->x_hat->size; ++i){
+		layer->x_hat->data[i]= 0.0;
+	}
 	// // compute a
 	// for(i =0; i<layer->a->size; ++i){
 	// 	layer->a->data[i] = layer->bias->data[i];
