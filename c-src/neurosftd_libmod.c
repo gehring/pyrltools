@@ -595,6 +595,14 @@ PyArrayObject* nlayer_get_a(PyObject* self, PyObject* args){
 	NLayer* layer = (NLayer*) PyCapsule_GetPointer(layer_cap, "NLayer");
 	return matrix_toarray(layer->a); 
 }
+PyArrayObject* nlayer_get_x_hat(PyObject* self, PyObject* args){ 
+	PyObject* layer_cap;
+	if(!PyArg_ParseTuple(args, "O", &layer_cap)){
+		return NULL;
+	}
+	NLayer* layer = (NLayer*) PyCapsule_GetPointer(layer_cap, "NLayer");
+	return matrix_toarray(layer->x_hat); 
+}
 PyArrayObject* nlayer_get_w(PyObject* self, PyObject* args){ 
 	PyObject* layer_cap;
 	if(!PyArg_ParseTuple(args, "O", &layer_cap)){
@@ -897,6 +905,7 @@ static PyMethodDef ext_neuro_methods[] = {
 	{"get_rbf_sig", get_rect_sig, METH_VARARGS, generic_nothing},
 	{"get_a", nlayer_get_a, METH_VARARGS, generic_doc},
 	{"get_w", nlayer_get_w, METH_VARARGS, generic_doc},
+	{"get_x_hat", nlayer_get_x_hat, METH_VARARGS, generic_doc},
 	{"get_c", nlayer_get_c, METH_VARARGS, generic_doc},
 	{"get_bias", nlayer_get_bias, METH_VARARGS, generic_doc},
 	{"get_psi", nlayer_get_psi, METH_VARARGS, generic_doc},
