@@ -110,6 +110,61 @@ void matrix_vector_mul(Matrix* A, Matrix*B, Matrix* C, npy_double alpha, npy_dou
 }
 
 
+
+static npy_double log_eval(npy_double x){
+	return 1.0/(1.0 + exp(-x));
+}
+
+static npy_double log_deval(npy_double x){
+	npy_double s = log_eval(x);
+	return s * (1 - s);
+}
+
+static npy_double log_ddeval(npy_double x){
+	npy_double ex = exp(x);
+	npy_double exp1 = (ex+1);
+	npy_double ex3 = exp1*exp1*exp1;
+	return -ex*(ex-1)/ex3;
+}
+
+static npy_double lin_eval(npy_double x){
+	return x;
+}
+
+static npy_double lin_deval(npy_double x){
+	return 1.0;
+}
+
+static npy_double lin_ddeval(npy_double x){
+	return 0.0;
+}
+
+static npy_double rect_eval(npy_double x){
+	return (x>0)? x : 0.0;
+}
+
+static npy_double rect_deval(npy_double x){
+	return (x>0)? 1.0 : 0.0;
+}
+
+static npy_double rect_ddeval(npy_double x){
+	return 0.0;
+}
+
+static npy_double rbf_eval(npy_double x){
+	return exp(-x);
+}
+
+static npy_double rbf_deval(npy_double x){
+	return -exp(-x);
+}
+
+static npy_double rbf_ddeval(npy_double x){
+	return exp(-x);
+}
+
+
+
 npy_double col_dot(Matrix* A, uint i, Matrix* B, uint j){
 	assert(A->n == B->n);
 	
@@ -747,59 +802,6 @@ PyArrayObject* nlayer_get_dedgradin(PyObject* self, PyObject* args){
 	}
 	NLayer* layer = (NLayer*) PyCapsule_GetPointer(layer_cap, "NLayer");
 	return matrix_toarray(layer->dedgradin);
-}
-
-
-static npy_double log_eval(npy_double x){
-	return 1.0/(1.0 + exp(-x));
-}
-
-static npy_double log_deval(npy_double x){
-	npy_double s = log_eval(x);
-	return s * (1 - s);
-}
-
-static npy_double log_ddeval(npy_double x){
-	npy_double ex = exp(x);
-	npy_double exp1 = (ex+1);
-	npy_double ex3 = exp1*exp1*exp1;
-	return -ex*(ex-1)/ex3;
-}
-
-static npy_double lin_eval(npy_double x){
-	return x;
-}
-
-static npy_double lin_deval(npy_double x){
-	return 1.0;
-}
-
-static npy_double lin_ddeval(npy_double x){
-	return 0.0;
-}
-
-static npy_double rect_eval(npy_double x){
-	return (x>0)? x : 0.0;
-}
-
-static npy_double rect_deval(npy_double x){
-	return (x>0)? 1.0 : 0.0;
-}
-
-static npy_double rect_ddeval(npy_double x){
-	return 0.0;
-}
-
-static npy_double rbf_eval(npy_double x){
-	return exp(-x);
-}
-
-static npy_double rbf_deval(npy_double x){
-	return -exp(-x);
-}
-
-static npy_double rbf_ddeval(npy_double x){
-	return exp(-x);
 }
 
 
