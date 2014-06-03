@@ -168,12 +168,12 @@ void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 	// printf("%s\n", "8");
 }
 
-void compute_gradient_quadratic(NLayer* layer, Matrix* erros_sig, Matrix* errors_grad){
+void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 	double* dsigmoids = layer->sigd_vec->data;
 	double ddsigmoids[layer->a->size];
 	map_array(layer->sig_ddeval, layer->a->data, ddsigmoids, layer->a->size);
 
-	uint i, j;
+	uint i, j, k;
 	// compute de/da and set de/dbias to de/da
 	for( i = 0; i<layer->a->size; i++){
 		// printf("%f, %f, %f\n", dsigmoids[i], ddsigmoids[i], layer->a->data[i]);
@@ -300,7 +300,7 @@ void evaluate_quad_layer(NLayer* layer){
 	for( i = 0; i<layer->x_hat->n; ++i){
 		for( j = 0; j<layer->x_hat->m; ++j){
 			layer->x_hat->data[id(i,j,layer->x_hat->m)] = (layer->input->data[id(i,j,layer->input->m)] -
-													layer->c->data[id(i,j,layer->c->m)]) 
+													layer->c->data[id(i,j,layer->c->m)]);
 		}
 	}
 	// compute a
@@ -569,7 +569,7 @@ void destroy_layer(PyObject* self, PyObject* args){
 	if (layer->type == 1){
 		destroy_matrix(layer->c);
 		destroy_matrix(layer->dedc);
-		destroy_matrix(layer->prev_dedc);
+		destroy_matrix(layer->prev_dc);
 		destroy_matrix(layer->x_hat);
 	}
 
