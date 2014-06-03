@@ -6,7 +6,7 @@
 #include "neurosftd_lib.h"
 #include <cblas.h>
 
-typedef double (*sig_fun)(double);
+typedef npy_double (*sig_fun)(npy_double);
 
 inline uint id(uint i, uint j, uint m){
 	return i*m + j;
@@ -37,7 +37,7 @@ void array_tomatrix(PyObject* a, Matrix* A ){
 	}
 	A->n = (uint) PyArray_DIM(a, 0);
 	A->size = A->n * A->m;
-	A->data = (double*) PyArray_DATA(arr);
+	A->data = (npy_double*) PyArray_DATA(arr);
 	Py_DECREF(arr);
 
 }
@@ -94,7 +94,7 @@ void matrix_mul_trans(Matrix* A, Matrix* B, Matrix* C){
 				C->m);
 }
 
-void matrix_vector_mul(Matrix* A, Matrix*B, Matrix* C, double alpha, double beta){
+void matrix_vector_mul(Matrix* A, Matrix*B, Matrix* C, npy_double alpha, npy_double beta){
 	cblas_dgemv(CblasRowMajor, 
 		CblasNoTrans,
 		A->n,
@@ -110,10 +110,10 @@ void matrix_vector_mul(Matrix* A, Matrix*B, Matrix* C, double alpha, double beta
 }
 
 
-double col_dot(Matrix* A, uint i, Matrix* B, uint j){
+npy_double col_dot(Matrix* A, uint i, Matrix* B, uint j){
 	assert(A->n == B->n);
 	
-	double sum = 0.0;
+	npy_double sum = 0.0;
 	uint k;
 	for(k = 0; k<A->n; ++k){
 		sum += A->data[id(k,i, A->m)]* B->data[id(k,j, B->m)];
@@ -121,7 +121,7 @@ double col_dot(Matrix* A, uint i, Matrix* B, uint j){
 	return sum;
 }
 
-void map_array(sig_fun f, double* in, double* out, uint n){
+void map_array(sig_fun f, npy_double* in, npy_double* out, uint n){
 	uint i;
 	for( i =0; i<n; ++i){
 		out[i] = (*f)(in[i]);
@@ -129,8 +129,8 @@ void map_array(sig_fun f, double* in, double* out, uint n){
 }
 
 void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
-	double* dsigmoids = layer->sigd_vec->data;
-	double ddsigmoids[layer->a->size];
+	npy_double* dsigmoids = layer->sigd_vec->data;
+	npy_double ddsigmoids[layer->a->size];
 
 	// map_array(layer->sig_deval, layer->a->data, dsigmoids, layer->a->size);
 	map_array(layer->sig_ddeval, layer->a->data, ddsigmoids, layer->a->size);
@@ -169,8 +169,8 @@ void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 }
 
 void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
-	double* dsigmoids = layer->sigd_vec->data;
-	double ddsigmoids[layer->a->size];
+	npy_double* dsigmoids = layer->sigd_vec->data;
+	npy_double ddsigmoids[layer->a->size];
 	map_array(layer->sig_ddeval, layer->a->data, ddsigmoids, layer->a->size);
 
 	uint i, j, k;
@@ -196,7 +196,7 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 	for( i = 0; i<layer->dedw->n; ++i){
 		for( j =0; j<layer->dedw->m; ++j){
 			uint index = id(i,j,layer->dedw->m);
-			double x_hat = layer->x_hat->data[index];
+			npy_double x_hat = layer->x_hat->data[index];
 			layer->dedw->data[index] = x_hat * x_hat * layer->deda->data[i] +
 										layer->dedw->data[index] * x_hat;
 		}
@@ -205,8 +205,8 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 	for( i = 0; i<layer->dedc->n; ++i){
 		for( j =0; j<layer->dedc->m; ++j){
 			uint index = id(i,j,layer->dedc->m);
-			double x_hat = layer->x_hat->data[index];
-			double w = layer->w->data[index];
+			npy_double x_hat = layer->x_hat->data[index];
+			npy_double w = layer->w->data[index];
 			layer->dedw->data[index] = - 2 * x_hat * layer->deda->data[i] * w -
 										layer->dedw->data[index] * w;
 		}
@@ -307,7 +307,7 @@ void evaluate_quad_layer(NLayer* layer){
 	for(i =0; i<layer->a->size; ++i){
 		layer->a->data[i] = layer->bias->data[i];
 		for(j = 0; j<layer->w->m; ++j){
-			double x_hat = layer->x_hat->data[id(i,j,layer->x_hat->m)];
+			npy_double x_hat = layer->x_hat->data[id(i,j,layer->x_hat->m)];
 			layer->a->data[i] += layer->w->data[id(i,j,layer->w->m)] * x_hat * x_hat;
 		}
 	}
@@ -318,7 +318,7 @@ void evaluate_quad_layer(NLayer* layer){
 				layer->psi->data[id(k,i, layer->psi->m)] = 0.0;
 		}
 		for(j=0; j<layer->w->m; ++j){
-			double w = layer->w->data[id(i,j,layer->w->m)] * layer->x_hat->data[id(i,j,layer->x_hat->m)];
+			npy_double w = layer->w->data[id(i,j,layer->w->m)] * layer->x_hat->data[id(i,j,layer->x_hat->m)];
 			for(k=0; k<layer->psi->n; ++k){
 				layer->psi->data[id(k,i, layer->psi->m)] += w * layer->in_grad->data[id(k,j, layer->in_grad->m)];
 			}
@@ -372,7 +372,7 @@ void evaluate_layer_from_np(PyObject* self, PyObject* args){
 	return Py_BuildValue("");
 }
 
-void update_weights_wmommentum(NLayer* layer, double alpha, double mom){
+void update_weights_wmommentum(NLayer* layer, npy_double alpha, npy_double mom){
 	uint i;
 	for ( i = 0; i < layer->prev_dw->size; ++i){
 		layer->prev_dw->data[i] = layer->prev_dw->data[i]*mom - layer->dedw->data[i] * alpha;
@@ -388,7 +388,7 @@ void update_weights_wmommentum(NLayer* layer, double alpha, double mom){
 	}
 }
 
-void update_quad_weights_wmommentum(NLayer* layer, double alpha, double mom){
+void update_quad_weights_wmommentum(NLayer* layer, npy_double alpha, npy_double mom){
 	update_weights_wmommentum(layer, alpha, mom);
 	uint i;
 	for ( i = 0; i < layer->prev_dc->size; ++i){
@@ -401,7 +401,7 @@ void update_quad_weights_wmommentum(NLayer* layer, double alpha, double mom){
 
 void update_weights_from_py(PyObject* self, PyObject* args){
 	PyObject* layer_cap;
-	double alpha;
+	npy_double alpha;
 	if(!PyArg_ParseTuple(args, "Od", &layer_cap, &alpha)){
 		printf("%s\n", "Impossible parsing of argument in update_weights_no_input");
 		return;
@@ -420,7 +420,7 @@ void update_weights_from_py(PyObject* self, PyObject* args){
 	return Py_BuildValue("");
 }
 
-void set_mat_from_buffer(Matrix* A, double* buf, uint offset){
+void set_mat_from_buffer(Matrix* A, npy_double* buf, uint offset){
 	uint i;
 	for(i = 0; i<A->size; ++i){
 		A->data[i] = buf[i+offset];
@@ -429,7 +429,7 @@ void set_mat_from_buffer(Matrix* A, double* buf, uint offset){
 
 Matrix* create_matrix(uint n, uint m){
 	Matrix* mat = malloc(sizeof(Matrix));
-	mat->data = malloc(sizeof(double) * n * m);
+	mat->data = malloc(sizeof(npy_double) * n * m);
 	mat->m = m;
 	mat->n = n;
 	mat->size = m*n;
@@ -456,7 +456,7 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	uint num_neuron;
 	PyObject* init_weights, *w_hold;
 	PyObject* init_bias, *b_hold; 
-	double mommentum;
+	npy_double mommentum;
 	PyObject* sig_cap;
 	PyObject* sigd_cap;
 	PyObject* sigdd_cap;
@@ -488,7 +488,7 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	layer->deda = create_matrix(num_neuron, 1);
 
 	layer->w = create_matrix(num_neuron, layer_input);
-	double* tmp = (double*) PyArray_DATA( init_weights);
+	npy_double* tmp = (npy_double*) PyArray_DATA( init_weights);
 	set_mat_from_buffer(layer->w, tmp, 0);
 
 	if(type == 1){
@@ -500,7 +500,7 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	}
 
 	layer->bias = create_matrix(num_neuron, 1);
-	tmp = (double*) PyArray_DATA(init_bias);
+	tmp = (npy_double*) PyArray_DATA(init_bias);
 	set_mat_from_buffer(layer->bias, tmp, 0);
 
 	layer->dedinput = create_matrix(layer_input, 1);
@@ -749,55 +749,55 @@ PyArrayObject* nlayer_get_dedgradin(PyObject* self, PyObject* args){
 }
 
 
-static double log_eval(double x){
+static npy_double log_eval(npy_double x){
 	return 1.0/(1.0 + exp(-x));
 }
 
-static double log_deval(double x){
-	double s = log_eval(x);
+static npy_double log_deval(npy_double x){
+	npy_double s = log_eval(x);
 	return s * (1 - s);
 }
 
-static double log_ddeval(double x){
-	double ex = exp(x);
-	double exp1 = (ex+1);
-	double ex3 = exp1*exp1*exp1;
+static npy_double log_ddeval(npy_double x){
+	npy_double ex = exp(x);
+	npy_double exp1 = (ex+1);
+	npy_double ex3 = exp1*exp1*exp1;
 	return -ex*(ex-1)/ex3;
 }
 
-static double lin_eval(double x){
+static npy_double lin_eval(npy_double x){
 	return x;
 }
 
-static double lin_deval(double x){
+static npy_double lin_deval(npy_double x){
 	return 1.0;
 }
 
-static double lin_ddeval(double x){
+static npy_double lin_ddeval(npy_double x){
 	return 0.0;
 }
 
-static double rect_eval(double x){
+static npy_double rect_eval(npy_double x){
 	return (x>0)? x : 0.0;
 }
 
-static double rect_deval(double x){
+static npy_double rect_deval(npy_double x){
 	return (x>0)? 1.0 : 0.0;
 }
 
-static double rect_ddeval(double x){
+static npy_double rect_ddeval(npy_double x){
 	return 0.0;
 }
 
-static double rbf_eval(double x){
+static npy_double rbf_eval(npy_double x){
 	return exp(-x);
 }
 
-static double rbf_deval(double x){
+static npy_double rbf_deval(npy_double x){
 	return -exp(-x);
 }
 
-static double rbf_ddeval(double x){
+static npy_double rbf_ddeval(npy_double x){
 	return exp(-x);
 }
 
