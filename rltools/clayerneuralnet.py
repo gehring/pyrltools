@@ -358,16 +358,26 @@ class NeuralNet(object):
                                         ext_neuro.get_logistic_sig(2),
                                         type = 0,
                                         **kargs))
-
-        self.layers.append(NeuronLayer(layers[0],
-                                    layers[-2],
-                                    layers[-1],
-                                    Linearfn(),
-                                    ext_neuro.get_linear_sig(0),
-                                    ext_neuro.get_linear_sig(1),
-                                    ext_neuro.get_linear_sig(2),
-                                    type = 0,
-                                    **kargs))
+        if (len(layers) -2) in self.rbfs:
+            self.layers.append(NeuronLayer(layers[0],
+                                        layers[-2],
+                                        layers[-1],
+                                        Linearfn(),
+                                        ext_neuro.get_linear_sig(0),
+                                        ext_neuro.get_linear_sig(1),
+                                        ext_neuro.get_linear_sig(2),
+                                        type = 1,
+                                        **kargs))
+        else:
+            self.layers.append(NeuronLayer(layers[0],
+                                        layers[-2],
+                                        layers[-1],
+                                        Linearfn(),
+                                        ext_neuro.get_linear_sig(0),
+                                        ext_neuro.get_linear_sig(1),
+                                        ext_neuro.get_linear_sig(2),
+                                        type = 0,
+                                        **kargs))
 
     def evaluate(self, inputs):
         grad = np.eye(len(inputs))
