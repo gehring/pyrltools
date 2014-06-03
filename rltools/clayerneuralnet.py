@@ -333,7 +333,7 @@ class NeuralNet(object):
         self.alpha = kargs.get('alpha', 0.01)
         self.eta = kargs.get('eta', 0.0)
         init_w_var = kargs.get('init_w_var_layers')
-        init_bias_var = kargs.get('init_w_var_layers')
+        init_bias_var = kargs.get('init_bias_var_layers')
         init_c_range = kargs.get('init_c_range_layers')
 
         sigmoid = Logisticfn()
