@@ -57,6 +57,19 @@ def train_trials_agent(domain, agent, evaluator, num_train_steps, num_eval, eval
 
     return score
 
+def train_score_per_trial_agent(domain, agent, num_train_steps, **args):
+    score= np.empty(num_train_steps, dtype = np.double)
+    for i in xrange(num_train_steps):
+        r, s_t = domain.reset()
+        agent.reset()
+        score[i] = r
+        while s_t != None:
+            r, s_t = domain.step(agent.step(r, s_t))
+            score[i] += r
+        agent.step(r,s_t)
+
+    return score
+
 def train_agent(**args):
     domain_factory = args.get('domain_factory')
     projector_factory = args.get('projector_factory')

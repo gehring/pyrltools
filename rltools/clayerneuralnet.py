@@ -179,7 +179,7 @@ class NeuronLayer(object):
 
         mommentum = argk.get('mommentum', 0.9)
         init_bias_var = argk.get('init_bias_var', 0.1)
-        init_w_var = argk.get('init_w_var', 0.1)
+        init_w_var = argk.get('init_w_var', 0.01)
 
         size_w = num_neuron * layer_input
         if type == 1:

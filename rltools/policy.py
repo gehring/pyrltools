@@ -35,6 +35,34 @@ class Egreedy_Factory(object):
         domain = params.get('domain')
         return Egreedy(domain.discrete_actions, **params)
 
+class SoftMax(Policy):
+    def __init__(self, actions, valuefn, **argk):
+        super(SoftMax, self).__init__()
+        self.actions = actions
+        self.value_fn = valuefn
+        self.temp = argk.get('temperature', 0.1)
+
+    def __call__(self, state):
+        values = np.array([self.value_fn(state, act) for act in self.actions])
+        if np.any(np.isnan(values)):
+            values[:] = 1.0/len(self.actions)
+        else:
+            values /= self.temp
+            values = np.exp(values)
+            values /= np.sum(values)
+        a = np.random.choice(range(len(self.actions)), p=values)
+        return self.actions[a]
+
+class SoftMax_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
+
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        domain = params.get('domain')
+        return SoftMax(domain.discrete_actions, **params)
+
 # class GradientDescentPolicy(Policy):
 #     def __init__(self, actions, value_fn, **argk):
 #         super(Egreedy, self).__init__()
