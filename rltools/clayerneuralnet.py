@@ -185,7 +185,7 @@ class NeuronLayer(object):
         if type == 1:
             init_c_range = argk.get('init_c_range', [0,1])
             init_w = np.random.normal(0, init_w_var, size_w*2)
-            init_w[size_w:] = np.random.uniform(*init_c_range, size_w)
+            init_w[size_w:] = np.random.uniform(*init_c_range, size = size_w)
         else:
             init_w = np.random.normal(0, init_w_var, size_w)
 
