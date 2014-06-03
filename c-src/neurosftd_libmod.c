@@ -168,7 +168,7 @@ void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 	// printf("%s\n", "8");
 }
 
-void compute_gradient_quadratic(Nlayer* layer, Matrix* erros_sig, Matrix* errors_grad){
+void compute_gradient_quadratic(NLayer* layer, Matrix* erros_sig, Matrix* errors_grad){
 	double* dsigmoids = layer->sigd_vec->data;
 	double ddsigmoids[layer->a->size];
 	map_array(layer->sig_ddeval, layer->a->data, ddsigmoids, layer->a->size);
@@ -261,7 +261,7 @@ void compute_gradient_from_np(PyObject* self, PyObject* args){
 			break;
 		case 1:
 			compute_gradient_quadratic(layer, &errors_sig_tmp, &errors_grad_tmp);
-			break
+			break;
 	}
 
 	return Py_BuildValue("");
@@ -293,7 +293,7 @@ void evaluate_layer(NLayer* layer){
 
 }
 
-void evaluate_quad_layer(Nlayer* layer){
+void evaluate_quad_layer(NLayer* layer){
 	uint i, j, k;
 
 	// offset inputs for all nodes and store as x_hat
@@ -365,7 +365,7 @@ void evaluate_layer_from_np(PyObject* self, PyObject* args){
 			break;
 		case 1:
 			evaluate_quad_layer(layer);
-			break
+			break;
 	}
 	
 
@@ -390,6 +390,7 @@ void update_weights_wmommentum(NLayer* layer, double alpha, double mom){
 
 void update_quad_weights_wmommentum(NLayer* layer, double alpha, double mom){
 	update_weights_wmommentum(layer, alpha, mom);
+	uint i;
 	for ( i = 0; i < layer->prev_dc->size; ++i){
 		layer->prev_dc->data[i] = layer->prev_dc->data[i]*mom - layer->dedc->data[i] * alpha;
 	}
@@ -413,7 +414,7 @@ void update_weights_from_py(PyObject* self, PyObject* args){
 			break;
 		case 1:
 			update_quad_weights_wmommentum(layer, alpha, layer->mommentum);
-			break
+			break;
 	}
 	
 	return Py_BuildValue("");
