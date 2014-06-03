@@ -327,7 +327,7 @@ void evaluate_quad_layer(NLayer* layer){
 	}
 
 	// compute dsig and sig
-	map_array(layer->sig_eval, layer->a->data, layer->out->data, layer->a->size);
+	map_array(rbf_eval, layer->a->data, layer->out->data, layer->a->size);
 	map_array(layer->sig_deval, layer->a->data, layer->sigd_vec->data, layer->a->size);
 
 	// compute out gradient
