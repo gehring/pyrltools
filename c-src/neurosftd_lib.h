@@ -1,6 +1,8 @@
+#include "numpy/arrayobject.h"
 #ifndef NEUROSFTD_LIB
 #define NEUROSFTD_LIB
 typedef unsigned int uint;
+typedef npy_double double;
 
 typedef struct tagMat
 {
