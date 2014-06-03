@@ -13,9 +13,11 @@ typedef struct tagMat
 typedef struct tagNLayer
 {
 	Matrix*		w;
+	Matrix*		c;
 	Matrix*		bias;
 
 	Matrix*		a;
+	Matrix*		x_hat;
 	Matrix*		sigd_vec;
 	Matrix*		sigdd_vec;
 	
@@ -33,11 +35,15 @@ typedef struct tagNLayer
 	Matrix*		prev_dbias;
 	Matrix*		dedinput;
 	Matrix*		dedgradin;
+	Matrix*		dedc;
+	Matrix*		prev_dc;
 
 	double		mommentum;
+	uint		type;
 
 	double (* sig_eval)(double);
 	double (* sig_deval)(double);
 	double (* sig_ddeval)(double);
 }NLayer;
+
 #endif

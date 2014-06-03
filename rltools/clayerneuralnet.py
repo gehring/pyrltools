@@ -174,13 +174,21 @@ class NeuronLayer(object):
                  sig,
                  sigd,
                  sigdd,
+                 type,
                  **argk):
 
         mommentum = argk.get('mommentum', 0.9)
         init_bias_var = argk.get('init_bias_var', 0.1)
         init_w_var = argk.get('init_w_var', 0.1)
+
         size_w = num_neuron * layer_input
-        init_w = np.random.normal(0, init_w_var, size_w)
+        if type == 1:
+            init_c_range = argk.get('init_c_range', [0,1])
+            init_w = np.random.normal(0, init_w_var, size_w*2)
+            init_w[size_w:] = np.random.uniform(*init_c_range, size_w)
+        else:
+            init_w = np.random.normal(0, init_w_var, size_w)
+
         size_b = num_neuron * layer_input
         init_b = np.random.normal(0, init_bias_var, size_b)
 
@@ -196,7 +204,8 @@ class NeuronLayer(object):
                                                 mommentum,
                                                 sig,
                                                 sigd,
-                                                sigdd)
+                                                sigdd,
+                                                type)
         self.a = ext_neuro.get_a(self.cnlayer)[:,0]
         self.deda = ext_neuro.get_deda(self.cnlayer)[:,0]
 
@@ -218,6 +227,12 @@ class NeuronLayer(object):
         self.prev_dbias = ext_neuro.get_prev_dbias(self.cnlayer)[:,0]
         self.dedw = ext_neuro.get_dedw(self.cnlayer)
         self.dbias = ext_neuro.get_dbias(self.cnlayer)[:,0]
+
+        self.type = type
+        if type == 1:
+            self.c = ext_neuro.get_c(self.cnlayer)
+            self.dedc = ext_neuro.get_dedc(self.cnlayer)
+            self.prev_dc = ext_neuro.prev_dc(self.cnlayer)
 
     def compute_gradient(self, errors_sig, errors_gradsig):
         ext_neuro.compute_gradient_from_np(self.cnlayer,
@@ -318,16 +333,30 @@ class NeuralNet(object):
         self.eta = kargs.get('eta', 0.0)
 
         sigmoid = Logisticfn()
+        self.rbfs = kargs.get('rbf_layers', [])
 
-        self.layers = [ NeuronLayer(layers[0],
+        self.layers = []
+        for i in range(len(layers - 2)):
+            if i in self.rbfs:
+                self.layers.append(NeuronLayer(layers[0],
                                     layers[i],
                                     layers[i+1],
                                     sigmoid,
                                     ext_neuro.get_logistic_sig(0),
                                     ext_neuro.get_logistic_sig(1),
                                     ext_neuro.get_logistic_sig(2),
-                                    **kargs)
-                            for i in range(len(layers) - 2)]
+                                    type = 1,
+                                    **kargs))
+            else:
+                self.layers.append(NeuronLayer(layers[0],
+                                        layers[i],
+                                        layers[i+1],
+                                        sigmoid,
+                                        ext_neuro.get_logistic_sig(0),
+                                        ext_neuro.get_logistic_sig(1),
+                                        ext_neuro.get_logistic_sig(2),
+                                        type = 0,
+                                        **kargs))
 
         self.layers.append(NeuronLayer(layers[0],
                                     layers[-2],
@@ -336,6 +365,7 @@ class NeuralNet(object):
                                     ext_neuro.get_linear_sig(0),
                                     ext_neuro.get_linear_sig(1),
                                     ext_neuro.get_linear_sig(2),
+                                    type = 0,
                                     **kargs))
 
     def evaluate(self, inputs):

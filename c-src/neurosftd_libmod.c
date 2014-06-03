@@ -168,6 +168,78 @@ void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 	// printf("%s\n", "8");
 }
 
+void compute_gradient_quadratic(Nlayer* layer, Matrix* erros_sig, Matrix* errors_grad){
+	double* dsigmoids = layer->sigd_vec->data;
+	double ddsigmoids[layer->a->size];
+	map_array(layer->sig_ddeval, layer->a->data, ddsigmoids, layer->a->size);
+
+	uint i, j;
+	// compute de/da and set de/dbias to de/da
+	for( i = 0; i<layer->a->size; i++){
+		// printf("%f, %f, %f\n", dsigmoids[i], ddsigmoids[i], layer->a->data[i]);
+		layer->deda->data[i] =  ddsigmoids[i] * col_dot(layer->psi, i, errors_grad, i) 
+									+ dsigmoids[i] * errors_sig->data[i];
+		layer->dbias->data[i] = layer->deda->data[i];				
+	}
+
+	// compute de/dpsi 
+	for(i = 0; i<layer->dedpsi->n; ++i){
+		for( j = 0; j<layer->dedpsi->m; ++j){
+			layer->dedpsi->data[id(i, j, layer->dedpsi->m)] = errors_grad->data[id(i,j, errors_grad->m)]
+																* dsigmoids[j];
+		}
+	}
+
+	// compute de/dw and initialize de/dc
+	matrix_trans_mul(layer->dedpsi, layer->in_grad, layer->dedw);
+	matrix_trans_mul(layer->dedpsi, layer->in_grad, layer->dedc);
+	for( i = 0; i<layer->dedw->n; ++i){
+		for( j =0; j<layer->dedw->m; ++j){
+			uint index = id(i,j,layer->dedw->m);
+			double x_hat = layer->x_hat->data[index];
+			layer->dedw->data[index] = x_hat * x_hat * layer->deda->data[i] +
+										layer->dedw->data[index] * x_hat;
+		}
+	}
+	// compute de/dc
+	for( i = 0; i<layer->dedc->n; ++i){
+		for( j =0; j<layer->dedc->m; ++j){
+			uint index = id(i,j,layer->dedc->m);
+			double x_hat = layer->x_hat->data[index];
+			double w = layer->w->data[index];
+			layer->dedw->data[index] = - 2 * x_hat * layer->deda->data[i] * w -
+										layer->dedw->data[index] * w;
+		}
+	}
+
+	// compute de/dsig for next layer
+	for( i = 0; i<layer->dedinput->size; ++i){
+		layer->dedinput->data[i] = 0.0;
+		for( j = 0; j<layer->deda->size; ++j){
+			uint index = id(j,i, layer->w->m);
+			layer->dedinput->data[i] += 2* layer->deda->data[i] * layer->w->data[index]*
+											layer->x_hat->data[index];
+		}
+	}
+
+	// compute de/dgrad_sig for next layer
+	for( i=0; i<layer->dedgradin->size; ++i){
+		layer->dedgradin->data[i] = 0.0;
+	}
+	for( i = 0; i<layer->dedinput->size; ++i){
+		for( j = 0; j<layer->deda->size; ++j){
+			uint index = id(j,i, layer->w->m);
+			for( k=0; k<layer->dedgradin->n; ++k){
+				layer->dedgradin->data[id(k,i, layer->dedgradin->m)] += layer->dedpsi->data[id(k,i, layer->dedpsi->m)]*
+																			layer->w->data[index] * layer->x_hat->data[index];
+			}
+		}
+	}
+
+
+
+}
+
 void compute_gradient_from_np(PyObject* self, PyObject* args){
 	PyObject* layer_cap;
 	PyObject* errors_grad;
@@ -183,7 +255,14 @@ void compute_gradient_from_np(PyObject* self, PyObject* args){
 	array_tomatrix( errors_grad, &errors_grad_tmp);
 	array_tomatrix( errors_sig, &errors_sig_tmp);
 
-	compute_gradient(layer, &errors_sig_tmp, &errors_grad_tmp);
+	switch(layer->type){
+		case 0:
+			compute_gradient(layer, &errors_sig_tmp, &errors_grad_tmp);
+			break;
+		case 1:
+			compute_gradient_quadratic(layer, &errors_sig_tmp, &errors_grad_tmp);
+			break
+	}
 
 	return Py_BuildValue("");
 }
@@ -214,6 +293,52 @@ void evaluate_layer(NLayer* layer){
 
 }
 
+void evaluate_quad_layer(Nlayer* layer){
+	uint i, j, k;
+
+	// offset inputs for all nodes and store as x_hat
+	for( i = 0; i<layer->x_hat->n; ++i){
+		for( j = 0; j<layer->x_hat->m; ++j){
+			layer->x_hat->data[id(i,j,layer->x_hat->m)] = (layer->input->data[id(i,j,layer->input->m)] -
+													layer->c->data[id(i,j,layer->c->m)]) 
+		}
+	}
+	// compute a
+	for(i =0; i<layer->a->size; ++i){
+		layer->a->data[i] = layer->bias->data[i];
+		for(j = 0; j<layer->w->m; ++j){
+			double x_hat = layer->x_hat->data[id(i,j,layer->x_hat->m)];
+			layer->a->data[i] += layer->w->data[id(i,j,layer->w->m)] * x_hat * x_hat;
+		}
+	}
+	// not cache friendly, needs to be reordered ordering...
+	// compute psi
+	for( i=0; i<layer->a->size; ++i){
+		for(k=0; k<layer->psi->n; ++k){
+				layer->psi->data[id(k,i, layer->psi->m)] = 0.0;
+		}
+		for(j=0; j<layer->w->m; ++j){
+			double w = layer->w->data[id(i,j,layer->w->m)] * layer->x_hat->data[id(i,j,layer->x_hat->m)];
+			for(k=0; k<layer->psi->n; ++k){
+				layer->psi->data[id(k,i, layer->psi->m)] += w * layer->in_grad->data[id(k,j, layer->in_grad->m)];
+			}
+		}
+	}
+
+	// compute dsig and sig
+	map_array(layer->sig_eval, layer->a->data, layer->out->data, layer->a->size);
+	map_array(layer->sig_deval, layer->a->data, layer->sigd_vec->data, layer->a->size);
+
+	// compute out gradient
+	for(i = 0; i< layer->psi->n; ++i){
+		for(j=0; j<layer->psi->m; ++j){
+			uint index = id(i,j,layer->psi->m);
+			layer->out_grad->data[index] = layer->sigd_vec->data[j] * layer->psi->data[index];
+		}
+	}
+
+}
+
 void evaluate_layer_from_np(PyObject* self, PyObject* args){
 	PyObject* layer_cap, *input, *in_grad;
 	if(!PyArg_ParseTuple(args, "OOO", &layer_cap, &input, &in_grad)){
@@ -234,8 +359,15 @@ void evaluate_layer_from_np(PyObject* self, PyObject* args){
 	for(i = 0; i<in_grad_tmp.size; ++i){
 		layer->in_grad->data[i] = in_grad_tmp.data[i];
 	}
-
-	evaluate_layer(layer);
+	switch(layer->type){
+		case 0:
+			evaluate_layer(layer);
+			break;
+		case 1:
+			evaluate_quad_layer(layer);
+			break
+	}
+	
 
 	return Py_BuildValue("");
 }
@@ -256,6 +388,16 @@ void update_weights_wmommentum(NLayer* layer, double alpha, double mom){
 	}
 }
 
+void update_quad_weights_wmommentum(NLayer* layer, double alpha, double mom){
+	update_weights_wmommentum(layer, alpha, mom);
+	for ( i = 0; i < layer->prev_dc->size; ++i){
+		layer->prev_dc->data[i] = layer->prev_dc->data[i]*mom - layer->dedc->data[i] * alpha;
+	}
+	for ( i = 0; i < layer->prev_dc->size; ++i){
+		layer->c->data[i] += layer->prev_dc->data[i];
+	}
+}
+
 void update_weights_from_py(PyObject* self, PyObject* args){
 	PyObject* layer_cap;
 	double alpha;
@@ -265,14 +407,22 @@ void update_weights_from_py(PyObject* self, PyObject* args){
 	} 
 
 	NLayer* layer = (NLayer*) PyCapsule_GetPointer(layer_cap, "NLayer");
-	update_weights_wmommentum(layer, alpha, layer->mommentum);
+	switch(layer->type){
+		case 0:
+			update_weights_wmommentum(layer, alpha, layer->mommentum);
+			break;
+		case 1:
+			update_quad_weights_wmommentum(layer, alpha, layer->mommentum);
+			break
+	}
+	
 	return Py_BuildValue("");
 }
 
-void set_mat_from_buffer(Matrix* A, double* buf){
+void set_mat_from_buffer(Matrix* A, double* buf, uint offset){
 	uint i;
 	for(i = 0; i<A->size; ++i){
-		A->data[i] = buf[i];
+		A->data[i] = buf[i+offset];
 	}
 }
 
@@ -309,8 +459,9 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	PyObject* sig_cap;
 	PyObject* sigd_cap;
 	PyObject* sigdd_cap;
+	uint type;
 
-	if(!PyArg_ParseTuple(args, "IIIOOdOOO", &input_size, 
+	if(!PyArg_ParseTuple(args, "IIIOOdOOOI", &input_size, 
 											&layer_input, 
 											&num_neuron,
 											&w_hold,
@@ -318,7 +469,8 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 											&mommentum,
 											&sig_cap,
 											&sigd_cap,
-											&sigdd_cap)){
+											&sigdd_cap,
+											&type)){
 		return NULL;
 	}
 	init_weights = PyArray_FROM_OTF(w_hold, NPY_DOUBLE, NPY_IN_ARRAY);
@@ -327,6 +479,7 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	assert(init_bias != NULL);
 
 	NLayer* layer = (NLayer*) malloc(sizeof(NLayer));
+	layer->type = type;
 
 	layer->a = create_matrix(num_neuron, 1);
 	layer->sigd_vec = create_matrix(num_neuron, 1);
@@ -335,12 +488,19 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 
 	layer->w = create_matrix(num_neuron, layer_input);
 	double* tmp = (double*) PyArray_DATA( init_weights);
-	set_mat_from_buffer(layer->w, tmp);
+	set_mat_from_buffer(layer->w, tmp, 0);
 
+	if(type == 1){
+		layer->c = create_matrix(num_neuron, layer_input);
+		set_mat_from_buffer(layer->c, tmp, layer->w->size);
+		layer->dedc = create_matrix(num_neuron, layer_input);
+		layer->prev_dc = create_matrix(num_neuron, layer_input);
+		layer->x_hat = create_matrix(num_neuron, layer_input);
+	}
 
 	layer->bias = create_matrix(num_neuron, 1);
 	tmp = (double*) PyArray_DATA(init_bias);
-	set_mat_from_buffer(layer->bias, tmp);
+	set_mat_from_buffer(layer->bias, tmp, 0);
 
 	layer->dedinput = create_matrix(layer_input, 1);
 	layer->dedgradin = create_matrix(input_size, layer_input);
@@ -405,6 +565,13 @@ void destroy_layer(PyObject* self, PyObject* args){
 	destroy_matrix(layer->prev_dbias);
 	destroy_matrix(layer->dbias);
 
+	if (layer->type == 1){
+		destroy_matrix(layer->c);
+		destroy_matrix(layer->dedc);
+		destroy_matrix(layer->prev_dedc);
+		destroy_matrix(layer->x_hat);
+	}
+
 	// PyObject* seq = PySequence_Fast(list, "expected a sequence");
 	// int len = PySequence_Size(list);
 	// int i;
@@ -434,6 +601,14 @@ PyArrayObject* nlayer_get_w(PyObject* self, PyObject* args){
 	}
 	NLayer* layer = (NLayer*) PyCapsule_GetPointer(layer_cap, "NLayer");
 	return matrix_toarray(layer->w); 
+}
+PyArrayObject* nlayer_get_c(PyObject* self, PyObject* args){ 
+	PyObject* layer_cap;
+	if(!PyArg_ParseTuple(args, "O", &layer_cap)){
+		return NULL;
+	}
+	NLayer* layer = (NLayer*) PyCapsule_GetPointer(layer_cap, "NLayer");
+	return matrix_toarray(layer->c); 
 }
 PyArrayObject* nlayer_get_bias(PyObject* self, PyObject* args){ 
 	PyObject* layer_cap;
@@ -506,6 +681,22 @@ PyArrayObject* nlayer_get_prev_dw(PyObject* self, PyObject* args){
 	}
 	NLayer* layer = (NLayer*) PyCapsule_GetPointer(layer_cap, "NLayer");
 	return matrix_toarray(layer->prev_dw);
+}
+PyArrayObject* nlayer_get_dedc(PyObject* self, PyObject* args){ 
+	PyObject* layer_cap;
+	if(!PyArg_ParseTuple(args, "O", &layer_cap)){
+		return NULL;
+	}
+	NLayer* layer = (NLayer*) PyCapsule_GetPointer(layer_cap, "NLayer");
+	return matrix_toarray(layer->dedc);
+}
+PyArrayObject* nlayer_get_prev_dc(PyObject* self, PyObject* args){ 
+	PyObject* layer_cap;
+	if(!PyArg_ParseTuple(args, "O", &layer_cap)){
+		return NULL;
+	}
+	NLayer* layer = (NLayer*) PyCapsule_GetPointer(layer_cap, "NLayer");
+	return matrix_toarray(layer->prev_dc);
 }
 PyArrayObject* nlayer_get_dedpsi(PyObject* self, PyObject* args){ 
 	PyObject* layer_cap;
@@ -589,6 +780,18 @@ static double rect_ddeval(double x){
 	return 0.0;
 }
 
+static double rbf_eval(double x){
+	return exp(-x);
+}
+
+static double rbf_deval(double x){
+	return -exp(-x);
+}
+
+static double rbf_ddeval(double x){
+	return exp(-x);
+}
+
 
 
 
@@ -657,6 +860,29 @@ static PyObject* get_rect_sig(PyObject* self, PyObject* args){
 	return PyCapsule_New(p, "function_pointer", NULL);
 }
 
+static PyObject* get_rbf_sig(PyObject* self, PyObject* args){
+	uint i;
+	if(!PyArg_ParseTuple(args, "I", &i)){
+		return NULL;
+	}
+
+	assert(i<3 && i>=0);
+	sig_fun p = NULL;
+	switch(i){
+		case 0:
+			p = rbf_eval;
+			break;
+		case 1:
+			p = rbf_deval;
+			break;
+		case 2:
+			p = rbf_ddeval;
+			break;
+	}
+	
+	return PyCapsule_New(p, "function_pointer", NULL);
+}
+
 static char generic_doc[] = "returns an array view of the field";
 static char generic_nothing[] = "doc missing...";
 
@@ -667,8 +893,10 @@ static PyMethodDef ext_neuro_methods[] = {
 	{"get_logistic_sig", get_logistic_sig, METH_VARARGS, generic_nothing},
 	{"get_linear_sig", get_linear_sig, METH_VARARGS, generic_nothing},
 	{"get_rect_sig", get_rect_sig, METH_VARARGS, generic_nothing},
+	{"get_rbf_sig", get_rect_sig, METH_VARARGS, generic_nothing},
 	{"get_a", nlayer_get_a, METH_VARARGS, generic_doc},
 	{"get_w", nlayer_get_w, METH_VARARGS, generic_doc},
+	{"get_c", nlayer_get_c, METH_VARARGS, generic_doc},
 	{"get_bias", nlayer_get_bias, METH_VARARGS, generic_doc},
 	{"get_psi", nlayer_get_psi, METH_VARARGS, generic_doc},
 	{"get_out", nlayer_get_out, METH_VARARGS, generic_doc},
@@ -678,6 +906,8 @@ static PyMethodDef ext_neuro_methods[] = {
 	{"get_deda", nlayer_get_deda, METH_VARARGS, generic_doc},
 	{"get_dedw", nlayer_get_dedw, METH_VARARGS, generic_doc},
 	{"get_prev_dw", nlayer_get_prev_dw, METH_VARARGS, generic_doc},
+	{"get_dedc", nlayer_get_dedc, METH_VARARGS, generic_doc},
+	{"get_prev_dc", nlayer_get_prev_dc, METH_VARARGS, generic_doc},
 	{"get_dedpsi", nlayer_get_dedpsi, METH_VARARGS, generic_doc},
 	{"get_dbias", nlayer_get_dbias, METH_VARARGS, generic_doc},
 	{"get_prev_dbias", nlayer_get_prev_dbias, METH_VARARGS, generic_doc},
