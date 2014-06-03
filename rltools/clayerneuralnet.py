@@ -336,7 +336,7 @@ class NeuralNet(object):
         self.rbfs = kargs.get('rbf_layers', [])
 
         self.layers = []
-        for i in range(len(layers - 2)):
+        for i in xrange(len(layers) - 2):
             if i in self.rbfs:
                 self.layers.append(NeuronLayer(layers[0],
                                     layers[i],
