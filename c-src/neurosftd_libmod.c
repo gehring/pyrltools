@@ -110,61 +110,6 @@ void matrix_vector_mul(Matrix* A, Matrix*B, Matrix* C, npy_double alpha, npy_dou
 }
 
 
-
-static npy_double log_eval(npy_double x){
-	return 1.0/(1.0 + exp(-x));
-}
-
-static npy_double log_deval(npy_double x){
-	npy_double s = log_eval(x);
-	return s * (1 - s);
-}
-
-static npy_double log_ddeval(npy_double x){
-	npy_double ex = exp(x);
-	npy_double exp1 = (ex+1);
-	npy_double ex3 = exp1*exp1*exp1;
-	return -ex*(ex-1)/ex3;
-}
-
-static npy_double lin_eval(npy_double x){
-	return x;
-}
-
-static npy_double lin_deval(npy_double x){
-	return 1.0;
-}
-
-static npy_double lin_ddeval(npy_double x){
-	return 0.0;
-}
-
-static npy_double rect_eval(npy_double x){
-	return (x>0)? x : 0.0;
-}
-
-static npy_double rect_deval(npy_double x){
-	return (x>0)? 1.0 : 0.0;
-}
-
-static npy_double rect_ddeval(npy_double x){
-	return 0.0;
-}
-
-static npy_double rbf_eval(npy_double x){
-	return exp(-x);
-}
-
-static npy_double rbf_deval(npy_double x){
-	return -exp(-x);
-}
-
-static npy_double rbf_ddeval(npy_double x){
-	return exp(-x);
-}
-
-
-
 npy_double col_dot(Matrix* A, uint i, Matrix* B, uint j){
 	assert(A->n == B->n);
 	
@@ -382,7 +327,7 @@ void evaluate_quad_layer(NLayer* layer){
 	}
 
 	// compute dsig and sig
-	map_array(rbf_eval, layer->a->data, layer->out->data, layer->a->size);
+	map_array(layer->sig_eval, layer->a->data, layer->out->data, layer->a->size);
 	map_array(layer->sig_deval, layer->a->data, layer->sigd_vec->data, layer->a->size);
 
 	// compute out gradient
@@ -805,6 +750,59 @@ PyArrayObject* nlayer_get_dedgradin(PyObject* self, PyObject* args){
 }
 
 
+static npy_double log_eval(npy_double x){
+	return 1.0/(1.0 + exp(-x));
+}
+
+static npy_double log_deval(npy_double x){
+	npy_double s = log_eval(x);
+	return s * (1 - s);
+}
+
+static npy_double log_ddeval(npy_double x){
+	npy_double ex = exp(x);
+	npy_double exp1 = (ex+1);
+	npy_double ex3 = exp1*exp1*exp1;
+	return -ex*(ex-1)/ex3;
+}
+
+static npy_double lin_eval(npy_double x){
+	return x;
+}
+
+static npy_double lin_deval(npy_double x){
+	return 1.0;
+}
+
+static npy_double lin_ddeval(npy_double x){
+	return 0.0;
+}
+
+static npy_double rect_eval(npy_double x){
+	return (x>0)? x : 0.0;
+}
+
+static npy_double rect_deval(npy_double x){
+	return (x>0)? 1.0 : 0.0;
+}
+
+static npy_double rect_ddeval(npy_double x){
+	return 0.0;
+}
+
+static npy_double rbf_eval(npy_double x){
+	return exp(-x);
+}
+
+static npy_double rbf_deval(npy_double x){
+	return -exp(-x);
+}
+
+static npy_double rbf_ddeval(npy_double x){
+	return exp(-x);
+}
+
+
 
 
 static PyObject* get_logistic_sig(PyObject* self, PyObject* args){
@@ -905,7 +903,7 @@ static PyMethodDef ext_neuro_methods[] = {
 	{"get_logistic_sig", get_logistic_sig, METH_VARARGS, generic_nothing},
 	{"get_linear_sig", get_linear_sig, METH_VARARGS, generic_nothing},
 	{"get_rect_sig", get_rect_sig, METH_VARARGS, generic_nothing},
-	{"get_rbf_sig", get_rect_sig, METH_VARARGS, generic_nothing},
+	{"get_rbf_sig", get_rbf_sig, METH_VARARGS, generic_nothing},
 	{"get_a", nlayer_get_a, METH_VARARGS, generic_doc},
 	{"get_w", nlayer_get_w, METH_VARARGS, generic_doc},
 	{"get_x_hat", nlayer_get_x_hat, METH_VARARGS, generic_doc},
