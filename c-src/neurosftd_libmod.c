@@ -303,39 +303,39 @@ void evaluate_quad_layer(NLayer* layer){
 													layer->c->data[id(i,j,layer->c->m)]);
 		}
 	}
-	// compute a
-	for(i =0; i<layer->a->size; ++i){
-		layer->a->data[i] = layer->bias->data[i];
-		for(j = 0; j<layer->w->m; ++j){
-			npy_double x_hat = layer->x_hat->data[id(i,j,layer->x_hat->m)];
-			layer->a->data[i] += layer->w->data[id(i,j,layer->w->m)] * x_hat * x_hat;
-		}
-	}
-	// not cache friendly, needs to be reordered ordering...
-	// compute psi
-	for( i=0; i<layer->a->size; ++i){
-		for(k=0; k<layer->psi->n; ++k){
-				layer->psi->data[id(k,i, layer->psi->m)] = 0.0;
-		}
-		for(j=0; j<layer->w->m; ++j){
-			npy_double w = layer->w->data[id(i,j,layer->w->m)] * layer->x_hat->data[id(i,j,layer->x_hat->m)];
-			for(k=0; k<layer->psi->n; ++k){
-				layer->psi->data[id(k,i, layer->psi->m)] += w * layer->in_grad->data[id(k,j, layer->in_grad->m)];
-			}
-		}
-	}
+	// // compute a
+	// for(i =0; i<layer->a->size; ++i){
+	// 	layer->a->data[i] = layer->bias->data[i];
+	// 	for(j = 0; j<layer->w->m; ++j){
+	// 		npy_double x_hat = layer->x_hat->data[id(i,j,layer->x_hat->m)];
+	// 		layer->a->data[i] += layer->w->data[id(i,j,layer->w->m)] * x_hat * x_hat;
+	// 	}
+	// }
+	// // not cache friendly, needs to be reordered ordering...
+	// // compute psi
+	// for( i=0; i<layer->a->size; ++i){
+	// 	for(k=0; k<layer->psi->n; ++k){
+	// 			layer->psi->data[id(k,i, layer->psi->m)] = 0.0;
+	// 	}
+	// 	for(j=0; j<layer->w->m; ++j){
+	// 		npy_double w = layer->w->data[id(i,j,layer->w->m)] * layer->x_hat->data[id(i,j,layer->x_hat->m)];
+	// 		for(k=0; k<layer->psi->n; ++k){
+	// 			layer->psi->data[id(k,i, layer->psi->m)] += w * layer->in_grad->data[id(k,j, layer->in_grad->m)];
+	// 		}
+	// 	}
+	// }
 
-	// compute dsig and sig
-	map_array(layer->sig_eval, layer->a->data, layer->out->data, layer->a->size);
-	map_array(layer->sig_deval, layer->a->data, layer->sigd_vec->data, layer->a->size);
+	// // compute dsig and sig
+	// map_array(layer->sig_eval, layer->a->data, layer->out->data, layer->a->size);
+	// map_array(layer->sig_deval, layer->a->data, layer->sigd_vec->data, layer->a->size);
 
-	// compute out gradient
-	for(i = 0; i< layer->psi->n; ++i){
-		for(j=0; j<layer->psi->m; ++j){
-			uint index = id(i,j,layer->psi->m);
-			layer->out_grad->data[index] = layer->sigd_vec->data[j] * layer->psi->data[index];
-		}
-	}
+	// // compute out gradient
+	// for(i = 0; i< layer->psi->n; ++i){
+	// 	for(j=0; j<layer->psi->m; ++j){
+	// 		uint index = id(i,j,layer->psi->m);
+	// 		layer->out_grad->data[index] = layer->sigd_vec->data[j] * layer->psi->data[index];
+	// 	}
+	// }
 
 }
 
