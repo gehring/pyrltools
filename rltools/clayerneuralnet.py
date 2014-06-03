@@ -343,9 +343,9 @@ class NeuralNet(object):
                                     layers[i],
                                     layers[i+1],
                                     sigmoid,
-                                    ext_neuro.get_logistic_sig(0),
-                                    ext_neuro.get_logistic_sig(1),
-                                    ext_neuro.get_logistic_sig(2),
+                                    ext_neuro.get_rbf_sig(0),
+                                    ext_neuro.get_rbf_sig(1),
+                                    ext_neuro.get_rbf_sig(2),
                                     type = 1,
                                     **kargs))
             else:
@@ -363,9 +363,9 @@ class NeuralNet(object):
                                         layers[-2],
                                         layers[-1],
                                         Linearfn(),
-                                        ext_neuro.get_linear_sig(0),
-                                        ext_neuro.get_linear_sig(1),
-                                        ext_neuro.get_linear_sig(2),
+                                        ext_neuro.get_rbf_sig(0),
+                                        ext_neuro.get_rbf_sig(1),
+                                        ext_neuro.get_rbf_sig(2),
                                         type = 1,
                                         **kargs))
         else:
