@@ -332,6 +332,9 @@ class NeuralNet(object):
     def __init__(self, layers, **kargs):
         self.alpha = kargs.get('alpha', 0.01)
         self.eta = kargs.get('eta', 0.0)
+        init_w_var = kargs.get('init_w_var_layers')
+        init_bias_var = kargs.get('init_w_var_layers')
+        init_c_range = kargs.get('init_c_range_layers')
 
         sigmoid = Logisticfn()
         self.rbfs = kargs.get('rbf_layers', [])
@@ -347,6 +350,9 @@ class NeuralNet(object):
                                     ext_neuro.get_rbf_sig(1),
                                     ext_neuro.get_rbf_sig(2),
                                     type = 1,
+                                    init_w_var = init_w_var[i],
+                                    init_bias_var = init_bias_var[i],
+                                    init_c_range = init_c_range[i],
                                     **kargs))
             else:
                 self.layers.append(NeuronLayer(layers[0],
@@ -357,6 +363,9 @@ class NeuralNet(object):
                                         ext_neuro.get_logistic_sig(1),
                                         ext_neuro.get_logistic_sig(2),
                                         type = 0,
+                                        init_w_var = init_w_var[i],
+                                        init_bias_var = init_bias_var[i],
+                                        init_c_range = init_c_range[i],
                                         **kargs))
         if (len(layers) -2) in self.rbfs:
             self.layers.append(NeuronLayer(layers[0],
@@ -367,6 +376,9 @@ class NeuralNet(object):
                                         ext_neuro.get_rbf_sig(1),
                                         ext_neuro.get_rbf_sig(2),
                                         type = 1,
+                                        init_w_var = init_w_var[-1],
+                                        init_bias_var = init_bias_var[-1],
+                                        init_c_range = init_c_range[-1],
                                         **kargs))
         else:
             self.layers.append(NeuronLayer(layers[0],
@@ -377,6 +389,9 @@ class NeuralNet(object):
                                         ext_neuro.get_linear_sig(1),
                                         ext_neuro.get_linear_sig(2),
                                         type = 0,
+                                        init_w_var = init_w_var[-1],
+                                        init_bias_var = init_bias_var[-1],
+                                        init_c_range = init_c_range[-1],
                                         **kargs))
 
     def evaluate(self, inputs):
