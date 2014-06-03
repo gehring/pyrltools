@@ -426,7 +426,7 @@ class NeuralNet(object):
             dedinput = l.dedinput
             dedgradin = l.dedgradin
     #             dedw, dedb, dedinput, dedgradin = l.compute_gradient(dedinput, dedgradin)
-            err_grad.append((dedw.copy(), dedb.copy()))
+            err_grad.append((dedw.copy(), dedb.copy(), l.dedc.copy()))
         return reversed(err_grad)
 
 
