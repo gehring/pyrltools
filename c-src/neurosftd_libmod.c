@@ -207,7 +207,7 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 			uint index = id(i,j,layer->dedc->m);
 			npy_double x_hat = layer->x_hat->data[index];
 			npy_double w = layer->w->data[index];
-			layer->dedw->data[index] = - 2 * x_hat * layer->deda->data[i] * w -
+			layer->dedc->data[index] = - 2 * x_hat * layer->deda->data[i] * w -
 										layer->dedw->data[index] * w;
 		}
 	}
