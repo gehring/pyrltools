@@ -1,6 +1,66 @@
 import numpy as np
 from itertools import product, izip, repeat, imap, chain
 
+class trial_monitor(object):
+    def __init__(self):
+        self.score = []
+
+    def start(self):
+        self.score = []
+
+    def update(self, r, **karg):
+        self.score.append(r)
+
+    def getscore(self):
+        return self.score
+
+class evaluation_monitor(object):
+    def __init__(self, num_eval, evaluator, **param):
+        self.score = []
+        self.num_eval = num_eval
+        self.evaluator = evaluator
+
+    def start(self):
+        self.score = []
+
+    def update(self, domain, agent, **karg):
+        self.score.append(np.mean(
+                [self.evaluator(domain, agent) for i in xrange(self.num_eval)]))
+
+    def getscore(self):
+        return self.score
+
+class interval_monitor(object):
+    def __init__(self, eval_interval, monitor, **param):
+        self.eval_interval = eval_interval
+        self.monitor = monitor
+        self.count = 0
+    def start(self):
+        self.count = 0
+        self.monitor.start()
+
+    def update(self, **karg):
+        if self.count % self.eval_interval ==  0:
+            self.monitor.update(**karg)
+
+    def getscore(self):
+        return self.score
+
+class bundled_monitor(object):
+    def __init__(self, monitors, **param):
+        self.monitors = monitors
+
+    def start(self):
+        for m in self.monitors:
+            m.start()
+
+    def update(self, **kargs):
+        for m in self.monitors:
+            m.update(**kargs)
+
+    def getscore(self):
+        return [m.getscore() for m in self.monitors]
+
 def evaluate_trial(domain, agent):
     domain_copy = domain.copy()
     r, s_t = domain_copy.reset()
@@ -25,50 +85,33 @@ def evaluate_1000_steps(domain, agent):
 
     return cum_rew
 
-def evaluateAgent(domain, agent, evaluator, num_trials):
-    return [ evaluator(domain, agent) for i in range(num_trials)]
-
-def train_steps_agent(domain, agent, evaluator, num_train_steps, num_eval, eval_interval, **args):
-    score= []
+def train_steps_agent(domain, agent, monitor, num_train_steps, num_eval, eval_interval, **args):
     r, s_t = domain.reset()
     agent.reset()
+    monitor.start()
     for i in xrange(num_train_steps):
-        if i % eval_interval == 0:
-            score.append( np.mean(evaluateAgent(domain, agent, evaluator, num_eval)))
-
+        monitor.update(r, s_t, domain, agent)
         if s_t == None:
             agent.step(r, s_t)
             agent.reset()
             r, s_t = domain.reset()
         else:
             r, s_t = domain.step(agent.step(r, s_t))
-    return score
+    monitor.update(r, s_t, domain, agent)
+    return monitor.getscore()
 
-def train_trials_agent(domain, agent, evaluator, num_train_steps, num_eval, eval_interval, **args):
-    score= []
-    for i in xrange(num_train_steps):
-        if i % eval_interval == 0:
-                score.append( np.mean(evaluateAgent(domain, agent, evaluator, num_eval)))
-        r, s_t = domain.reset()
-        agent.reset()
-        while s_t != None:
-            r, s_t = domain.step(agent.step(r, s_t))
-        agent.step(r,s_t)
-
-    return score
-
-def train_score_per_trial_agent(domain, agent, num_train_steps, **args):
-    score= np.empty(num_train_steps, dtype = np.double)
+def train_trials_agent(domain, agent, monitor, num_train_steps, num_eval, eval_interval, **args):
     for i in xrange(num_train_steps):
         r, s_t = domain.reset()
         agent.reset()
-        score[i] = r
+        monitor.start()
+        cum_r = r
         while s_t != None:
             r, s_t = domain.step(agent.step(r, s_t))
-            score[i] += r
+            cum_r += r
         agent.step(r,s_t)
-
-    return score
+        monitor.update(cum_r, s_t, domain, agent)
+    return monitor.getscore()
 
 def train_agent(**args):
     domain_factory = args.get('domain_factory')

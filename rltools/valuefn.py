@@ -58,23 +58,22 @@ class NeuroSFTD(ValueFn):
         phi_t = self.projector(s_t, a_t)
 
         if s_tp1 == None:
-            phi_tp1 = np.zeros_like(phi_t)
+            dphi = np.zeros_like(phi_t)
             v_tp1 = 0
         else:
             phi_tp1 = self.projector(s_tp1, a_tp1)
             v_tp1 = self.net.evaluate(phi_tp1)[0]
+            v_t = self.net.evaluate(phi_t)[0]
 
-        v_t = self.net.evaluate(phi_t)[0]
+            dphi = phi_tp1 - phi_t
 
-        dphi = phi_tp1 - phi_t
-#         norm = np.linalg.norm(dphi)
-#         dphi /= norm
         dV = v_t * (1 - self.gamma) - r
-#         dV /= norm
 
         target = r + self.gamma * v_tp1
 
         self.net.backprop(target, dphi, dV)
+
+
 
 class NeuroSFTD_Factory(object):
     def __init__(self, **argk):

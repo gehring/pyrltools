@@ -406,8 +406,9 @@ class NeuralNet(object):
 
     def backprop(self, target, direction, dirderiv):
         norm = np.linalg.norm(direction)
-        direction = direction/norm
-        dirderiv /= norm
+        if norm > 0:
+            direction = direction/norm
+            dirderiv /= norm
 
         dedinput = (1-self.eta) * (self.layers[-1].out - target)
         dedgradin = np.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)
@@ -432,8 +433,9 @@ class NeuralNet(object):
 
     def getgradient(self, target, direction, dirderiv):
         norm = np.linalg.norm(direction)
-        direction = direction/norm
-        dirderiv /= norm
+        if norm > 0:
+            direction = direction/norm
+            dirderiv /= norm
 
         dedinput = (1-self.eta) * (self.layers[-1].out - target)
         dedgradin = np.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)
