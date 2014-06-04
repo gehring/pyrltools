@@ -197,8 +197,9 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 		for( j =0; j<layer->dedw->m; ++j){
 			uint index = id(i,j,layer->dedw->m);
 			npy_double x_hat = layer->x_hat->data[index];
-			layer->dedw->data[index] = x_hat * x_hat * layer->deda->data[i] +
-										layer->dedw->data[index] * x_hat;
+			npy_double w = layer->w->data[index];
+			layer->dedw->data[index] =2 * w * x_hat * x_hat * layer->deda->data[i] +
+										2 * w * layer->dedw->data[index] * x_hat;
 		}
 	}
 	// compute de/dc
@@ -207,8 +208,8 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 			uint index = id(i,j,layer->dedc->m);
 			npy_double x_hat = layer->x_hat->data[index];
 			npy_double w = layer->w->data[index];
-			layer->dedc->data[index] = - 2 * x_hat * layer->deda->data[i] * w -
-										layer->dedc->data[index] * w;
+			layer->dedc->data[index] = - 2 * x_hat * layer->deda->data[i] * w * w-
+										layer->dedc->data[index] * w * w;
 		}
 	}
 
@@ -217,7 +218,8 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 		layer->dedinput->data[i] = 0.0;
 		for( j = 0; j<layer->deda->size; ++j){
 			uint index = id(j,i, layer->w->m);
-			layer->dedinput->data[i] += 2* layer->deda->data[i] * layer->w->data[index]*
+			npy_double w = layer->w->data[index];
+			layer->dedinput->data[i] += 2* layer->deda->data[i] * w * w *
 											layer->x_hat->data[index];
 		}
 	}
@@ -230,8 +232,9 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 		for( j = 0; j<layer->deda->size; ++j){
 			uint index = id(j,i, layer->w->m);
 			for( k=0; k<layer->dedgradin->n; ++k){
+				npy_double w = layer->w->data[index];
 				layer->dedgradin->data[id(k,i, layer->dedgradin->m)] += layer->dedpsi->data[id(k,i, layer->dedpsi->m)]*
-																			layer->w->data[index] * layer->x_hat->data[index];
+																			w * w * layer->x_hat->data[index];
 			}
 		}
 	}
@@ -309,7 +312,8 @@ void evaluate_quad_layer(NLayer* layer){
 		layer->a->data[i] = layer->bias->data[i];
 		for(j = 0; j<layer->w->m; ++j){
 			npy_double x_hat = layer->x_hat->data[id(i,j,layer->x_hat->m)];
-			layer->a->data[i] += layer->w->data[id(i,j,layer->w->m)] * x_hat * x_hat;
+			npy_double w = layer->w->data[id(i,j,layer->w->m)];
+			layer->a->data[i] += w * w * x_hat * x_hat;
 		}
 	}
 	// not cache friendly, needs to be reordered ordering...
@@ -321,7 +325,7 @@ void evaluate_quad_layer(NLayer* layer){
 		for(j=0; j<layer->w->m; ++j){
 			npy_double w = layer->w->data[id(i,j,layer->w->m)] * layer->x_hat->data[id(i,j,layer->x_hat->m)];
 			for(k=0; k<layer->psi->n; ++k){
-				layer->psi->data[id(k,i, layer->psi->m)] += w * layer->in_grad->data[id(k,j, layer->in_grad->m)];
+				layer->psi->data[id(k,i, layer->psi->m)] += w * w * layer->in_grad->data[id(k,j, layer->in_grad->m)];
 			}
 		}
 	}
