@@ -2,7 +2,7 @@ import numpy as np
 from itertools import product, izip, repeat, imap, chain
 
 class trial_monitor(object):
-    def __init__(self):
+    def __init__(self, **params):
         self.score = []
 
     def start(self):
