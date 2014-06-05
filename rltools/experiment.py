@@ -136,10 +136,10 @@ def train_steps_agent(domain, agent, monitor, num_train_steps, num_eval, eval_in
     return monitor.getscore()
 
 def train_trials_agent(domain, agent, monitor, num_train_steps, num_eval, eval_interval, **args):
+    monitor.start()
     for i in xrange(num_train_steps):
         r, s_t = domain.reset()
         agent.reset()
-        monitor.start()
         cum_r = r
         while s_t != None:
             r, s_t = domain.step(agent.step(r, s_t))
