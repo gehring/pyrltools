@@ -64,7 +64,7 @@ class interval_monitor(object):
 
 class interval_monitor_factory(object):
     def __init__(self, factory, **param):
-        self.factories = factory
+        self.factory = factory
         self.param = param
     def __call__(self, **args):
         params = dict(self.param)
