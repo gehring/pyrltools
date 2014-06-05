@@ -60,7 +60,7 @@ class interval_monitor(object):
             self.monitor.update(*args, **karg)
 
     def getscore(self):
-        return self.score
+        return self.monitor.getscore()
 
 class interval_monitor_factory(object):
     def __init__(self, factory, **param):
