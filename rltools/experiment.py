@@ -58,6 +58,7 @@ class interval_monitor(object):
     def update(self,  *args, **karg):
         if self.count % self.eval_interval ==  0:
             self.monitor.update(*args, **karg)
+        self.count += 1
 
     def getscore(self):
         return self.monitor.getscore()
