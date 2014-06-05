@@ -14,6 +14,14 @@ class trial_monitor(object):
     def getscore(self):
         return self.score
 
+class trial_monitor_factory(object):
+    def __init__(self, **param):
+        self.param = param
+    def __call__(self, **args):
+        params = dict(self.param)
+        params.update(args)
+        return trial_monitor(**params)
+
 class evaluation_monitor(object):
     def __init__(self, num_eval, evaluator, **param):
         self.score = []
@@ -29,6 +37,14 @@ class evaluation_monitor(object):
 
     def getscore(self):
         return self.score
+
+class evaluation_monitor_factory(object):
+    def __init__(self, **param):
+        self.param = param
+    def __call__(self, **args):
+        params = dict(self.param)
+        params.update(args)
+        return evaluation_monitor(**params)
 
 class interval_monitor(object):
     def __init__(self, eval_interval, monitor, **param):
@@ -46,6 +62,15 @@ class interval_monitor(object):
     def getscore(self):
         return self.score
 
+class interval_monitor_factory(object):
+    def __init__(self, factory, **param):
+        self.factories = factory
+        self.param = param
+    def __call__(self, **args):
+        params = dict(self.param)
+        params.update(args)
+        return interval_monitor(monitor = self.factory(**params), **params)
+
 class bundled_monitor(object):
     def __init__(self, monitors, **param):
         self.monitors = monitors
@@ -60,6 +85,15 @@ class bundled_monitor(object):
 
     def getscore(self):
         return [m.getscore() for m in self.monitors]
+
+class bundled_monitor_factory(object):
+    def __init__(self, factories, **param):
+        self.factories = factories
+        self.param = param
+    def __call__(self, **args):
+        params = dict(self.param)
+        params.update(args)
+        return bundled_monitor(monitors = [f(**params) for f in self.factories])
 
 def evaluate_trial(domain, agent):
     domain_copy = domain.copy()
@@ -118,6 +152,7 @@ def train_agent(**args):
     projector_factory = args.get('projector_factory')
     policy_factory = args.get('policy_factory')
     value_fn_factory = args.get('valuefn_factory')
+    monitor_factory = args.get('monitor_factory')
     agent_factory = args.get('agent_factory')
     agent_trainer = args.get('trainer', train_steps_agent)
     key_parameter = args.get('key_parameters')
@@ -133,6 +168,7 @@ def train_agent(**args):
     arguments = dict(args)
     arguments['domain'] = domain
     arguments['agent'] = agent
+    arguments['monitor'] = monitor_factory(**args)
     return tuple([ args[k] for k in key_parameter]), agent_trainer(**arguments)
 
 def getAllRuns(product_param):
