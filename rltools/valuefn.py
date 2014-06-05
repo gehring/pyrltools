@@ -63,9 +63,9 @@ class NeuroSFTD(ValueFn):
         else:
             phi_tp1 = self.projector(s_tp1, a_tp1)
             v_tp1 = self.net.evaluate(phi_tp1)[0]
-            v_t = self.net.evaluate(phi_t)[0]
-
             dphi = phi_tp1 - phi_t
+
+        v_t = self.net.evaluate(phi_t)[0]
 
         dV = v_t * (1 - self.gamma) - r
 
