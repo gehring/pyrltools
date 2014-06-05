@@ -8,7 +8,7 @@ class trial_monitor(object):
     def start(self):
         self.score = []
 
-    def update(self, r, **karg):
+    def update(self, r, *args, **karg):
         self.score.append(r)
 
     def getscore(self):
@@ -31,7 +31,7 @@ class evaluation_monitor(object):
     def start(self):
         self.score = []
 
-    def update(self, domain, agent, **karg):
+    def update(self, r, s_t, domain, agent,  *args, **karg):
         self.score.append(np.mean(
                 [self.evaluator(domain, agent) for i in xrange(self.num_eval)]))
 
@@ -55,9 +55,9 @@ class interval_monitor(object):
         self.count = 0
         self.monitor.start()
 
-    def update(self, **karg):
+    def update(self,  *args, **karg):
         if self.count % self.eval_interval ==  0:
-            self.monitor.update(**karg)
+            self.monitor.update(*args, **karg)
 
     def getscore(self):
         return self.score
@@ -79,9 +79,9 @@ class bundled_monitor(object):
         for m in self.monitors:
             m.start()
 
-    def update(self, **kargs):
+    def update(self,  *args, **kargs):
         for m in self.monitors:
-            m.update(**kargs)
+            m.update( *args, **kargs)
 
     def getscore(self):
         return [m.getscore() for m in self.monitors]
