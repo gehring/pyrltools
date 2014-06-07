@@ -22,6 +22,27 @@ class trial_monitor_factory(object):
         params.update(args)
         return trial_monitor(**params)
 
+class param_monitor(object):
+    def __init__(self, **params):
+        self.score = []
+
+    def start(self):
+        self.score = []
+
+    def update(self, r, s_t, domain, agent, *args, **karg):
+        self.score.append([l.w.copy() for l in agent.valuefn.net.layers])
+
+    def getscore(self):
+        return self.score
+
+class param_monitor_factory(object):
+    def __init__(self, **param):
+        self.param = param
+    def __call__(self, **args):
+        params = dict(self.param)
+        params.update(args)
+        return param_monitor(**params)
+
 class evaluation_monitor(object):
     def __init__(self, num_eval, evaluator, **param):
         self.score = []
