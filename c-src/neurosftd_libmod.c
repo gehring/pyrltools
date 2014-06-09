@@ -140,7 +140,8 @@ void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 		// printf("%f, %f, %f\n", dsigmoids[i], ddsigmoids[i], layer->a->data[i]);
 		layer->deda->data[i] =  ddsigmoids[i] * col_dot(layer->psi, i, errors_grad, i) 
 									+ dsigmoids[i] * errors_sig->data[i];
-		layer->dbias->data[i] = layer->deda->data[i];				
+		// l2 regularizer
+		layer->dbias->data[i] = layer->deda->data[i] + layer->beta * layer->bias->data[i];				
 	}
 
 	assert(layer->dedpsi->m == layer->a->size);
@@ -159,6 +160,7 @@ void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 		for( j =0; j<layer->dedw->m; ++j){
 			uint index = id(i,j,layer->dedw->m);
 			layer->dedw->data[index] += layer->input->data[j] * layer->deda->data[i];
+			// l2 regularizer
 			layer->dedw->data[index] += layer->beta * layer->w->data[index];
 		}
 	}
