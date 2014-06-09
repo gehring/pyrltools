@@ -43,6 +43,7 @@ typedef struct tagNLayer
 
 	npy_double	mommentum;
 	npy_double	beta;
+	npy_double	beta2;
 	uint		type;
 
 	npy_double (* sig_eval)(npy_double);

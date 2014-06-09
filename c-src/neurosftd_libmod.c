@@ -184,7 +184,7 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 									+ dsigmoids[i] * errors_sig->data[i];
 		layer->dbias->data[i] = layer->deda->data[i];
 		// l2 regularizer
-		layer->dbias->data[i] = layer->deda->data[i] + layer->beta * layer->bias->data[i];					
+		layer->dbias->data[i] = layer->deda->data[i] + layer->beta2 * layer->bias->data[i];					
 	}
 
 	// compute de/dpsi 
@@ -206,7 +206,7 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 			layer->dedw->data[index] =2 * w * x_hat * x_hat * layer->deda->data[i] +
 										2 * w * layer->dedw->data[index] * x_hat;
 			// l2 regularizer
-			layer->dedw->data[index] += layer->beta * layer->w->data[index];
+			layer->dedw->data[index] += layer->beta2 * layer->w->data[index];
 		}
 	}
 	// compute de/dc
@@ -470,6 +470,7 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	PyObject* init_bias, *b_hold; 
 	npy_double mommentum;
 	npy_double beta;
+	npy_double beta2;
 	PyObject* sig_cap;
 	PyObject* sigd_cap;
 	PyObject* sigdd_cap;
@@ -482,6 +483,7 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 											&b_hold, 
 											&mommentum,
 											&beta,
+											&beta2,
 											&sig_cap,
 											&sigd_cap,
 											&sigdd_cap,
@@ -539,6 +541,7 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 
 	layer->mommentum = mommentum;
 	layer->beta = beta;
+	layer->beta2 = beta2;
 
 	Py_DECREF(init_weights);
 	Py_DECREF(init_bias);
