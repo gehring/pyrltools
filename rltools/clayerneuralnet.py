@@ -178,7 +178,8 @@ class NeuronLayer(object):
                  **argk):
 
         mommentum = argk.get('mommentum', 0.9)
-        beta = argk.get('beta', 0.1)
+        beta = argk.get('beta', 0.0001)
+        beta2 = argk.get('beta2', 0.1)
         init_bias_var = argk.get('init_bias_var', 0.1)
         init_w_var = argk.get('init_w_var', 0.01)
 
@@ -204,6 +205,7 @@ class NeuronLayer(object):
                                                 init_b,
                                                 mommentum,
                                                 beta,
+                                                beta2,
                                                 sig,
                                                 sigd,
                                                 sigdd,
