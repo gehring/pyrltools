@@ -476,7 +476,7 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	PyObject* sigdd_cap;
 	uint type;
 
-	if(!PyArg_ParseTuple(args, "IIIOOddOOOI", &input_size, 
+	if(!PyArg_ParseTuple(args, "IIIOOdddOOOI", &input_size, 
 											&layer_input, 
 											&num_neuron,
 											&w_hold,
