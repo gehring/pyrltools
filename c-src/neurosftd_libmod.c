@@ -182,7 +182,9 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 		// printf("%f, %f, %f\n", dsigmoids[i], ddsigmoids[i], layer->a->data[i]);
 		layer->deda->data[i] =  ddsigmoids[i] * col_dot(layer->psi, i, errors_grad, i) 
 									+ dsigmoids[i] * errors_sig->data[i];
-		layer->dbias->data[i] = layer->deda->data[i];				
+		layer->dbias->data[i] = layer->deda->data[i];
+		// l2 regularizer
+		layer->dbias->data[i] = layer->deda->data[i] + layer->beta * layer->bias->data[i];					
 	}
 
 	// compute de/dpsi 
@@ -203,6 +205,8 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 			npy_double w = layer->w->data[index];
 			layer->dedw->data[index] =2 * w * x_hat * x_hat * layer->deda->data[i] +
 										2 * w * layer->dedw->data[index] * x_hat;
+			// l2 regularizer
+			layer->dedw->data[index] += layer->beta * layer->w->data[index];
 		}
 	}
 	// compute de/dc
