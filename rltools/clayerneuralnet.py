@@ -178,6 +178,7 @@ class NeuronLayer(object):
                  **argk):
 
         mommentum = argk.get('mommentum', 0.9)
+        beta = argk.get('beta', 0.1)
         init_bias_var = argk.get('init_bias_var', 0.1)
         init_w_var = argk.get('init_w_var', 0.01)
 
@@ -202,6 +203,7 @@ class NeuronLayer(object):
                                                 init_w,
                                                 init_b,
                                                 mommentum,
+                                                beta,
                                                 sig,
                                                 sigd,
                                                 sigdd,
@@ -405,10 +407,10 @@ class NeuralNet(object):
         return self.layers[-1].out
 
     def backprop(self, target, direction, dirderiv):
-        norm = np.linalg.norm(direction)
-        if norm > 0:
-            direction = direction/norm
-            dirderiv /= norm
+#         norm = np.linalg.norm(direction)
+#         if norm > 0:
+#             direction = direction/norm
+#             dirderiv /= norm
 
         dedinput = (1-self.eta) * (self.layers[-1].out - target)
         dedgradin = np.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)
@@ -432,10 +434,10 @@ class NeuralNet(object):
 #                 l.update_weights(grad[0] * self.alpha, grad[1] * self.alpha)
 
     def getgradient(self, target, direction, dirderiv):
-        norm = np.linalg.norm(direction)
-        if norm > 0:
-            direction = direction/norm
-            dirderiv /= norm
+#         norm = np.linalg.norm(direction)
+#         if norm > 0:
+#             direction = direction/norm
+#             dirderiv /= norm
 
         dedinput = (1-self.eta) * (self.layers[-1].out - target)
         dedgradin = np.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)

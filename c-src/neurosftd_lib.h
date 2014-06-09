@@ -1,10 +1,13 @@
 #ifndef NEUROSFTD_LIB
 #define NEUROSFTD_LIB
+#include "Python.h"
+#include "numpy/arrayobject.h"
+
 typedef unsigned int uint;
 
 typedef struct tagMat
 {
-	double* data;
+	npy_double* data;
 	uint 	m;
 	uint 	n;
 	uint 	size;
@@ -38,12 +41,13 @@ typedef struct tagNLayer
 	Matrix*		dedc;
 	Matrix*		prev_dc;
 
-	double		mommentum;
+	npy_double	mommentum;
+	npy_double	beta;
 	uint		type;
 
-	double (* sig_eval)(double);
-	double (* sig_deval)(double);
-	double (* sig_ddeval)(double);
+	npy_double (* sig_eval)(npy_double);
+	npy_double (* sig_deval)(npy_double);
+	npy_double (* sig_ddeval)(npy_double);
 }NLayer;
 
 #endif

@@ -157,8 +157,9 @@ void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 	assert(layer->dedw->n == layer->a->size);
 	for( i = 0; i<layer->dedw->n; ++i){
 		for( j =0; j<layer->dedw->m; ++j){
-			layer->dedw->data[id(i,j,layer->dedw->m)] += layer->input->data[j] 
-																* layer->deda->data[i];
+			uint index = id(i,j,layer->dedw->m);
+			layer->dedw->data[index] += layer->input->data[j] * layer->deda->data[i];
+			layer->dedw->data[index] += layer->beta * layer->w->data[index];
 		}
 	}
 	// printf("%s\n", "6");
@@ -462,17 +463,19 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	PyObject* init_weights, *w_hold;
 	PyObject* init_bias, *b_hold; 
 	npy_double mommentum;
+	npy_double beta;
 	PyObject* sig_cap;
 	PyObject* sigd_cap;
 	PyObject* sigdd_cap;
 	uint type;
 
-	if(!PyArg_ParseTuple(args, "IIIOOdOOOI", &input_size, 
+	if(!PyArg_ParseTuple(args, "IIIOOddOOOI", &input_size, 
 											&layer_input, 
 											&num_neuron,
 											&w_hold,
 											&b_hold, 
 											&mommentum,
+											&beta,
 											&sig_cap,
 											&sigd_cap,
 											&sigdd_cap,
@@ -529,6 +532,7 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	layer->dbias = create_matrix(num_neuron, 1);
 
 	layer->mommentum = mommentum;
+	layer->beta = beta;
 
 	Py_DECREF(init_weights);
 	Py_DECREF(init_bias);
