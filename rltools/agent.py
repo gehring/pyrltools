@@ -26,14 +26,15 @@ class Sarsa(Agent):
             action = None
         self.valuefn.update(self.s_t, self.a_t, r, state, action)
 
-        self.s_t = state
-        self.a_t = action
+        self.s_t = state.copy()
+        self.a_t = action.copy()
 
         return action
 
     def reset(self):
         self.s_t = None
         self.a_t = None
+        self.valuefn.reset()
 
     def proposeAction(self, state):
         return self.policy(state)
