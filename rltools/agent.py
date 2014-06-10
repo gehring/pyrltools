@@ -34,7 +34,6 @@ class Sarsa(Agent):
     def reset(self):
         self.s_t = None
         self.a_t = None
-        self.valuefn.reset()
 
     def proposeAction(self, state):
         return self.policy(state)
