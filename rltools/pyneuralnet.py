@@ -160,6 +160,7 @@ class NeuralNet(object):
     def __init__(self, layers, **kargs):
         self.alpha = kargs.get('alpha', 0.05)
         self.eta = kargs.get('eta', 0.0)
+        self.alpharatio = kargs.get('alpharatio', 1.0)
 
         sigmoid = Logisticfn() #LinearRectifier()
         self.layers = [ NeuronLayer(layers[0], layers[i], layers[i+1], sigmoid, **kargs)
@@ -186,9 +187,10 @@ class NeuralNet(object):
         for l in reversed(self.layers):
             dedw, dedb, dedinput, dedgradin = l.compute_gradient(dedinput, dedgradin)
             err_grad.append((dedw, dedb))
-
+        alpha = self.alpha
         for l, grad in zip(reversed(self.layers), err_grad):
-            l.update_weights(grad[0] * self.alpha, grad[1] * self.alpha)
+            l.update_weights(grad[0] * self.alpha, grad[1] * alpha)
+            alpha *= self.alpharatio
 
     def getgradient(self, target, direction, dirderiv):
 #         norm = numpy.linalg.norm(direction)
