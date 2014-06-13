@@ -15,9 +15,9 @@ class MountainCar(object):
                    np.array([max_pos, max_speed])]
     action_range = [[-0.001], [0.001]]
 
-    __discrete_actions = [ [-0.001],
-                         [0],
-                         [0.001]]
+    __discrete_actions = [ np.array([-0.001]),
+                          np.array([0]),
+                          np.array([0.001])]
 
     def __init__(self, random_start = False, max_episode = 1000, **argk):
         self.state = np.zeros(2)
