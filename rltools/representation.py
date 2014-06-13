@@ -47,7 +47,7 @@ class StateNormalizer_Factory(object):
         new_param.update([ x for x in argk.items()])
         stateprojector = self.stateprojector_factory(**new_param)
         domain = new_param.get('domain')
-        return Normalizer(stateprojector, domain.state_range)
+        return StateNormalizer(stateprojector, domain.state_range)
 
 class Tiling(object):
     def __init__(self, input_size, ntiles, offset = None):
