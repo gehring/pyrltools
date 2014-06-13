@@ -146,7 +146,7 @@ class TabularRBFValueFn(ValueFn):
             index_tp1 = self.getactionindex(a_tp1)
             phi_tp1 = self.projector(s_tp1)
             rbfs_tp1 = self.computeRBFs(phi_tp1, self.c[index_tp1])
-            v_tp1 = self.w[index_t].dot(rbfs_tp1)
+            v_tp1 = self.w[index_tp1].dot(rbfs_tp1)
             drbfs = rbfs_tp1 - rbfs
 
         v_t =  self.w[index_t].dot(rbfs)
