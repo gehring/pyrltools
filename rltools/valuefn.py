@@ -153,8 +153,8 @@ class TabularRBFValueFn(ValueFn):
 
 
         delta = r + self.gamma * v_tp1 - v_t
-        self.w -= (self.eta * self.alpha * delta * drbfs)
-        self.w += ((1-self.eta) * self.alpha * delta * rbfs)
+        self.w[index_t] -= (self.eta * self.alpha * delta * drbfs)
+        self.w[index_t] += ((1-self.eta) * self.alpha * delta * rbfs)
         # no change to c for now!
 
 
