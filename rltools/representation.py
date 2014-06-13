@@ -29,7 +29,7 @@ class StateNormalizer(Projector):
         self.stateprojector = stateprojector
         self.state_range = np.array(state_range)
 
-    def __call__(self, state, action):
+    def __call__(self, state):
         nstate = (state - self.state_range[0])/(self.state_range[1]-self.state_range[0])
         return self.stateprojector(nstate)
 
