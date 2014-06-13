@@ -40,15 +40,25 @@ class LinearTD0(ValueFn):
 
 
 class RBFValueFn(ValueFn):
-    def __init__(self, alpha, c, w, projector, gamma, sigma, eta,**kargs):
+    def __init__(self,
+                 alpha,
+                 c,
+                 w,
+                 projector,
+                 gamma,
+                 sigma,
+                 eta,
+                 **kargs):
         super(RBFValueFn, self).__init__()
-        self.c = np.array(c)
-        self.w = np.array(w)
         self.alpha = alpha
         self.projector = projector
         self.gamma = gamma
         self.width = sigma **-2
         self.eta =  eta
+        self.c = np.array(c)
+        self.w = np.array(w)
+
+
     def __call__(self, state, action):
         projected = self.projector(state, action)
         return self.w.dot(self.computeRBFs(projected, self.c))
@@ -64,7 +74,7 @@ class RBFValueFn(ValueFn):
         if s_t == None:
             return
 
-        phi_t = self.projector(s_t, a_t)
+        phi_t = self.projector(s_t)
         rbfs = self.computeRBFs(phi_t, self.c)
         if s_tp1 == None:
             v_tp1 = 0
@@ -76,6 +86,70 @@ class RBFValueFn(ValueFn):
             drbfs = rbfs_tp1 - rbfs
 
         v_t =  self.w.dot(rbfs)
+
+
+        delta = r + self.gamma * v_tp1 - v_t
+        self.w -= (self.eta * self.alpha * delta * drbfs)
+        self.w += ((1-self.eta) * self.alpha * delta * rbfs)
+        # no change to c for now!
+
+class TabularRBFValueFn(ValueFn):
+    def __init__(self,
+                 alpha,
+                 c,
+                 w,
+                 projector,
+                 gamma,
+                 sigma,
+                 eta,
+                 actions,
+                 **kargs):
+        super(RBFValueFn, self).__init__()
+        self.alpha = alpha
+        self.projector = projector
+        self.gamma = gamma
+        self.width = sigma **-2
+        self.eta =  eta
+
+        self.actions = actions
+
+        self.c = [ np.array(c) for i in xrange(len(actions))]
+        self.w = [ np.array(w) for i in xrange(len(actions))]
+
+
+    def __call__(self, state, action):
+        projected = self.projector(state)
+        index = self.getactionindex(action)
+        return self.w[index].dot(self.computeRBFs(projected, self.c[index]))
+
+    def getactionindex(self, action):
+        return np.argmax(np.all(self.actions == action, axis = 1))
+
+    def computeRBFs(self, x, c):
+        s =  np.sum( (x-c)**2, axis=1)
+        s *= (-self.width)
+        rbfs = np.exp(s)
+        rbfs /= np.sum(rbfs)
+        return rbfs
+
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if s_t == None:
+            return
+
+        index_t = self.getactionindex(a_t)
+        phi_t = self.projector(s_t)
+        rbfs = self.computeRBFs(phi_t, self.c[index_t])
+        if s_tp1 == None:
+            v_tp1 = 0
+            drbfs = np.zeros_like(rbfs)
+        else:
+            index_tp1 = self.getactionindex(a_tp1)
+            phi_tp1 = self.projector(s_tp1)
+            rbfs_tp1 = self.computeRBFs(phi_tp1, self.c[index_tp1])
+            v_tp1 = self.w[index_t].dot(rbfs_tp1)
+            drbfs = rbfs_tp1 - rbfs
+
+        v_t =  self.w[index_t].dot(rbfs)
 
 
         delta = r + self.gamma * v_tp1 - v_t
