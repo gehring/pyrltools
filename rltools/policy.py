@@ -32,8 +32,12 @@ class Egreedy_Factory(object):
     def __call__(self, **argk):
         params = dict(self.params)
         params.update([x for x in argk.items()])
-        domain = params.get('domain')
-        return Egreedy(domain.discrete_actions, **params)
+        if 'actions' in params:
+            return Egreedy(**params)
+        else:
+            domain = params.get('domain')
+            return Egreedy(domain.discrete_actions, **params)
+
 
 class SoftMax(Policy):
     def __init__(self, actions, valuefn, **argk):
