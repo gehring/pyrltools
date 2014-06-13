@@ -104,7 +104,7 @@ class TabularRBFValueFn(ValueFn):
                  eta,
                  actions,
                  **kargs):
-        super(RBFValueFn, self).__init__()
+        super(TabularRBFValueFn, self).__init__()
         self.alpha = alpha
         self.projector = projector
         self.gamma = gamma

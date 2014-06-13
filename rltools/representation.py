@@ -24,6 +24,31 @@ class IdentityProj(Projector):
     def size(self):
         return self.__size
 
+class StateNormalizer(Projector):
+    def __init__(self, stateprojector, state_range):
+        self.stateprojector = stateprojector
+        self.state_range = np.array(state_range)
+
+    def __call__(self, state, action):
+        nstate = (state - self.state_range[0])/(self.state_range[1]-self.state_range[0])
+        return self.stateprojector(nstate)
+
+    @property
+    def size(self):
+        return self.stateprojector.size
+
+class StateNormalizer_Factory(object):
+    def __init__(self, stateprojector_factory, **argk):
+        self.stateprojector_factory = stateprojector_factory
+        self.param =argk
+
+    def __call__(self, **argk):
+        new_param = dict(self.param)
+        new_param.update([ x for x in argk.items()])
+        stateprojector = self.stateprojector_factory(**new_param)
+        domain = new_param.get('domain')
+        return Normalizer(stateprojector, domain.state_range)
+
 class Tiling(object):
     def __init__(self, input_size, ntiles, offset = None):
         self.input_size = input_size
