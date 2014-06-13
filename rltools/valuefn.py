@@ -52,18 +52,18 @@ class RBFValueFn(ValueFn):
     def __call__(self, state, action):
         projected = self.projector(state, action)
         return self.w.dot(self.computeRBFs(projected, self.c))
-    
+
     def computeRBFs(self, x, c):
         s =  np.sum( (x-c)**2, axis=1)
         s *= (-self.width)
         rbfs = np.exp(s)
         rbfs /= np.sum(rbfs)
         return rbfs
-    
+
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t == None:
             return
-        
+
         phi_t = self.projector(s_t, a_t)
         rbfs = self.computeRBFs(phi_t, self.c)
         if s_tp1 == None:
@@ -74,16 +74,15 @@ class RBFValueFn(ValueFn):
             rbfs_tp1 = self.computeRBFs(phi_tp1, self.c)
             v_tp1 = self.w.dot(rbfs_tp1)
             drbfs = rbfs_tp1 - rbfs
-       
+
         v_t =  self.w.dot(rbfs)
-        
-        
+
+
         delta = r + self.gamma * v_tp1 - v_t
         self.w -= (self.eta * self.alpha * delta * drbfs)
         self.w += ((1-self.eta) * self.alpha * delta * rbfs)
         # no change to c for now!
-        
-        
+
 
 
 class NeuroSFTD(ValueFn):
