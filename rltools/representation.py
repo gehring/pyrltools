@@ -13,7 +13,7 @@ class Projector(object):
         pass
 
 class IdentityProj(Projector):
-    def __init__(self, inputSize):
+    def __init__(self, inputSize, **kargs):
         super(IdentityProj, self).__init__()
         self.__size = inputSize
 
