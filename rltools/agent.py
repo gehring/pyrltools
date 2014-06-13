@@ -19,17 +19,17 @@ class Sarsa(Agent):
         self.s_t = None
         self.a_t = None
 
-    def step(self, r, state):
-        if state != None:
-            action = self.policy(state)
+    def step(self, r, s_tp1):
+        if s_tp1 != None:
+            a_tp1 = self.policy(s_tp1)
         else:
-            action = None
-        self.valuefn.update(self.s_t, self.a_t, r, state, action)
+            a_tp1 = None
+        self.valuefn.update(self.s_t, self.a_t, r, s_tp1, a_tp1)
 
-        self.s_t = state
-        self.a_t = action
+        self.s_t = s_tp1
+        self.a_t = a_tp1
 
-        return action
+        return a_tp1
 
     def reset(self):
         self.s_t = None

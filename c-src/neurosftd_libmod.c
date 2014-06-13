@@ -140,7 +140,8 @@ void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 		// printf("%f, %f, %f\n", dsigmoids[i], ddsigmoids[i], layer->a->data[i]);
 		layer->deda->data[i] =  ddsigmoids[i] * col_dot(layer->psi, i, errors_grad, i) 
 									+ dsigmoids[i] * errors_sig->data[i];
-		layer->dbias->data[i] = layer->deda->data[i];				
+		// l2 regularizer
+		layer->dbias->data[i] = layer->deda->data[i] + layer->beta * layer->bias->data[i];				
 	}
 
 	assert(layer->dedpsi->m == layer->a->size);
@@ -157,8 +158,10 @@ void compute_gradient( NLayer* layer, Matrix* errors_sig, Matrix* errors_grad){
 	assert(layer->dedw->n == layer->a->size);
 	for( i = 0; i<layer->dedw->n; ++i){
 		for( j =0; j<layer->dedw->m; ++j){
-			layer->dedw->data[id(i,j,layer->dedw->m)] += layer->input->data[j] 
-																* layer->deda->data[i];
+			uint index = id(i,j,layer->dedw->m);
+			layer->dedw->data[index] += layer->input->data[j] * layer->deda->data[i];
+			// l2 regularizer
+			layer->dedw->data[index] += layer->beta * layer->w->data[index];
 		}
 	}
 	// printf("%s\n", "6");
@@ -179,7 +182,9 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 		// printf("%f, %f, %f\n", dsigmoids[i], ddsigmoids[i], layer->a->data[i]);
 		layer->deda->data[i] =  ddsigmoids[i] * col_dot(layer->psi, i, errors_grad, i) 
 									+ dsigmoids[i] * errors_sig->data[i];
-		layer->dbias->data[i] = layer->deda->data[i];				
+		layer->dbias->data[i] = layer->deda->data[i];
+		// l2 regularizer
+		layer->dbias->data[i] = layer->deda->data[i] + layer->beta2 * layer->bias->data[i];					
 	}
 
 	// compute de/dpsi 
@@ -200,6 +205,8 @@ void compute_gradient_quadratic(NLayer* layer, Matrix* errors_sig, Matrix* error
 			npy_double w = layer->w->data[index];
 			layer->dedw->data[index] =2 * w * x_hat * x_hat * layer->deda->data[i] +
 										2 * w * layer->dedw->data[index] * x_hat;
+			// l2 regularizer
+			layer->dedw->data[index] += layer->beta2 * layer->w->data[index];
 		}
 	}
 	// compute de/dc
@@ -462,17 +469,21 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	PyObject* init_weights, *w_hold;
 	PyObject* init_bias, *b_hold; 
 	npy_double mommentum;
+	npy_double beta;
+	npy_double beta2;
 	PyObject* sig_cap;
 	PyObject* sigd_cap;
 	PyObject* sigdd_cap;
 	uint type;
 
-	if(!PyArg_ParseTuple(args, "IIIOOdOOOI", &input_size, 
+	if(!PyArg_ParseTuple(args, "IIIOOdddOOOI", &input_size, 
 											&layer_input, 
 											&num_neuron,
 											&w_hold,
 											&b_hold, 
 											&mommentum,
+											&beta,
+											&beta2,
 											&sig_cap,
 											&sigd_cap,
 											&sigdd_cap,
@@ -529,6 +540,8 @@ PyObject* create_layer(PyObject* self, PyObject* args){
 	layer->dbias = create_matrix(num_neuron, 1);
 
 	layer->mommentum = mommentum;
+	layer->beta = beta;
+	layer->beta2 = beta2;
 
 	Py_DECREF(init_weights);
 	Py_DECREF(init_bias);

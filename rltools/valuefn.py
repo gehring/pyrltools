@@ -1,6 +1,6 @@
 from rltools.representation import IdentityProj
 import numpy as np
-from rltools.clayerneuralnet import NeuralNet
+from rltools.pyneuralnet import NeuralNet
 
 class ValueFn(object):
     def __init__(self):
@@ -38,6 +38,53 @@ class LinearTD0(ValueFn):
 
         self.w += self.alpha * td * phi_t
 
+
+class RBFValueFn(ValueFn):
+    def __init__(self, alpha, c, w, projector, gamma, sigma, eta,**kargs):
+        super(RBFValueFn, self).__init__()
+        self.c = np.array(c)
+        self.w = np.array(w)
+        self.alpha = alpha
+        self.projector = projector
+        self.gamma = gamma
+        self.width = sigma **-2
+        self.eta =  eta
+    def __call__(self, state, action):
+        projected = self.projector(state, action)
+        return self.w.dot(self.computeRBFs(projected, self.c))
+
+    def computeRBFs(self, x, c):
+        s =  np.sum( (x-c)**2, axis=1)
+        s *= (-self.width)
+        rbfs = np.exp(s)
+        rbfs /= np.sum(rbfs)
+        return rbfs
+
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if s_t == None:
+            return
+
+        phi_t = self.projector(s_t, a_t)
+        rbfs = self.computeRBFs(phi_t, self.c)
+        if s_tp1 == None:
+            v_tp1 = 0
+            drbfs = np.zeros_like(rbfs)
+        else:
+            phi_tp1 = self.projector(s_tp1, a_tp1)
+            rbfs_tp1 = self.computeRBFs(phi_tp1, self.c)
+            v_tp1 = self.w.dot(rbfs_tp1)
+            drbfs = rbfs_tp1 - rbfs
+
+        v_t =  self.w.dot(rbfs)
+
+
+        delta = r + self.gamma * v_tp1 - v_t
+        self.w -= (self.eta * self.alpha * delta * drbfs)
+        self.w += ((1-self.eta) * self.alpha * delta * rbfs)
+        # no change to c for now!
+
+
+
 class NeuroSFTD(ValueFn):
     def __init__(self, projector, **argk):
         super(NeuroSFTD, self).__init__()
@@ -58,23 +105,22 @@ class NeuroSFTD(ValueFn):
         phi_t = self.projector(s_t, a_t)
 
         if s_tp1 == None:
-            phi_tp1 = np.zeros_like(phi_t)
+            dphi = np.zeros_like(phi_t)
             v_tp1 = 0
         else:
             phi_tp1 = self.projector(s_tp1, a_tp1)
             v_tp1 = self.net.evaluate(phi_tp1)[0]
+            dphi = phi_tp1 - phi_t
 
         v_t = self.net.evaluate(phi_t)[0]
 
-        dphi = phi_tp1 - phi_t
-#         norm = np.linalg.norm(dphi)
-#         dphi /= norm
-        dV = v_t * (1 - self.gamma) - r
-#         dV /= norm
+        dV = v_tp1 * (1 - self.gamma) - r
 
         target = r + self.gamma * v_tp1
 
         self.net.backprop(target, dphi, dV)
+
+
 
 class NeuroSFTD_Factory(object):
     def __init__(self, **argk):
