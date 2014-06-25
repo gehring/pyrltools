@@ -196,7 +196,7 @@ class NeuroSFTD(ValueFn):
 
 class TabularNeuroSFTD(ValueFn):
     def __init__(self, actions, projector, **argk):
-        super(NeuroSFTD, self).__init__()
+        super(TabularNeuroSFTD, self).__init__()
         self.projector = projector
         self.gamma = argk.get('gamma', 0.9)
         if 'layers' not in argk:
