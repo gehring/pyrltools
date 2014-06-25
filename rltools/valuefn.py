@@ -194,6 +194,49 @@ class NeuroSFTD(ValueFn):
 
         self.net.backprop(target, dphi, dV)
 
+class TabularNeuroSFTD(ValueFn):
+    def __init__(self, actions, projector, **argk):
+        super(NeuroSFTD, self).__init__()
+        self.projector = projector
+        self.gamma = argk.get('gamma', 0.9)
+        if 'layers' not in argk:
+            argk['layers'] = [projector.size, 30, 1]
+
+        self.actions = actions
+        self.nets = [NeuralNet( **argk) for i in xrange(len(actions))]
+
+    def __call__(self, state, action):
+        projected = self.projector(state)
+        index = self.getactionindex(action)
+        return self.nets[index].evaluate(projected)[0]
+
+    def getactionindex(self, action):
+        return np.argmax(np.all(self.actions == action, axis = 1))
+
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if s_t == None:
+            return
+
+        index_t = self.getactionindex(a_t)
+        phi_t = self.projector(s_t)
+
+        if s_tp1 == None:
+            dphi = np.zeros_like(phi_t)
+            v_tp1 = 0
+        else:
+            phi_tp1 = self.projector(s_tp1)
+            index_tp1 = self.getactionindex(a_tp1)
+            v_tp1 = self.nets[index_tp1].evaluate(phi_tp1)[0]
+            dphi = phi_tp1 - phi_t
+
+        v_t = self.nets[index_t].evaluate(phi_t)[0]
+
+        dV = v_tp1 * (1 - self.gamma) - r
+
+        target = r + self.gamma * v_tp1
+
+        self.nets[index_t].backprop(target, dphi, dV)
+
 
 
 class NeuroSFTD_Factory(object):
