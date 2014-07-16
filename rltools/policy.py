@@ -38,6 +38,28 @@ class Egreedy_Factory(object):
             domain = params.get('domain')
             return Egreedy(domain.discrete_actions, **params)
 
+class MixedPolicy(object):
+    def __init__(self, p1, p2, policy_ratio):
+        self.p1 = p1
+        self.p2 = p2
+        self.ratio = policy_ratio
+    def __call__(self, state):
+        if np.random.uniform() < self.ratio:
+            return self.p1(state)
+        else:
+            return self.p2(state)
+
+class MixedPolicy_Factory(object):
+    def __init__(self, p1_fact, p2_fact, **argk):
+        self.p1_fact = p1_fact
+        self.p2_fact = p2_fact
+        self.params = argk
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        return MixedPolicy(self.p1_fact(**params),
+                           self.p2_fact(**params),
+                           **params)
 
 class SoftMax(Policy):
     def __init__(self, actions, valuefn, **argk):

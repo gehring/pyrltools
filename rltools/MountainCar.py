@@ -87,3 +87,9 @@ class MountainCar_Factory(object):
         params = dict(self.param)
         params.update([x for x in argk.items()])
         return MountainCar(**params)
+
+class PumpingPolicy(object):
+    def __init__(self):
+        pass
+    def __class__(self, state):
+        return np.array([0.001]) if state[1] >= 0 else np.array([-0.001])
