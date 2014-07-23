@@ -1,4 +1,5 @@
-import numpy
+import numpy as numpy
+import numpy as np
 from itertools import product
 from numpy import random
 
@@ -154,6 +155,19 @@ class NeuronLayer(object):
         self.gradout = self.psi * dsigmoid
 
         return self.out, self.gradout
+
+class RBFLayer(object):
+    def __init__(self, input_size, layer_input, num_neuron, **argk):
+        pass
+
+    def evaluate(self, inputs, grad):
+        pass
+
+    def compute_gradient(self, errors_sig, errors_gradsig):
+        pass
+
+    def update_weights(self, dedw, dbias):
+        pass
 
 
 class NeuralNet(object):
