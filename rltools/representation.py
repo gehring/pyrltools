@@ -107,6 +107,20 @@ class RBFCoding(Projector):
         return self.__size
 
 
+class NRBFCoding(Projector):
+    def __init__(self, stddev, c, **params):
+        super(NRBFCoding, self).__init__()
+        self.RBFs = RBFCoding(stddev, c, **params)
+
+    def __call__(self, state):
+        x = self.RBFs(state)
+        return x/np.sum(x)
+
+    @property
+    def size(self):
+        return self.RBFs.size
+
+
 class StateActionProjector(object):
     def __init__(self):
         pass
