@@ -92,14 +92,14 @@ class TileCoding(Projector):
         return self.__size
 
 class RBFCoding(Projector):
-    def __init__(self, input_size, nrbfs, stddev, c = None, in_range = None):
+    def __init__(self, input_size,  stddev, c = None, nrbfs = 50, in_range = None):
         super(RBFCoding, self).__init__()
-        self.__size = nrbfs
         if c == None:
             self.c = np.array([ np.random.uniform(0,1,size = input_size)
                                     for i in xrange(nrbfs)])
         else:
             self.c = c
+        self.__size = self.c.shape[0]
         self.in_range = in_range
         self.stddev_inv = 1.0/stddev
 
