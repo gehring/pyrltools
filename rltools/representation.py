@@ -92,7 +92,7 @@ class TileCoding(Projector):
         return self.__size
 
 class RBFCoding(Projector):
-    def __init__(self, input_size,  stddev, c = None, nrbfs = 50, in_range = None):
+    def __init__(self, input_size,  stddev, c = None, nrbfs = 50, in_range = None, **params):
         super(RBFCoding, self).__init__()
         if c == None:
             self.c = np.array([ np.random.uniform(0,1,size = input_size)
