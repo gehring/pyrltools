@@ -160,10 +160,10 @@ class NeuralNet(object):
         return self.layers[-1].out
 
     def backprop(self, target, direction, dirderiv):
-#         norm = numpy.linalg.norm(direction)
-#         if norm > 0:
-#             direction = direction/norm
-#             dirderiv /= norm
+        norm = numpy.linalg.norm(direction)
+        if norm > 0:
+            direction = direction/norm
+            dirderiv /= norm
 
         dedinput = (1-self.eta) * (self.layers[-1].out - target)
         dedgradin = numpy.array([(self.eta* (direction.dot(self.layers[-1].gradout) - dirderiv)
