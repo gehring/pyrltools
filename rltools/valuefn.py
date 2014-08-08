@@ -241,7 +241,7 @@ class TabularNeuroSFTD(ValueFn):
 
 class TabularAvgRewNeuroSFTD(ValueFn):
     def __init__(self, actions, projector, alphamu, **argk):
-        super(TabularNeuroSFTD, self).__init__()
+        super(TabularAvgRewNeuroSFTD, self).__init__()
         self.projector = projector
         self.alphamu = alphamu
         if 'layers' not in argk:
