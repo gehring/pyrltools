@@ -1,4 +1,5 @@
 import numpy
+import numpy as np
 from itertools import product
 from numpy import random
 
@@ -6,31 +7,16 @@ class Logisticfn(object):
     def __init__(self):
         pass
 
-    def evaluate(self, x, out=None):
-        if out == None:
-            out = numpy.zeros_like(x)
-        numpy.exp(-x, out=out)
-        out += 1
-        out **= -1
-        return out
+    def evaluate(self, x):
+        return 1.0/( 1 + np.exp(-x))
 
     def evaluatederiv(self, x, out=None):
-        if out == None:
-            out = numpy.zeros_like(x)
-
-        self.evaluate(x, out=out)
-        out -= out**2
-        return out
+        fx = self.evaluate(x)
+        return fx * (1-fx)
 
     def evaluatederivderiv(self, x, out=None):
-        if out == None:
-            out = numpy.zeros_like(x)
-
-        numpy.exp(x, out=out)
-        ex = numpy.array(out)
-        out *= - (ex -1)
-        out /= (ex + 1)**3
-        return  out
+        emx = np.exp(-x)
+        return emx * (emx-1)/ (emx+1)**3
 
 class Linearfn(object):
     def __init__(self):
@@ -39,7 +25,7 @@ class Linearfn(object):
     def evaluate(self, x, out=None):
         if out == None:
             out = numpy.zeros_like(x)
-        out += x
+        out = x
         return out
 
     def evaluatederiv(self, x, out=None):

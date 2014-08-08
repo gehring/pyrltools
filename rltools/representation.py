@@ -13,7 +13,7 @@ class Projector(object):
         pass
 
 class IdentityProj(Projector):
-    def __init__(self, inputSize):
+    def __init__(self, inputSize, **kargs):
         super(IdentityProj, self).__init__()
         self.__size = inputSize
 
@@ -23,6 +23,31 @@ class IdentityProj(Projector):
     @property
     def size(self):
         return self.__size
+
+class StateNormalizer(Projector):
+    def __init__(self, stateprojector, state_range):
+        self.stateprojector = stateprojector
+        self.state_range = np.array(state_range)
+
+    def __call__(self, state):
+        nstate = (state - self.state_range[0])/(self.state_range[1]-self.state_range[0])
+        return self.stateprojector(nstate)
+
+    @property
+    def size(self):
+        return self.stateprojector.size
+
+class StateNormalizer_Factory(object):
+    def __init__(self, stateprojector_factory, **argk):
+        self.stateprojector_factory = stateprojector_factory
+        self.param =argk
+
+    def __call__(self, **argk):
+        new_param = dict(self.param)
+        new_param.update([ x for x in argk.items()])
+        stateprojector = self.stateprojector_factory(**new_param)
+        domain = new_param.get('domain')
+        return StateNormalizer(stateprojector, domain.state_range)
 
 class Tiling(object):
     def __init__(self, input_size, ntiles, offset = None):
@@ -67,22 +92,33 @@ class TileCoding(Projector):
         return self.__size
 
 class RBFCoding(Projector):
-    def __init__(self, input_size, nrbfs, in_range = None):
+    def __init__(self,  stddev, c, **params):
         super(RBFCoding, self).__init__()
-        self.__size = nrbfs
-        self.c = np.array([ np.random.uniform(0,1,size = input_size)
-                                for i in range(nrbfs)])
-        self.in_range = in_range
+        self.c = c
+        self.__size = self.c.shape[0]
+        self.stddev_inv = 1.0/stddev
 
     def __call__(self, state):
-        if self.in_range != None:
-            state = (state - self.in_range[0])/(self.in_range[1] - self.in_range[0])
-        diff = self.c - state
+        diff = (self.c - state)*self.stddev_inv
         return np.exp(-np.sum(diff**2, axis=1))
 
     @property
     def size(self):
         return self.__size
+
+
+class NRBFCoding(Projector):
+    def __init__(self, stddev, c, **params):
+        super(NRBFCoding, self).__init__()
+        self.RBFs = RBFCoding(stddev, c, **params)
+
+    def __call__(self, state):
+        x = self.RBFs(state)
+        return x/np.sum(x)
+
+    @property
+    def size(self):
+        return self.RBFs.size
 
 
 class StateActionProjector(object):
