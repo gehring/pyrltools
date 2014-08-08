@@ -141,6 +141,19 @@ class NeuronLayer(object):
 
         return self.out, self.gradout
 
+class RBFLayer(object):
+    def __init__(self, input_size, layer_input, num_neuron, **argk):
+        pass
+
+    def evaluate(self, inputs, grad):
+        pass
+
+    def compute_gradient(self, errors_sig, errors_gradsig):
+        pass
+
+    def update_weights(self, dedw, dbias):
+        pass
+
 
 class NeuralNet(object):
     def __init__(self, layers, **kargs):
