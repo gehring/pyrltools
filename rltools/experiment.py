@@ -133,13 +133,16 @@ def evaluate_1000_steps(domain, agent):
     cum_rew = r
     for i in xrange(1000):
         if s_t == None:
-            agent.reset()
             r, s_t = domain_copy.reset()
         else:
             r, s_t = domain_copy.step(agent.proposeAction(s_t))
         cum_rew += r
 
     return cum_rew
+
+def evaluate_avg_1000_steps(domain, agent):
+    return evaluate_1000_steps(domain, agent)/1000.0
+
 
 def train_steps_agent(domain, agent, monitor, num_train_steps, num_eval, eval_interval, **args):
     r, s_t = domain.reset()
