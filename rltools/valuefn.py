@@ -287,7 +287,15 @@ class TabularAvgRewNeuroSFTD(ValueFn):
         target = r - self.mu + v_tp1
 
         self.nets[index_t].backprop(target, dphi, dV)
+class TabularAvgRewNeuroSFTD_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
 
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        params['actions'] = params['domain'].discrete_actions
+        return TabularAvgRewNeuroSFTD( **params)
 
 
 
