@@ -348,7 +348,15 @@ class TabularAvgRewSFTD(ValueFn):
             self.theta[index_t] += self.alpha * delta * phi_t
             self.theta[index_t] -= self.alpha * self.eta * delta * phi_tp1
 
+class TabularAvgRewSFTD_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
 
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        params['actions'] = params['domain'].discrete_actions
+        return TabularAvgRewSFTD( **params)
 
 
 
