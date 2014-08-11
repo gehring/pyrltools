@@ -359,6 +359,67 @@ class TabularAvgRewSFTD_Factory(object):
         return TabularAvgRewSFTD( **params)
 
 
+class TabularAvgRewNSFTD(ValueFn):
+    def __init__(self, actions, projector, alpha, alphamu, eta, **argk):
+        super(TabularAvgRewNSFTD, self).__init__()
+        self.projector = projector
+        self.alpha = alpha
+        self.alphamu = alphamu
+        self.eta = eta
+
+        self.actions = actions
+        self.theta = [np.random.normal(loc = 0,
+                                       scale = 0.05,
+                                       size = projector.size)
+                      for a in actions]
+        self.mu=None
+
+    def __call__(self, state, action):
+        projected = self.projector(state)
+        index = self.getactionindex(action)
+        return self.theta[index].dot(projected)
+
+    def getactionindex(self, action):
+        return np.argmax(np.all(self.actions == action, axis = 1))
+
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if self.mu == None:
+            self.mu = r
+        else:
+            self.mu = self.mu*(1-self.alphamu) + self.alphamu*r
+
+        if s_t == None:
+            return
+
+        index_t = self.getactionindex(a_t)
+        phi_t = self.projector(s_t)
+
+        if s_tp1 == None:
+            v_t = self.theta[index_t].dot(phi_t)
+            v_tp1 = 0
+            delta = r - self.mu + v_tp1 - v_t
+            self.theta[index_t] += self.alpha * delta * phi_t
+        else:
+            phi_tp1 = self.projector(s_tp1)
+            index_tp1 = self.getactionindex(a_tp1)
+            v_tp1 = self.theta[index_tp1].dot(phi_tp1)
+            v_t = self.theta[index_t].dot(phi_t)
+            delta = r - self.mu + v_tp1 - v_t
+            beta = phi_tp1.dot(phi_tp1) + phi_t.dot(phi_t) - 2*(phi_tp1.dot(phi_t))
+            self.theta[index_t] += self.alpha * delta/beta * phi_t
+            self.theta[index_t] -= self.alpha * self.eta * delta/beta * phi_tp1
+
+class TabularAvgRewNSFTD_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
+
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        params['actions'] = params['domain'].discrete_actions
+        return TabularAvgRewNSFTD( **params)
+
+
 
 class NeuroSFTD_Factory(object):
     def __init__(self, **argk):
