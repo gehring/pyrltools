@@ -121,7 +121,7 @@ class InifiniteMountainCar(object):
 
     def step(self, action):
         self.update(action)
-        if self.inGoal() or self.step_count >= self.max_episode:
+        if self.inGoal():
             return self.reset()
         else:
             return -1, self.state.copy()
