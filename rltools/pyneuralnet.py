@@ -15,7 +15,7 @@ class Logisticfn(object):
         return fx * (1-fx)
 
     def evaluatederivderiv(self, x, out=None):
-        emx = np.exp(-x)
+        emx = np.exp(x)
         return emx * (emx-1)/ (emx+1)**3
 
 class Linearfn(object):
