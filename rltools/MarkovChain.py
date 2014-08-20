@@ -4,7 +4,7 @@ class MarkovChain(object):
     def __init__(self, P):
         self.P = P
         self.num_states = P.shape[0]
-        self.states = range(self.num_states)
+        self.states = np.arange(self.num_states)
 
     def start(self, p = None):
         self.s = np.random.choice(self.states, p=p)
@@ -12,3 +12,6 @@ class MarkovChain(object):
     def step(self):
         self.s = np.random.choice(self.states, p=self.P[:, self.s])
         return self.s
+
+    def solveValueFn(self, gamma, R):
+        return np.linalg.solve( np.eye(self.num_states) - gamma*self.P, R)
