@@ -15,3 +15,12 @@ class MarkovChain(object):
 
     def solveValueFn(self, gamma, R):
         return np.linalg.solve( np.eye(self.num_states) - gamma*self.P, R)
+
+class MCSequenceGenerator(object):
+    def __init__(self, P, maxlength, **argk):
+        self.MC = MarkovChain(P)
+        self.maxlength = maxlength
+
+    def getsequence(self):
+        sequence = [self.MC.start()]
+        return sequence + [self.MC.step() for i in xrange(self.maxlength)]

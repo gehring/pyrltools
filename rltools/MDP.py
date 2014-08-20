@@ -59,6 +59,7 @@ class MDPSequenceGenerator(object):
         while s_t != None and (self.maxlength == None or self.maxlength> count):
             (s_t, a_t, r_t, s_tp1) = self.MDPr.step()
             sequence.add((s_t, a_t, r_t, s_tp1))
+            count += 1
 
         return sequence
 
