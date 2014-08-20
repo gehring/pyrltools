@@ -58,7 +58,7 @@ class MDPSequenceGenerator(object):
         count = 0
         while s_t != None and (self.maxlength == None or self.maxlength> count):
             (s_t, a_t, r_t, s_tp1) = self.MDPr.step()
-            sequence.add((s_t, a_t, r_t, s_tp1))
+            sequence.append((s_t, a_t, r_t, s_tp1))
             count += 1
 
         return sequence
@@ -75,7 +75,7 @@ class TransitionMapMDP(MDP):
         Ps = []
         for a in xrange(num_a):
             P = np.array([T(s, a) for s in xrange(num_s)]).T
-            Ps.add(P)
+            Ps.append(P)
         super(TransitionMapMDP, self).__init__(Ps, R, terminate, p0)
 
 

@@ -14,7 +14,7 @@ class MarkovChain(object):
         return self.s
 
     def solveValueFn(self, gamma, R):
-        return np.linalg.solve( np.eye(self.num_states) - gamma*self.P, R)
+        return np.linalg.solve( np.eye(self.num_states) - gamma*self.P.T, R)
 
 class MCSequenceGenerator(object):
     def __init__(self, P, maxlength, **argk):
