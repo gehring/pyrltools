@@ -26,9 +26,9 @@ class SwingPendulum(object):
 
     action_range = [[-umax], [umax]]
 
-    __discrete_actions = [ [-umax],
-                         [0],
-                         [umax]]
+    __discrete_actions = [np.array([-umax]),
+                          np.array([0]),
+                          np.array([umax])]
 
     def __init__(self,
                  random_start = False,
