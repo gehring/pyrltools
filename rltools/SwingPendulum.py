@@ -18,6 +18,8 @@ class SwingPendulum(object):
     pos_start = pi/2.0
     vel_start = 0.0
 
+    damping = 0.01
+
     state_range =[ np.array([min_pos, -max_speed]),
                    np.array([max_pos, max_speed])]
 
@@ -28,9 +30,13 @@ class SwingPendulum(object):
                          [0],
                          [umax]]
 
-    def __init__(self, random_start = False, **argk):
+    def __init__(self,
+                 random_start = False,
+                 required_up_time=10.0,
+                 **argk):
         self.state= np.zeros(2)
         self.random_start = random_start
+        self.required_up_time = required_up_time
         self.reset()
 
 
@@ -55,7 +61,7 @@ class SwingPendulum(object):
 
     def update(self, action):
         torque = np.clip(action, *self.action_range)
-        theta_acc = self.timestep * (- self.state[1]
+        theta_acc = self.timestep * (- self.state[1]*self.damping
                         + self.mass * self.G * self.length * math.sin(self.state[0])
                         + torque)
         self.state[1] = np.clip(self.state[1] + theta_acc, self.state_range[0][1], self.state_range[1][1])
