@@ -18,7 +18,7 @@ class SwingPendulum(object):
     pos_start = pi/2.0
     vel_start = 0.0
 
-    damping = 0.5
+    damping = 0.2
 
     state_range =[ np.array([min_pos, -max_speed]),
                    np.array([max_pos, max_speed])]
