@@ -13,7 +13,7 @@ class SwingPendulum(object):
     timestep = 0.01
     required_up_time = 10.0
     up_range = pi/4.0
-    max_speed = (pi/4.0)/timestep
+    max_speed = pi*3
 
     pos_start = pi/2.0
     vel_start = 0.0
