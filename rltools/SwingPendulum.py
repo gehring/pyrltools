@@ -6,8 +6,8 @@ class SwingPendulum(object):
     min_pos = -1.2
     max_pos = 0.6
 
-    umax = 2.0
-    mass = 1.0
+    umax = 200.0
+    mass = 100.0
     length = 1.0
     G = 9.8
     timestep = 0.01
