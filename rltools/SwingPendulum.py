@@ -3,11 +3,11 @@ from math import pi
 import math
 
 class SwingPendulum(object):
-    min_pos = -1.2
-    max_pos = 0.6
+    min_pos = -pi
+    max_pos = pi
 
-    umax = 200.0
-    mass = 100.0
+    umax = 2.0
+    mass = 1.0
     length = 1.0
     G = 9.8
     timestep = 0.01
@@ -18,7 +18,7 @@ class SwingPendulum(object):
     pos_start = pi/2.0
     vel_start = 0.0
 
-    damping = 0.01
+    damping = 0.1
 
     state_range =[ np.array([min_pos, -max_speed]),
                    np.array([max_pos, max_speed])]
