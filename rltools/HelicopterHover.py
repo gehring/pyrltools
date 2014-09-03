@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 from math import pi
-from sympy.series.gruntz import rewrite
+from itertools import product
 
 
 class Quaternion(object):
@@ -196,9 +196,21 @@ class HelicopterHover(object):
 class InfiniteHorizonHelicopter(object):
 
     num_steps_penalty = 30
+    action_range = [np.array([-1.0]*4), np.array([1.0]*4)]
 
-    def __init__(self, **kargs):
+
+    def __init__(self, actions = None, **kargs):
         kargs['max_steps'] = float('inf')
+        if actions == None:
+            actions_per_dim = kargs['actions_per_dim']
+            actions = product(*[np.linspace(-1.0, 1.0, actions_per_dim),
+                                np.linspace(-1.0, 1.0, actions_per_dim),
+                                np.linspace(-1.0, 1.0, actions_per_dim),
+                                np.linspace(-1.0, 1.0, actions_per_dim)])
+            self.__discrete_actions = map(np.array, actions)
+        else:
+            self.__discrete_actions = actions
+
         self.helicopter = HelicopterHover(**kargs)
 
     def reset(self):
@@ -217,5 +229,23 @@ class InfiniteHorizonHelicopter(object):
     def copy(self):
         IHheli = InfiniteHorizonHelicopter()
         IHheli.helicopter = self.helicopter.copy()
+        IHheli.__discrete_actions = [ a.copy() for a in self.__discrete_actions]
         return IHheli
+
+    @property
+    def state_range(self):
+        return [self.helicopter.__state_range[0][:-1],
+                self.helicopter.__state_range[1][:-1]]
+
+    @property
+    def discrete_actions(self):
+        return self.__discrete_actions
+
+    @property
+    def state_dim(self):
+        return len(self.state_range[0])
+
+    @property
+    def action_dim(self):
+        return len(self.action_range[0])
 
