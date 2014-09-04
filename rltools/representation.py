@@ -188,6 +188,51 @@ class TabularAction(StateActionProjector):
     def size(self):
         return self.projector.size*self.num_action
 
+class Concatenator(Projector):
+    def __init__(self, projectors, **params):
+        super(Concatenator, self).__init__()
+        self.projectors = projectors
+        self.__size = sum((proj.size for proj in projectors))
+
+    def __call__(self, state):
+        return np.hstack(( proj(state) for proj in self.projectors))
+
+    @property
+    def size(self):
+        return self.__size
+
+class Concatenator_Factory(object):
+    def __init__(self, projector_factories, **argks):
+        self.projector_factories
+        self.params = argks
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([ x for x in argk.items()])
+        return Concatenator(projectors = [f(**params) for f in self.projector_factories],
+                       self.params)
+
+class Indexer(Projector):
+    def __init__(self, projector, indices, **params):
+        super(Indexer, self).__init__()
+        self.projector = projector
+        self.indices = indices
+
+    def __call__(self, state):
+        return self.projector(state[self.indices])
+
+    @property
+    def size(self):
+        return self.projector.size
+
+class Indexer_Factory(object):
+    def __init__(self, projector_factory, **argks):
+        self.projector_factory
+        self.params = argks
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([ x for x in argk.items()])
+        return Indexer(projector = self.projector_factory(**params), self.params)
+
 class FlatStateAction(StateActionProjector):
     def __init__(self, state_size, action_dim, projector = None):
         super(FlatStateAction, self).__init__()
