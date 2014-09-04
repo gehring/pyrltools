@@ -191,6 +191,7 @@ class HelicopterHover(object):
         heli_copy.q = self.q.copy()
         heli_copy.num_steps = self.num_steps
         heli_copy.noise = self.noise.copy()
+        return heli_copy
 
 
 class InfiniteHorizonHelicopter(object):
