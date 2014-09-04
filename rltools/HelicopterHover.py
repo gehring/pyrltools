@@ -189,7 +189,7 @@ class HelicopterHover(object):
         heli_copy.pos = self.pos.copy()
         heli_copy.ang_rate = self.ang_rate.copy()
         heli_copy.q = self.q.copy()
-        heli_copy.num_steps = self.num_steps.copy()
+        heli_copy.num_steps = self.num_steps
         heli_copy.noise = self.noise.copy()
 
 
