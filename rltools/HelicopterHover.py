@@ -227,9 +227,8 @@ class InfiniteHorizonHelicopter(object):
         return reward, self.helicopter.makeObs()
 
     def copy(self):
-        IHheli = InfiniteHorizonHelicopter()
+        IHheli = InfiniteHorizonHelicopter(actions = [ a.copy() for a in self.__discrete_actions])
         IHheli.helicopter = self.helicopter.copy()
-        IHheli.__discrete_actions = [ a.copy() for a in self.__discrete_actions]
         return IHheli
 
     @property
