@@ -209,7 +209,7 @@ class Concatenator_Factory(object):
         params = dict(self.params)
         params.update([ x for x in argk.items()])
         return Concatenator(projectors = [f(**params) for f in self.projector_factories],
-                       self.params)
+                       **self.params)
 
 class Indexer(Projector):
     def __init__(self, projector, indices, **params):
@@ -231,7 +231,7 @@ class Indexer_Factory(object):
     def __call__(self, **argk):
         params = dict(self.params)
         params.update([ x for x in argk.items()])
-        return Indexer(projector = self.projector_factory(**params), self.params)
+        return Indexer(projector = self.projector_factory(**params), **self.params)
 
 class FlatStateAction(StateActionProjector):
     def __init__(self, state_size, action_dim, projector = None):
