@@ -183,6 +183,8 @@ class HelicopterHover(object):
             quat = Quaternion(np.sin(angle/2.0)*(x/angle))
             quat.xyzw[3] = np.cos(angle)
 
+        return quat
+
     def copy(self):
         heli_copy = copy.copy(self)
         heli_copy.vel = self.vel.copy()
