@@ -203,7 +203,7 @@ class Concatenator(Projector):
 
 class Concatenator_Factory(object):
     def __init__(self, projector_factories, **argks):
-        self.projector_factories
+        self.projector_factories = projector_factories
         self.params = argks
     def __call__(self, **argk):
         params = dict(self.params)
