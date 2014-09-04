@@ -226,7 +226,7 @@ class Indexer(Projector):
 
 class Indexer_Factory(object):
     def __init__(self, projector_factory, **argks):
-        self.projector_factory
+        self.projector_factory = projector_factory
         self.params = argks
     def __call__(self, **argk):
         params = dict(self.params)
