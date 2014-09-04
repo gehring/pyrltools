@@ -51,7 +51,7 @@ class HelicopterHover(object):
     MAX_ACTION = 1.0
     WIND_MAX = 5.0
     WIND = np.zeros(2)
-    __state_range = [np.array([-MAX_VEL] * 3
+    all_state_range = [np.array([-MAX_VEL] * 3
                             + [-MAX_POS] * 3
                             + [-MAX_RATE] * 3
                             + [-MAX_QUAT] * 4),
@@ -108,7 +108,7 @@ class HelicopterHover(object):
         obs[6:9] = self.ang_rate
         obs[9:12] = self.q.xyzw[:3]
 
-        return np.clip(obs, self.__state_range[0][:-1], self.__state_range[1][:-1])
+        return np.clip(obs, self.all_state_range[0][:-1], self.all_state_range[1][:-1])
 
     def update(self, a):
         a = np.clip(a, -1, 1)
@@ -234,8 +234,8 @@ class InfiniteHorizonHelicopter(object):
 
     @property
     def state_range(self):
-        return [self.helicopter.__state_range[0][:-1],
-                self.helicopter.__state_range[1][:-1]]
+        return [self.helicopter.all_state_range[0][:-1],
+                self.helicopter.all_state_range[1][:-1]]
 
     @property
     def discrete_actions(self):
