@@ -119,6 +119,35 @@ class NeuronLayer(object):
 
         return dedw, dbias, dedinput, dedgradin
 
+    def compute_gradient_first(self, errors_sig, errors_gradsig):
+        dsigmoid = self.sigmoid.evaluatederiv(self.a)
+        ddsigmoid = self.sigmoid.evaluatederivderiv(self.a)
+
+        # first part is the vanilla backprog, second part is to account for the
+        # errors induced by the gradient
+        deda = ddsigmoid * numpy.sum(self.psi*errors_gradsig, axis=0)
+        deda += dsigmoid * errors_sig
+
+        dedpsi = errors_gradsig * dsigmoid
+
+        # build the error gradient
+        dedw = dedpsi.T
+
+        tmp1 = numpy.empty_like(dedw)
+        tmp1[:] = self.input
+        tmp2 = tmp1.T
+        tmp2 *= deda
+
+        dedw += tmp1
+
+        dbias = deda
+
+        # propagate errors to inputs
+        dedinput = self.w.T.dot(deda)
+        dedgradin = dedpsi.dot(self.w)
+
+        return dedw, dbias, dedinput, dedgradin
+
     def update_weights(self, dedw, dbias):
         if self.prev_dw == None:
             self.prev_dw = -dedw
@@ -141,6 +170,17 @@ class NeuronLayer(object):
 
         return self.out, self.gradout
 
+    def evaluate_first(self, inputs):
+        self.input = inputs
+        self.a = self.w.dot(inputs) + self.bias
+        self.out = self.sigmoid.evaluate(self.a)
+
+        dsigmoid = self.sigmoid.evaluatederiv(self.a)
+        self.psi = self.w.T
+        self.gradout = self.psi * dsigmoid
+
+        return self.out, self.gradout
+
 
 class NeuralNet(object):
     def __init__(self, layers, **kargs):
@@ -154,8 +194,8 @@ class NeuralNet(object):
         self.layers[-1].sigmoid = Linearfn()
 
     def evaluate(self, inputs):
-        grad = numpy.eye(len(inputs))
-        for l in self.layers:
+        inputs, grad = self.layers[0].evaluate_first(inputs)
+        for l in self.layers[1:]:
             inputs, grad = l.evaluate(inputs, grad)
         return self.layers[-1].out
 
@@ -170,9 +210,13 @@ class NeuralNet(object):
                         * direction)]).T
 
         err_grad = []
-        for l in reversed(self.layers):
+        for l in reversed(self.layers[1:]):
             dedw, dedb, dedinput, dedgradin = l.compute_gradient(dedinput, dedgradin)
             err_grad.append((dedw, dedb))
+
+        dedw, dedb, dedinput, dedgradin = self.layers[0].compute_gradient_first(dedinput, dedgradin)
+        err_grad.append((dedw, dedb))
+
         alpha = self.alpha
         for l, grad in zip(reversed(self.layers), err_grad):
             l.update_weights(grad[0] * self.alpha, grad[1] * alpha)
