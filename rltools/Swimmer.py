@@ -183,9 +183,8 @@ class Swimmer(object):
 
     @property
     def state_range(self):
-        # np.array(zip(*self.statespace_limits))
-        return [np.array([ r[0] for r in self.statespace_limits]),
-                np.array([ r[1] for r in self.statespace_limits])]
+        return [self.statespace_limits[:,0],
+                self.statespace_limits[:,1]]
 
     @property
     def discrete_actions(self):
