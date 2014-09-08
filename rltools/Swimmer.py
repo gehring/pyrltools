@@ -79,7 +79,7 @@ class Swimmer(object):
             + [[-2, 2]] * 2 + [[-np.pi * 2, np.pi * 2]] * d
         self.statespace_limits = np.array(self.statespace_limits)
         self.continuous_dims = range(self.statespace_limits.shape[0])
-        super(Swimmer, self).__init__()
+        self.reset()
 
     def reset(self):
         self.theta = np.zeros(self.d)
