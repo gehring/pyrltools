@@ -21,7 +21,7 @@ class POSarsa(Agent):
         self.tracker = tracker
 
     def step(self, r, s_tp1):
-        s_tp1 = self.tracker.step(s_tp1)
+        s_tp1 = self.tracker.update(s_tp1)
         if s_tp1 != None:
             a_tp1 = self.policy(s_tp1)
         else:
@@ -52,7 +52,7 @@ class POActor(object):
         self.tracker.reset()
 
     def proposeAction(self, state):
-        s = self.tracker.step(state)
+        s = self.tracker.update(state)
         return self.policy(s)
 
 
