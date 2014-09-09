@@ -44,6 +44,10 @@ class POMaze(object):
         newmaze = POMaze([copy.copy(t) for t in self.transitions], copy.copy(self.goal))
         return newmaze
 
+    @property
+    def discrete_actions(self):
+        return np.arange(4)
+
 def createMazeFromLines(walls, goal, size, wrap = 'clip'):
     actions = [(0,1), (1,0), (-1,0), (0,-1)]
     transitions = [{ (x,y) : (x+a[0], y+a[1]) for x,y in product(range(size[0]),
