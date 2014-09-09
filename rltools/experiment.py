@@ -127,6 +127,18 @@ def evaluate_trial(domain, agent):
 
     return cum_rew
 
+def evaluate_trial_PO(domain, agent):
+    domain_copy = domain.copy()
+    actor = agent.getActor()
+    actor.reset()
+    r, s_t = domain_copy.reset()
+    cum_rew = r
+    while s_t != None:
+        r, s_t = domain_copy.step(actor.proposeAction(s_t))
+        cum_rew += r
+
+    return cum_rew
+
 def evaluate_1000_steps(domain, agent):
     domain_copy = domain.copy()
     r, s_t = domain_copy.reset()

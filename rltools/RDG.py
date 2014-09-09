@@ -25,3 +25,11 @@ class RDG(object):
         obs = np.zeros(dtype = 'int32')
         obs[self.states] = 1
         return obs
+
+    def copy(self):
+        newrdg = RDG(1, 1, 1)
+        newrdg.transitions = self.transitions.copy()
+        newrdg.states = self.states.copy()
+        newrdg.dummy_indices = self.dummy_indices.copy()
+        newrdg.num_nodes = self.num_nodes
+        return newrdg
