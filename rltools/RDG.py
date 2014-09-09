@@ -9,6 +9,7 @@ class RDG(object):
         self.states = np.zeros(num_graphs, dtype='int32')
         self.dummy_indices = np.arange(num_graphs)
         self.num_nodes = num_nodes
+        self.size = num_nodes * num_graphs
 
     def reset(self):
         self.states[:] = 0
@@ -22,7 +23,7 @@ class RDG(object):
         # and zero everywhere else
         s = self.states + (self.num_nodes ** self.dummy_indices)
         s[0] -= 1
-        obs = np.zeros(dtype = 'int32')
+        obs = np.zeros(self.size, dtype = 'int32')
         obs[self.states] = 1
         return obs
 
