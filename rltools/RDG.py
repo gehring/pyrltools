@@ -23,8 +23,7 @@ class RDG(object):
     def getState(self):
         # get a vector with ones in the indices of the occupied node
         # and zero everywhere else
-        s = self.states + (self.num_nodes ** self.dummy_indices)
-        s[0] -= 1
+        s = self.states + (self.num_nodes * self.dummy_indices)
         obs = np.zeros(self.size, dtype = 'int32')
         obs[self.states] = 1
         return obs
