@@ -25,7 +25,7 @@ class RDG(object):
         # and zero everywhere else
         s = self.states + (self.num_nodes * self.dummy_indices)
         obs = np.zeros(self.size, dtype = 'int32')
-        obs[self.states] = 1
+        obs[s] = 1
         return obs
 
     def copy(self):
