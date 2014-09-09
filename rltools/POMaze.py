@@ -11,12 +11,12 @@ class POMaze(object):
     dims = np.ones(4)*2
 
     def __init__(self, transitions, goal):
-        self.state= 0
+        self.state= (0,0)
         self.transitions = transitions
         self.goal = goal
 
     def reset(self):
-        self.state = 0
+        self.state = (0,0)
         return self.step_rew, self.getObs()
 
     def step(self, a):
