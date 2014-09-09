@@ -17,6 +17,7 @@ class POMaze(object):
 
     def reset(self):
         self.state = 0
+        return self.step_rew, self.getObs()
 
     def step(self, a):
         # if legal action
