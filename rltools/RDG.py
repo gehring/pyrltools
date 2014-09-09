@@ -15,6 +15,8 @@ class RDG(object):
         self.states[:] = 0
 
     def update(self, obs_index):
+        if obs_index == None:
+            return None
         self.states = self.transitions[obs_index, self.states, self.dummy_indices]
         return self.getState()
 
