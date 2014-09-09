@@ -53,17 +53,17 @@ def createMazeFromLines(walls, goal, size, wrap = 'clip'):
     for w in walls:
         for t in transitions:
             if w[1] in t and w[0] == t[w[1]]:
-                t.remove(w[1])
+                del t[w[1]]
             if w[0] in t and w[1] == t[w[0]]:
-                t.remove(w[0])
+                del t[w[0]]
 
     if wrap == 'clip':
         for x in range(size[0]):
-            transitions[3].remove((x,0))
-            transitions[0].remove((x,size[1]-1))
+            del transitions[3][(x,0)]
+            del transitions[0][(x,size[1]-1)]
         for y in range(size[1]):
-            transitions[2].remove((0,y))
-            transitions[1].remove((size[0]-1, y))
+            del transitions[2][(0,y)]
+            del transitions[1][(size[0]-1, y)]
     elif wrap == 'wrap':
         for x in range(size[0]):
             transitions[3][(x,0)] = (x,size[1]-1)
