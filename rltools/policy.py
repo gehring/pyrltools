@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.random import random_sample
 from rltools.valuefn import LSTDlambda
 
 class Policy(object):
@@ -89,6 +90,35 @@ class SoftMax_Factory(object):
         params.update([x for x in argk.items()])
         domain = params.get('domain')
         return SoftMax(domain.discrete_actions, **params)
+
+class SoftMax_mixture(Policy):
+    def __init__(self, valuefns, policies, **argk):
+        super(SoftMax_mixture, self).__init__()
+        self.valuefns = valuefns
+        self.policies = policies
+        self.values = np.zeros(len(valuefns))
+        self.temp = argk.get('temperature', 0.1)
+
+    def __call__(self, state):
+        self.values[:] = (vfn(state) for vfn in self.valuefns)
+        self.values /= self.temp
+        ev = np.exp(self.values)
+        return self.policies[weighted_values(ev/np.sum(ev))](state)
+
+class Max_mixture(Policy):
+    def __init__(self, valuefns, policies, **argk):
+        super(SoftMax_mixture, self).__init__()
+        self.valuefns = valuefns
+        self.policies = policies
+        self.values = np.zeros(len(valuefns))
+
+    def __call__(self, state):
+        self.values[:] = (vfn(state) for vfn in self.valuefns)
+        return self.policies[np.argmax(self.values)](state)
+
+def weighted_values(probabilities, size):
+    bins = np.cumsum(probabilities)
+    return np.digitize(random_sample(size), bins)
 
 def policy_evaluation(rewards,
                       gamma,
