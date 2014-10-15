@@ -100,7 +100,7 @@ class SoftMax_mixture(Policy):
         self.temp = argk.get('temperature', 0.1)
 
     def __call__(self, state):
-        self.values[:] = (vfn(state) for vfn in self.valuefns)
+        self.values[:] = [vfn(state) for vfn in self.valuefns]
         self.values /= self.temp
         ev = np.exp(self.values)
         return self.policies[weighted_values(ev/np.sum(ev))](state)
@@ -113,7 +113,7 @@ class Max_mixture(Policy):
         self.values = np.zeros(len(valuefns))
 
     def __call__(self, state):
-        self.values[:] = (vfn(state) for vfn in self.valuefns)
+        self.values[:] = [vfn(state) for vfn in self.valuefns]
         return self.policies[np.argmax(self.values)](state)
 
 def weighted_values(probabilities, size):
