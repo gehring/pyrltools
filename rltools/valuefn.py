@@ -25,6 +25,8 @@ class linearValueFn(ValueFn):
         self.theta= weights
         self.proj = projector
     def __call__(self, state):
+        v = self.proj(state).dot(self.theta)
+        print v
         return self.proj(state).dot(self.theta)
 
 
