@@ -30,7 +30,10 @@ class GridWorld(object):
     def step(self, action):
         prev_state = self.state
         self.update(action)
-        next_state = self.state.copy()
+        if self.isterminal():
+            next_state = None
+        else:
+            next_state = self.state.copy()
         self.step_count += 1
 
         return self.reward(prev_state, action), next_state
