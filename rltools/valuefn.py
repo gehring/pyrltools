@@ -25,11 +25,6 @@ class linearValueFn(ValueFn):
         self.theta= weights
         self.proj = projector
     def __call__(self, state):
-        print self.proj
-        print self.proj(state)
-        print self.theta
-        v = self.proj(state).dot(self.theta)
-
         return self.proj(state).dot(self.theta)
 
 
@@ -61,7 +56,7 @@ def LSTDlambda(policy,
             p_t = p_tp1
             t += 1
 
-    theta = np.linalg.lstsq(A, b)
+    theta = np.linalg.lstsq(A, b)[0]
     return linearValueFn(theta, phi)
 
 # def BatchLSTDlambda(policy,
