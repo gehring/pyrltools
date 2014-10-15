@@ -25,7 +25,7 @@ class linearValueFn(ValueFn):
         self.theta= weights
         self.proj = projector
     def __call__(self, state):
-        return self.projector(state).dot(self.theta)
+        return self.proj(state).dot(self.theta)
 
 
 def LSTDlambda(policy,
