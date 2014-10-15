@@ -27,7 +27,7 @@ class linearValueFn(ValueFn):
     def __call__(self, state):
         print self.proj
         print self.proj(state)
-        print self.theta.dtype
+        print self.theta
         v = self.proj(state).dot(self.theta)
 
         return self.proj(state).dot(self.theta)
