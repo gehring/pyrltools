@@ -33,9 +33,9 @@ def LSTDlambda(policy,
            gamma,
            feature,
            projector,
-           lamb = 0.0,
            number_episodes,
            max_episode_length,
+           lamb = 0.0,
            **args):
     phi = projector
     A = np.zeros((projector.size, projector.size))
