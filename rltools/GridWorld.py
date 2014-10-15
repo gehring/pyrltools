@@ -53,7 +53,7 @@ class GridWorld(object):
             self.state = next_state
 
     def isterminal(self):
-        return self.terminal(self.state) or self.count >= self.max_episode
+        return self.terminal(self.state) or self.step_count >= self.max_episode
 
     def copy(self):
         newworld = copy.copy(self)

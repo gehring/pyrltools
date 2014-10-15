@@ -12,12 +12,12 @@ middle = set()
 for x in product(range(4,7), range(4,7)):
     s = np.array(x, dtype='int32')
     s.flags.writeable = False
-    middle.update(s)
+    middle.update(s.data)
 
 def reward(state, action=None):
     s = state.copy()
     s.flags.writeable = False
-    if state in middle:
+    if s.data in middle:
         return 1
     else:
         return 0
@@ -30,7 +30,7 @@ islegal = lambda s: boundary(s)
 def terminal(state):
     s = state.copy()
     s.flags.writeable = False
-    if state in middle:
+    if s.data in middle:
         return True
     else:
         return False
