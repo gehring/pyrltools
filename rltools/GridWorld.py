@@ -13,7 +13,7 @@ class GridWorld(object):
                  islegal,
                  terminal,
                  start_range,
-                 transition = deterministic_transitions,
+                 transition = None,
                  random_start = False,
                  max_episode = 1000,
                  **argk):
@@ -23,7 +23,7 @@ class GridWorld(object):
         self.reward = reward
         self.islegal = islegal
         self.start_range = start_range
-        self.transition = transition
+        self.transition = transition if transition != None else deterministic_transitions
         self.reset()
 
     def step(self, action):
