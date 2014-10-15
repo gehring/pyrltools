@@ -116,7 +116,7 @@ class Max_mixture(Policy):
         self.values[:] = [vfn(state) for vfn in self.valuefns]
         return self.policies[np.argmax(self.values)](state)
 
-def weighted_values(probabilities, size):
+def weighted_values(probabilities, size=1):
     bins = np.cumsum(probabilities)
     return np.digitize(random_sample(size), bins)
 
