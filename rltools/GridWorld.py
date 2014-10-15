@@ -61,7 +61,7 @@ class GridWorld(object):
 
 
 def deterministic_transitions(state, action):
-    return state + dx[action]
+    return state + dx[action,:]
 
 class boundary_condition(object):
     def __init__(self, state_range):
