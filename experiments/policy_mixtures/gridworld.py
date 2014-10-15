@@ -12,7 +12,7 @@ middle = set()
 for x in product(range(4,7), range(4,7)):
     s = np.array(x, dtype='int32')
     s.flags.writeable = False
-    middle |= s
+    middle.update(s)
 
 def reward(state, action=None):
     s = state.copy()
@@ -36,11 +36,14 @@ def terminal(state):
         return False
 
 
-def phi(state):
-    phi_t = np.zeros(101, dtype = 'int32')
-    phi_t[np.ravel_multi_index(state, (10,10))] = 1
-    phi_t[-1] = 1
-    return phi_t
+class phi(object):
+    def __init__(self):
+        self.size = 101
+    def __call__(self, state):
+        phi_t = np.zeros(101, dtype = 'int32')
+        phi_t[np.ravel_multi_index(state, (10,10))] = 1
+        phi_t[-1] = 1
+        return phi_t
 
 gridworld = GridWorld(reward,
                       islegal,
@@ -52,18 +55,20 @@ valuefns = [policy_evaluation([reward],
                               gamma,
                               pi,
                               gridworld,
-                              projector = phi,
+                              projector = phi(),
                               method = 'LSTDlambda',
-                              number_episodes = 1)[-1]
+                              number_episodes = 1,
+                              max_episode_length = 11)[-1]
             for pi in pis]
 pi_mix = SoftMax_mixture(valuefns, pis)
 value_mix = [policy_evaluation([reward],
                               gamma,
                               pi_mix,
                               gridworld,
-                              projector = phi,
+                              projector = phi(),
                               method = 'LSTDlambda',
-                              number_episodes = 1)[-1]]
+                              number_episodes = 1,
+                              max_episode_length = 11)[-1]]
 
 val =[np.zeros((10,10)) for i in range(5)]
 for x,y in product(range(10), range(10)):

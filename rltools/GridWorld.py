@@ -23,6 +23,7 @@ class GridWorld(object):
         self.reward = reward
         self.islegal = islegal
         self.start_range = start_range
+        self.terminal = terminal
         self.transition = transition if transition != None else deterministic_transitions
         self.reset()
 
