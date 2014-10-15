@@ -1,4 +1,5 @@
 import numpy as np
+from rltools.valuefn import LSTDlambda
 
 class Policy(object):
     def __init__(self):
@@ -89,10 +90,17 @@ class SoftMax_Factory(object):
         domain = params.get('domain')
         return SoftMax(domain.discrete_actions, **params)
 
-# class GradientDescentPolicy(Policy):
-#     def __init__(self, actions, value_fn, **argk):
-#         super(Egreedy, self).__init__()
-#         self.actions = actions.copy()
-#         self.value_fn = value_fn
-#
-#         self.epsilon = argk.get('epsilon', 0.1)
+def policy_evaluation(rewards,
+                      gamma,
+                      policy,
+                      environment,
+                      method = 'LSTDlambda',
+                      **args):
+
+    if method == 'LSTDlambda':
+        return [LSTDlambda(policy,
+                           environment,
+                           gamma,
+                           r,
+                           **args) for r in rewards]
+
