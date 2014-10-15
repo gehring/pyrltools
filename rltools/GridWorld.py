@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 dx = np.array([ [1,0],
                 [-1,0],
@@ -35,10 +36,11 @@ class GridWorld(object):
 
     def reset(self):
         if self.random_start:
-            self.state[:] = [np.random.randint(self.start_range[0][0], self.start_range[1][0]),
-                             np.random.randint(self.start_range[0][1], self.start_range[1][1])]
+            self.state = np.array([np.random.randint(self.start_range[0][0], self.start_range[1][0]),
+                             np.random.randint(self.start_range[0][1], self.start_range[1][1])],
+                                  dtype= 'int32')
         else:
-            self.state[:] = [0,0]
+            self.state = np.zeros(2, dtype= 'int32')
 
         self.step_count = 0
 
@@ -51,6 +53,10 @@ class GridWorld(object):
 
     def isterminal(self):
         return self.terminal(self.state) or self.count >= self.max_episode
+
+    def copy(self):
+        newworld = copy.copy(self)
+        return newworld
 
 
 def deterministic_transitions(state, action):
