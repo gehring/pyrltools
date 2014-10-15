@@ -69,7 +69,7 @@ class boundary_condition(object):
 
     def __call__(self, state):
         s = np.clip(state, self.state_range[0], self.state_range[1])
-        return s == state
+        return np.all(s == state)
 
 class obstacle_condition(object):
     def __init__(self, obstacle):
