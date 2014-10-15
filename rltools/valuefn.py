@@ -56,7 +56,7 @@ def LSTDlambda(policy,
             p_t = p_tp1
             t += 1
 
-    theta = np.linalg.solve(A, b)
+    theta = np.linalg.lstsq(A, b)
     return linearValueFn(theta, phi)
 
 # def BatchLSTDlambda(policy,
