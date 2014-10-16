@@ -9,7 +9,7 @@ domain = MountainCar(True, 1000)
 phi = TileCoding(input_indicies = [[0,1]], 
                  ntiles = [10], 
                  ntilings=[10], 
-                 domain.state_range, 
+                 state_range = domain.state_range, 
                  bias_term = True)
 
 valuefn = LinearTD(domain.action_dim, 
