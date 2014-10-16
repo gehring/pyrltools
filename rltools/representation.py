@@ -109,9 +109,9 @@ class TileCoding(Projector):
 
     def __call__(self, state):
         if self.bias_term:
-            return sparse.hstack(chain((t(state) for t in self.tilings), [1]), 'csc', dtype= 'int32')
+            return sparse.vstack(chain((t(state) for t in self.tilings), [1]), 'csc', dtype= 'int32')
         else:
-            return sparse.hstack((t(state) for t in self.tilings), 'csc', dtype= 'int32')
+            return sparse.vstack((t(state) for t in self.tilings), 'csc', dtype= 'int32')
 
     @property
     def size(self):
