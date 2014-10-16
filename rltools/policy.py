@@ -18,12 +18,9 @@ class Egreedy(Policy):
 
     def __call__(self, state):
         values = np.array([self.value_fn(state, act) for act in self.actions])
-        if np.all(np.isnan(values)):
-            values[:] = 1.0/len(self.actions)
-        else:
-            m = np.nanargmax(values)
-            values[:] = self.epsilon/len(self.actions)
-            values[m] += 1-self.epsilon
+        m = np.nanargmax(values)
+        values[:] = self.epsilon/len(self.actions)
+        values[m] += 1-self.epsilon
         a = np.random.choice(range(len(self.actions)), p=values)
         return self.actions[a]
 

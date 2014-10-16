@@ -12,12 +12,12 @@ phi = TileCoding(input_indicies = [[0,1]],
                  state_range = domain.state_range, 
                  bias_term = True)
 
-valuefn = LinearTD(domain.action_dim, 
+valuefn = LinearTD(len(domain.discrete_actions), 
                    phi,
                    alpha = 0.01,
                    lamb = 0.6,
                    gamma= 0.9)
-policy = Egreedy(np.arange(domain.action_dim), valuefn)
+policy = Egreedy(np.arange(len(domain.discrete_actions)), valuefn)
 agent = TabularActionSarsa(domain.discrete_actions, policy, valuefn)
 
 

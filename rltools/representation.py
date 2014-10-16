@@ -80,6 +80,7 @@ class Tiling(object):
         self.input_index = input_index
         self.size = ntilings*(ntiles**len(self.input_index))
         self.index_offset = ntiles * np.arange(ntilings)
+        self.ntiles = ntiles
         
     def __call__(self, state):
         proj_state = csc_matrix((self.size, 1), dtype = 'int32')
@@ -88,7 +89,7 @@ class Tiling(object):
 
     def getIndices(self, state):
         nstate = (state[self.input_index] - self.state_range[0])/(self.state_range[1]-self.state_range[0])
-        indicies = ((self.offset[None,:] + nstate[:,None])*self.ntiles).astype(int)
+        indicies = np.clip(((self.offset[None,:] + nstate[:,None])*self.ntiles).astype(int), 0, self.ntiles-1)
         return np.ravel_multi_index(indicies, self.dims) + self.index_offset
 
 class TileCoding(Projector):

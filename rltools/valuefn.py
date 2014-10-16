@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 from rltools.pyneuralnet import NeuralNet
 
 class ValueFn(object):
@@ -108,13 +109,21 @@ class LinearTD(ValueFn):
         if state == None:
             return 0
         else:
-            return self.phi(state).dot(self.theta[action,:])
+            return self.phi(state).T.dot(self.theta[action,:].T)[0]
 
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t == None:
             self.e = np.zeros(self.phi.size)
+            return
         delta = r + self.gamma*self(s_tp1, a_tp1) - self(s_t, a_t)
-        self.e = self.gamma*self.lamb*self.e + self.phi(s_t)
+        
+        self.e *= self.gamma*self.lamb
+        phi_t = self.phi(s_t)
+        if scipy.sparse.issparse(phi_t):
+            self.e[phi_t.indices] += phi_t.data
+        else:
+            self.e += self.phi(s_t)
+            
         self.theta[a_t,:] += self.alpha*delta*self.e
 
 
