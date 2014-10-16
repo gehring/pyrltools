@@ -9,26 +9,23 @@ import matplotlib.pyplot as plt
 from itertools import product
 
 domain = MountainCar(random_start= False, max_episode=1000)
-s_range = [s.copy() for s in domain.state_range]
-s_range[0] -= [0.3, 0.03]
-s_range[1] += [0.3, 0.03]
-proj = TileCoding(input_indicies = [[0,1]], 
-                 ntiles = [10], 
-                 ntilings=[8], 
-                 state_range = s_range, 
+proj = TileCoding(input_indicies = [[0,1]],
+                 ntiles = [10],
+                 ntilings=[8],
+                 state_range = domain.state_range,
                  bias_term = True)
 class PHI(object):
     def __init__(self):
         self.size = proj.size
     def __call__(self, s):
         return proj(s) if s != None else np.zeros(proj.size)
-    
+
 phi = PHI()
 
-valuefn = LinearTD(len(domain.discrete_actions), 
+valuefn = LinearTD(len(domain.discrete_actions),
                    phi,
-                   alpha = 0.005,
-                   lamb = 0.4,
+                   alpha = 0.01,
+                   lamb = 0.0,
                    gamma= 0.9)
 policy = Egreedy(np.arange(len(domain.discrete_actions)), valuefn, epsilon = 0.1)
 agent = TabularActionSarsa(domain.discrete_actions, policy, valuefn)
@@ -60,7 +57,7 @@ for i in xrange(num_episodes):
         r_t, s_t = domain.step(agent.step(r_t, s_t))
         count += 1
     agent.step(r_t, s_t)
-#     
+#
     if i % 100 == 0:
         plt.gca().clear()
         plt.imshow(eval(valuefn), interpolation= 'none')

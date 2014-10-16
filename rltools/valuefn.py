@@ -90,8 +90,8 @@ def LSTDlambda(policy,
 #     return linearValueFn(theta, phi)
 
 class LinearTD(ValueFn):
-    def __init__(self, 
-                 num_actions, 
+    def __init__(self,
+                 num_actions,
                  projector,
                   gamma,
                   **argk):
@@ -115,9 +115,8 @@ class LinearTD(ValueFn):
         if s_t == None:
             self.e = np.zeros(self.phi.size)
             return
-        delta = r + self.gamma*self(s_tp1, a_tp1) - self(s_t, a_t)
-        
         self.e = self.gamma*self.lamb*self.e + self.phi(s_t)
+        delta = r + self.gamma*self(s_tp1, a_tp1) - self(s_t, a_t)
         self.theta[a_t,:] += self.alpha*delta*self.e
 
 
