@@ -93,16 +93,18 @@ class LinearTD(ValueFn):
     def __init__(self,
                  num_actions,
                  projector,
-                  gamma,
-                  **argk):
+                 alpha,
+                 lamb,
+                 gamma,
+                 **argk):
         super(LinearTD, self).__init__()
         self.projector = projector
         self.gamma = gamma
-        self.alpha = argk.get('alpha', 0.1)
-        self.lamb = argk.get('lamb', 0.6)
+        self.alpha = alpha
+        self.lamb = lamb
         self.phi = projector
         self.theta = np.zeros((num_actions, projector.size))
-        self.e = np.zeros(projector.size)
+        self.e = np.zeros_like(self.theta)
         self.num_actions = num_actions
 
     def __call__(self, state, action):
@@ -113,11 +115,13 @@ class LinearTD(ValueFn):
 
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t == None:
-            self.e = np.zeros(self.phi.size)
+            self.e = np.zeros_like(self.theta)
             return
-        self.e = self.gamma*self.lamb*self.e + self.phi(s_t)
+
+        self.e[a_t,:] += self.phi(s_t)
         delta = r + self.gamma*self(s_tp1, a_tp1) - self(s_t, a_t)
-        self.theta[a_t,:] += self.alpha*delta*self.e
+        self.theta += self.alpha*delta*self.e
+        self.e *= self.gamma*self.lamb
 
 
 class RBFValueFn(incrementalValueFn):
