@@ -169,21 +169,6 @@ class NeuronLayer(object):
         self.gradout = self.psi * dsigmoid
 
         return self.out, self.gradout
-
-<<<<<<< HEAD
-class RBFLayer(object):
-    def __init__(self, input_size, layer_input, num_neuron, **argk):
-        pass
-
-    def evaluate(self, inputs, grad):
-        pass
-
-    def compute_gradient(self, errors_sig, errors_gradsig):
-        pass
-
-    def update_weights(self, dedw, dbias):
-        pass
-=======
     def evaluate_first(self, inputs):
         self.input = inputs
         self.a = self.w.dot(inputs) + self.bias
@@ -194,7 +179,6 @@ class RBFLayer(object):
         self.gradout = self.psi * dsigmoid
 
         return self.out, self.gradout
->>>>>>> 7727a3bd07367f0cdd17cdba19f5ab84afa78a89
 
 
 class NeuralNet(object):
