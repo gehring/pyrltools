@@ -1,5 +1,7 @@
 import numpy as np
-from scipy.sparse import bsr_matrix
+from scipy.sparse import csc_matrix
+import scipy.sparse as sparse
+from itertools import chain
 
 class Projector(object):
     def __init__(self):
@@ -49,43 +51,59 @@ class StateNormalizer_Factory(object):
         domain = new_param.get('domain')
         return StateNormalizer(stateprojector, domain.state_range)
 
-class Tiling(object):
-    def __init__(self, input_size, ntiles, offset = None):
-        self.input_size = input_size
-        self.ntiles = ntiles
-        self.offset = offset
-        if self.offset == None:
-            self.offset = np.random.uniform(0, 1, input_size)
+class TabularState(Projector):
+    def __init__(self, number_of_states, **kargs):
+        super(TabularState, self).__init__()
+        self.__size = number_of_states
 
-    def getIndex(self, inputs):
-        index = 0
-        for i in range(self.input_size):
-            index = (index*self.ntiles +
-                        int(inputs[i]*(self.ntiles-1) + self.offset[i]))
-        return index
+    def __call__(self, state):
+        state_v = csc_matrix((self.size, 1), dtype='int32')
+        state_v[state] = 1
+        return state_v
 
     @property
     def size(self):
-        return self.ntiles**self.input_size
+        return self.__size
+
+class Tiling(object):
+    def __init__(self, input_index, ntiles, state_range, offset = None):
+        self.state_range = [state_range[0][input_index], state_range[1][input_index]]
+        self.offset = offset
+        if offset == None:
+            self.offset = np.linspace(0, 1.0/ntiles, ntiles, False);
+        self.dims = np.array([ntiles]*len(input_index), dtype='int32')
+        self.input_index = input_index
+        self.size = self.ntiles**len(self.input_index)
+    def __call__(self, state):
+        proj_state = csc_matrix((self.size, 1), dtype = 'int32')
+        proj_state[self.getIndices(state)] = 1
+        return proj_state
+
+    def getIndices(self, state):
+        nstate = (state[self.input_index] - self.state_range[0])/(self.state_range[1]-self.state_range[0])
+        indicies = ((self.offset[None,:] + nstate[:,None])*self.ntiles).astype(int)
+        return np.ravel_multi_index(indicies, self.dims)
 
 class TileCoding(Projector):
-    ''' The slowest tilecoding implementation ever'''
-    def __init__(self, input_size, ntiles, ntilings, in_range = None):
+    def __init__(self,  
+                 input_indicies, 
+                 ntiles, 
+                 tilings, 
+                 state_range, 
+                 bias_term = True):
         super(TileCoding, self).__init__()
-        self.__size = ntilings * (ntiles**input_size)
-        self.tilings = [Tiling(input_size, ntiles) for i in range(ntilings)]
-        self.in_range = in_range
+        self.state_range = state_range
+        self.tilings = [Tiling(in_index, nt, t, state_range)
+                        for in_index, nt, t in zip(input_indicies, ntiles, tilings)]
+        self.__size = sum(map(lambda x: x.size, self.tilings)) 
+        if bias_term:
+            self.__size += 1
 
     def __call__(self, state):
-        if self.in_range != None:
-            state = (state - self.in_range[0])/(self.in_range[1] - self.in_range[0])
-        out = np.zeros(self.size)
-        offset = 0
-        for tiling in self.tilings:
-            index = tiling.getIndex(state)
-            out[index + offset] = 1.0
-            offset += tiling.size
-        return out
+        if self.bias_term:
+            return sparse.hstack(chain((t(state) for t in self.tilings), [1]), 'csc', dtype= 'int32')
+        else:
+            return sparse.hstack((t(state) for t in self.tilings), 'csc', dtype= 'int32')
 
     @property
     def size(self):
@@ -187,6 +205,51 @@ class TabularAction(StateActionProjector):
     @property
     def size(self):
         return self.projector.size*self.num_action
+
+class Concatenator(Projector):
+    def __init__(self, projectors, **params):
+        super(Concatenator, self).__init__()
+        self.projectors = projectors
+        self.__size = sum((proj.size for proj in projectors))
+
+    def __call__(self, state):
+        return np.hstack(( proj(state) for proj in self.projectors))
+
+    @property
+    def size(self):
+        return self.__size
+
+class Concatenator_Factory(object):
+    def __init__(self, projector_factories, **argks):
+        self.projector_factories = projector_factories
+        self.params = argks
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([ x for x in argk.items()])
+        return Concatenator(projectors = [f(**params) for f in self.projector_factories],
+                       **self.params)
+
+class Indexer(Projector):
+    def __init__(self, projector, indices, **params):
+        super(Indexer, self).__init__()
+        self.projector = projector
+        self.indices = indices
+
+    def __call__(self, state):
+        return self.projector(state[self.indices])
+
+    @property
+    def size(self):
+        return self.projector.size
+
+class Indexer_Factory(object):
+    def __init__(self, projector_factory, **argks):
+        self.projector_factory = projector_factory
+        self.params = argks
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([ x for x in argk.items()])
+        return Indexer(projector = self.projector_factory(**params), **self.params)
 
 class FlatStateAction(StateActionProjector):
     def __init__(self, state_size, action_dim, projector = None):

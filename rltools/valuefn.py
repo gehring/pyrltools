@@ -12,31 +12,34 @@ class ValueFn(object):
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         pass
 
-class LinearTD0(ValueFn):
-    def __init__(self, projector, **argk):
-        super(LinearTD0, self).__init__()
+class LinearTD(ValueFn):
+    def __init__(self, 
+                 num_actions, 
+                 projector,
+                  gamma,
+                  **argk):
+        super(LinearTD, self).__init__()
         self.projector = projector
-        self.gamma = argk.get('gamma', 0.9)
+        self.gamma = gamma
         self.alpha = argk.get('alpha', 0.1)
+        self.lamb = argk.get('lamb', 0.6)
+        self.phi = projector
+        self.theta = np.zeros((num_actions, projector.size))
+        self.e = np.zeros(projector.size)
+        self.num_actions = num_actions
 
-    def __call__(self, state, actions):
-        projected = np.array(self.projector(state, actions))
-        return projected.dot(self.w)
+    def __call__(self, state, action):
+        if state == None:
+            return 0
+        else:
+            return self.phi(state).dot(self.theta[action,:])
 
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t == None:
-            return
-
-        phi_t = self.projector(s_t, a_t)
-        v_t = phi_t.dot(self.w)
-        if s_tp1 == None:
-            v_tp1 = 0
-        else:
-            v_tp1 = self(s_tp1, a_tp1)
-
-        td = r + self.gamma * v_tp1 - v_t
-
-        self.w += self.alpha * td * phi_t
+            self.e = np.zeros(self.phi.size)
+        delta = r + self.gamma*self(s_tp1, a_tp1) - self(s_t, a_t)
+        self.e = self.gamma*self.lamb*self.e + self.phi(s_t)
+        self.theta[a_t,:] += self.alpha*delta*self.e
 
 
 class RBFValueFn(ValueFn):
@@ -236,6 +239,188 @@ class TabularNeuroSFTD(ValueFn):
         target = r + self.gamma * v_tp1
 
         self.nets[index_t].backprop(target, dphi, dV)
+
+
+
+class TabularAvgRewNeuroSFTD(ValueFn):
+    def __init__(self, actions, projector, alphamu, **argk):
+        super(TabularAvgRewNeuroSFTD, self).__init__()
+        self.projector = projector
+        self.alphamu = alphamu
+        if 'layers' not in argk:
+            argk['layers'] = [projector.size, 30, 1]
+
+        self.actions = actions
+        self.nets = [NeuralNet( **argk) for i in xrange(len(actions))]
+        self.mu=None
+
+    def __call__(self, state, action):
+        projected = self.projector(state)
+        index = self.getactionindex(action)
+        return self.nets[index].evaluate(projected)[0]
+
+    def getactionindex(self, action):
+        return np.argmax(np.all(self.actions == action, axis = 1))
+
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if self.mu == None:
+            self.mu = r
+        else:
+            self.mu = self.mu*(1-self.alphamu) + self.alphamu*r
+
+        if s_t == None:
+            return
+
+        index_t = self.getactionindex(a_t)
+        phi_t = self.projector(s_t)
+
+        if s_tp1 == None:
+            dphi = np.zeros_like(phi_t)
+            v_tp1 = 0
+        else:
+            phi_tp1 = self.projector(s_tp1)
+            index_tp1 = self.getactionindex(a_tp1)
+            v_tp1 = self.nets[index_tp1].evaluate(phi_tp1)[0]
+            dphi = phi_tp1 - phi_t
+
+        v_t = self.nets[index_t].evaluate(phi_t)[0]
+
+        dV = - r + self.mu
+
+        target = r - self.mu + v_tp1
+
+        self.nets[index_t].backprop(target, dphi, dV)
+
+class TabularAvgRewNeuroSFTD_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
+
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        params['actions'] = params['domain'].discrete_actions
+        return TabularAvgRewNeuroSFTD( **params)
+
+
+class TabularAvgRewSFTD(ValueFn):
+    def __init__(self, actions, projector, alpha, alphamu, eta, **argk):
+        super(TabularAvgRewSFTD, self).__init__()
+        self.projector = projector
+        self.alpha = alpha
+        self.alphamu = alphamu
+        self.eta = eta
+
+        self.actions = actions
+        self.theta = [np.random.normal(loc = 0,
+                                       scale = 0.05,
+                                       size = projector.size)
+                      for a in actions]
+        self.mu=None
+
+    def __call__(self, state, action):
+        projected = self.projector(state)
+        index = self.getactionindex(action)
+        return self.theta[index].dot(projected)
+
+    def getactionindex(self, action):
+        return np.argmax(np.all(self.actions == action, axis = 1))
+
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if self.mu == None:
+            self.mu = r
+        else:
+            self.mu = self.mu*(1-self.alphamu) + self.alphamu*r
+
+        if s_t == None:
+            return
+
+        index_t = self.getactionindex(a_t)
+        phi_t = self.projector(s_t)
+
+        if s_tp1 == None:
+            v_t = self.theta[index_t].dot(phi_t)
+            v_tp1 = 0
+            delta = r - self.mu + v_tp1 - v_t
+            self.theta[index_t] += self.alpha * delta * phi_t
+        else:
+            phi_tp1 = self.projector(s_tp1)
+            index_tp1 = self.getactionindex(a_tp1)
+            v_tp1 = self.theta[index_tp1].dot(phi_tp1)
+            v_t = self.theta[index_t].dot(phi_t)
+            delta = r - self.mu + v_tp1 - v_t
+            self.theta[index_t] += self.alpha * delta * phi_t
+            self.theta[index_t] -= self.alpha * self.eta * delta * phi_tp1
+
+class TabularAvgRewSFTD_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
+
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        params['actions'] = params['domain'].discrete_actions
+        return TabularAvgRewSFTD( **params)
+
+
+class TabularAvgRewNSFTD(ValueFn):
+    def __init__(self, actions, projector, alpha, alphamu, eta, **argk):
+        super(TabularAvgRewNSFTD, self).__init__()
+        self.projector = projector
+        self.alpha = alpha
+        self.alphamu = alphamu
+        self.eta = eta
+
+        self.actions = actions
+        self.theta = [np.random.normal(loc = 0,
+                                       scale = 0.05,
+                                       size = projector.size)
+                      for a in actions]
+        self.mu=None
+
+    def __call__(self, state, action):
+        projected = self.projector(state)
+        index = self.getactionindex(action)
+        return self.theta[index].dot(projected)
+
+    def getactionindex(self, action):
+        return np.argmax(np.all(self.actions == action, axis = 1))
+
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if self.mu == None:
+            self.mu = r
+        else:
+            self.mu = self.mu*(1-self.alphamu) + self.alphamu*r
+
+        if s_t == None:
+            return
+
+        index_t = self.getactionindex(a_t)
+        phi_t = self.projector(s_t)
+
+        if s_tp1 == None:
+            v_t = self.theta[index_t].dot(phi_t)
+            v_tp1 = 0
+            delta = r - self.mu + v_tp1 - v_t
+            self.theta[index_t] += self.alpha * delta * phi_t
+        else:
+            phi_tp1 = self.projector(s_tp1)
+            index_tp1 = self.getactionindex(a_tp1)
+            v_tp1 = self.theta[index_tp1].dot(phi_tp1)
+            v_t = self.theta[index_t].dot(phi_t)
+            delta = r - self.mu + v_tp1 - v_t
+            beta = phi_tp1.dot(phi_tp1) + phi_t.dot(phi_t) - 2*(phi_tp1.dot(phi_t))
+            self.theta[index_t] += self.alpha * delta/beta * phi_t
+            self.theta[index_t] -= self.alpha * self.eta * delta/beta * phi_tp1
+
+class TabularAvgRewNSFTD_Factory(object):
+    def __init__(self, **argk):
+        self.params = argk
+
+    def __call__(self, **argk):
+        params = dict(self.params)
+        params.update([x for x in argk.items()])
+        params['actions'] = params['domain'].discrete_actions
+        return TabularAvgRewNSFTD( **params)
 
 
 

@@ -127,19 +127,34 @@ def evaluate_trial(domain, agent):
 
     return cum_rew
 
+def evaluate_trial_PO(domain, agent):
+    domain_copy = domain.copy()
+    actor = agent.getActor()
+    actor.reset()
+    r, s_t = domain_copy.reset()
+    cum_rew = r
+    while s_t != None:
+        r, s_t = domain_copy.step(actor.proposeAction(s_t))
+        cum_rew += r
+
+    return cum_rew
+
 def evaluate_1000_steps(domain, agent):
     domain_copy = domain.copy()
     r, s_t = domain_copy.reset()
     cum_rew = r
     for i in xrange(1000):
         if s_t == None:
-            agent.reset()
             r, s_t = domain_copy.reset()
         else:
             r, s_t = domain_copy.step(agent.proposeAction(s_t))
         cum_rew += r
 
     return cum_rew
+
+def evaluate_avg_1000_steps(domain, agent):
+    return evaluate_1000_steps(domain, agent)/1000.0
+
 
 def train_steps_agent(domain, agent, monitor, num_train_steps, num_eval, eval_interval, **args):
     r, s_t = domain.reset()
@@ -183,7 +198,7 @@ def train_agent(**args):
     projector = projector_factory(domain = domain, **args)
     param = dict(args)
     param['layers'] = [projector.size] + args.get('internal_layers', [40]) + [1]
-    valuefn = value_fn_factory(projector = projector, **param)
+    valuefn = value_fn_factory(projector = projector, domain=domain, **param)
     policy = policy_factory(domain = domain, valuefn = valuefn, **args)
     agent = agent_factory(policy = policy, valuefn = valuefn, **args)
 
