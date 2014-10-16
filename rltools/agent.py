@@ -82,6 +82,33 @@ class Sarsa(Agent):
 
     def proposeAction(self, state):
         return self.policy(state)
+    
+class TabularActionSarsa(Agent):
+    def __init__(self, actions, policy, valuefn, **argk):
+        self.policy = policy
+        self.valuefn = valuefn
+        self.s_t = None
+        self.a_t = None
+        self.actions = actions
+
+    def step(self, r, s_tp1):
+        if s_tp1 != None:
+            a_tp1 = self.policy(s_tp1)
+        else:
+            a_tp1 = None
+        self.valuefn.update(self.s_t, self.a_t, r, s_tp1, a_tp1)
+
+        self.s_t = s_tp1
+        self.a_t = a_tp1
+
+        return self.actions[a_tp1]
+
+    def reset(self):
+        self.s_t = None
+        self.a_t = None
+
+    def proposeAction(self, state):
+        return self.actions[self.policy(state)]
 
 
 class Sarsa_Factory(object):

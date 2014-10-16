@@ -66,14 +66,21 @@ class TabularState(Projector):
         return self.__size
 
 class Tiling(object):
-    def __init__(self, input_index, ntiles, state_range, offset = None):
+    def __init__(self, 
+                 input_index, 
+                 ntiles, 
+                 ntilings, 
+                 state_range, 
+                 offset = None):
         self.state_range = [state_range[0][input_index], state_range[1][input_index]]
         self.offset = offset
         if offset == None:
-            self.offset = np.linspace(0, 1.0/ntiles, ntiles, False);
+            self.offset = np.linspace(0, 1.0/ntiles, ntilings, False);
         self.dims = np.array([ntiles]*len(input_index), dtype='int32')
         self.input_index = input_index
-        self.size = self.ntiles**len(self.input_index)
+        self.size = ntilings*(self.ntiles**len(self.input_index))
+        self.index_offset = ntiles * np.arange(ntilings)
+        
     def __call__(self, state):
         proj_state = csc_matrix((self.size, 1), dtype = 'int32')
         proj_state[self.getIndices(state)] = 1
@@ -82,7 +89,7 @@ class Tiling(object):
     def getIndices(self, state):
         nstate = (state[self.input_index] - self.state_range[0])/(self.state_range[1]-self.state_range[0])
         indicies = ((self.offset[None,:] + nstate[:,None])*self.ntiles).astype(int)
-        return np.ravel_multi_index(indicies, self.dims)
+        return np.ravel_multi_index(indicies, self.dims) + self.index_offset
 
 class TileCoding(Projector):
     def __init__(self,  
