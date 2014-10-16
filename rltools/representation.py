@@ -64,13 +64,16 @@ class TabularState(Projector):
         return self.__size
 
 class Tiling(object):
-    def __init__(self, 
-                 input_index, 
-                 ntiles, 
-                 ntilings, 
-                 state_range, 
+    def __init__(self,
+                 input_index,
+                 ntiles,
+                 ntilings,
+                 state_range,
                  offset = None):
-        self.state_range = [state_range[0][input_index], state_range[1][input_index]]
+
+        self.state_range = [state_range[0][input_index].copy(), state_range[1][input_index].copy()]
+        self.state_range[0] -= (self.state_range[1]-self.state_range[0])/(ntiles-1)
+
         self.offset = offset
         if offset == None:
             self.offset = np.linspace(0, 1.0/ntiles, ntilings, False);
@@ -79,7 +82,7 @@ class Tiling(object):
         self.size = ntilings*(ntiles**len(self.input_index))
         self.index_offset = ntiles**len(self.input_index) * np.arange(ntilings)
         self.ntiles = ntiles
-        
+
     def __call__(self, state):
         proj_state = np.zeros(self.size, dtype = 'int32')
         proj_state[self.getIndices(state)] = 1
@@ -91,17 +94,17 @@ class Tiling(object):
         return np.ravel_multi_index(indicies, self.dims) + self.index_offset
 
 class TileCoding(Projector):
-    def __init__(self,  
-                 input_indicies, 
-                 ntiles, 
-                 ntilings, 
-                 state_range, 
+    def __init__(self,
+                 input_indicies,
+                 ntiles,
+                 ntilings,
+                 state_range,
                  bias_term = True):
         super(TileCoding, self).__init__()
         self.state_range = state_range
         self.tilings = [Tiling(in_index, nt, t, state_range)
                         for in_index, nt, t in zip(input_indicies, ntiles, ntilings)]
-        self.__size = sum(map(lambda x: x.size, self.tilings)) 
+        self.__size = sum(map(lambda x: x.size, self.tilings))
         self.bias_term = bias_term
         if bias_term:
             self.__size += 1
