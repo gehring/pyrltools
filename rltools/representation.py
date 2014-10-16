@@ -103,6 +103,7 @@ class TileCoding(Projector):
         self.tilings = [Tiling(in_index, nt, t, state_range)
                         for in_index, nt, t in zip(input_indicies, ntiles, ntilings)]
         self.__size = sum(map(lambda x: x.size, self.tilings)) 
+        self.bias_term = bias_term
         if bias_term:
             self.__size += 1
 
