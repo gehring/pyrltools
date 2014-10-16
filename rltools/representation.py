@@ -1,6 +1,4 @@
 import numpy as np
-from scipy.sparse import csc_matrix
-import scipy.sparse as sparse
 from itertools import chain
 
 class Projector(object):
@@ -57,7 +55,7 @@ class TabularState(Projector):
         self.__size = number_of_states
 
     def __call__(self, state):
-        state_v = csc_matrix((self.size, 1), dtype='int32')
+        state_v = np.zeros((self.size, 1), dtype='int32')
         state_v[state] = 1
         return state_v
 
@@ -110,9 +108,9 @@ class TileCoding(Projector):
 
     def __call__(self, state):
         if self.bias_term:
-            return np.hstack(chain((t(state) for t in self.tilings), [1]), dtype= 'int32')
+            return np.hstack(chain((t(state) for t in self.tilings), [1]))
         else:
-            return np.hstack((t(state) for t in self.tilings), dtype= 'int32')
+            return np.hstack((t(state) for t in self.tilings))
 
     @property
     def size(self):
