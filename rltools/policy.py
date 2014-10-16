@@ -1,4 +1,6 @@
 import numpy as np
+from numpy.random import random_sample
+from rltools.valuefn import LSTDlambda
 
 class Policy(object):
     def __init__(self):
@@ -89,10 +91,46 @@ class SoftMax_Factory(object):
         domain = params.get('domain')
         return SoftMax(domain.discrete_actions, **params)
 
-# class GradientDescentPolicy(Policy):
-#     def __init__(self, actions, value_fn, **argk):
-#         super(Egreedy, self).__init__()
-#         self.actions = actions.copy()
-#         self.value_fn = value_fn
-#
-#         self.epsilon = argk.get('epsilon', 0.1)
+class SoftMax_mixture(Policy):
+    def __init__(self, valuefns, policies, **argk):
+        super(SoftMax_mixture, self).__init__()
+        self.valuefns = valuefns
+        self.policies = policies
+        self.values = np.zeros(len(valuefns))
+        self.temp = argk.get('temperature', 0.1)
+
+    def __call__(self, state):
+        self.values[:] = [vfn(state) for vfn in self.valuefns]
+        self.values /= self.temp
+        ev = np.exp(self.values)
+        return self.policies[weighted_values(ev/np.sum(ev))](state)
+
+class Max_mixture(Policy):
+    def __init__(self, valuefns, policies, **argk):
+        super(SoftMax_mixture, self).__init__()
+        self.valuefns = valuefns
+        self.policies = policies
+        self.values = np.zeros(len(valuefns))
+
+    def __call__(self, state):
+        self.values[:] = [vfn(state) for vfn in self.valuefns]
+        return self.policies[np.argmax(self.values)](state)
+
+def weighted_values(probabilities, size=1):
+    bins = np.cumsum(probabilities)
+    return np.digitize(random_sample(size), bins)
+
+def policy_evaluation(rewards,
+                      gamma,
+                      policy,
+                      environment,
+                      method = 'LSTDlambda',
+                      **args):
+
+    if method == 'LSTDlambda':
+        return [LSTDlambda(policy,
+                           environment,
+                           gamma,
+                           r,
+                           **args) for r in rewards]
+

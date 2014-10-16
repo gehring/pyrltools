@@ -1,4 +1,3 @@
-from rltools.representation import IdentityProj
 import numpy as np
 from rltools.pyneuralnet import NeuralNet
 
@@ -9,8 +8,85 @@ class ValueFn(object):
     def __call__(self, state, actions):
         pass
 
+class incrementalValueFn(ValueFn):
+    def __init__(self):
+        super(incrementalValueFn, self).__init__()
+
+    def __call__(self, state, actions):
+        pass
+
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         pass
+
+class linearValueFn(ValueFn):
+    def __init__(self, weights, projector):
+        super(linearValueFn, self).__init__()
+        self.theta= weights
+        self.proj = projector
+    def __call__(self, state):
+        return self.proj(state).dot(self.theta)
+
+
+def LSTDlambda(policy,
+           environment,
+           gamma,
+           feature,
+           projector,
+           number_episodes,
+           max_episode_length,
+           lamb = 0.0,
+           **args):
+    phi = projector
+    A = np.zeros((projector.size, projector.size))
+    b = np.zeros(projector.size)
+
+    for i in xrange(number_episodes):
+        x_t = environment.reset()[1]
+        p_t = phi(x_t)
+        z = p_t
+        t=0
+        while not environment.isterminal() and t<max_episode_length:
+            x_tp1 = environment.step(policy(x_t))[1]
+            p_tp1 = phi(x_tp1)
+            A += np.outer(z, p_t - gamma*p_tp1)
+            b += z * feature(x_t)
+            z = gamma*lamb * z + p_tp1
+            x_t = x_tp1
+            p_t = p_tp1
+            t += 1
+
+    theta = np.linalg.lstsq(A, b)[0]
+    return linearValueFn(theta, phi)
+
+# def BatchLSTDlambda(policy,
+#            environment,
+#            gamma,
+#            feature,
+#            projector,
+#            lamb = 0.0,
+#            batch
+#            **args):
+#     phi = projector
+#     A = np.zeros((projector.size, projector.size))
+#     b = np.zeros(projector.size)
+#
+#     for data in batch:
+#         x_t = environment.reset()[1]
+#         p_t = phi(x_t)
+#         z = p_t
+#         t=0
+#         while not environment.isterminal() and t<max_episode_length:
+#             x_tp1 = environment.step(policy(x_t))(1)
+#             p_tp1 = phi(x_tp1)
+#             A += np.outer(z, p_t - gamma*p_tp1)
+#             b += z * feature(x_t)
+#             z = gamma*lamb * z + p_tp1
+#             x_t = x_tp1
+#             p_t = p_tp1
+#             t += 1
+#
+#     theta = np.linalg.solve(A, b)
+#     return linearValueFn(theta, phi)
 
 class LinearTD(ValueFn):
     def __init__(self, 
@@ -42,7 +118,7 @@ class LinearTD(ValueFn):
         self.theta[a_t,:] += self.alpha*delta*self.e
 
 
-class RBFValueFn(ValueFn):
+class RBFValueFn(incrementalValueFn):
     def __init__(self,
                  alpha,
                  c,
@@ -96,7 +172,7 @@ class RBFValueFn(ValueFn):
         self.w += ((1-self.eta) * self.alpha * delta * rbfs)
         # no change to c for now!
 
-class TabularRBFValueFn(ValueFn):
+class TabularRBFValueFn(incrementalValueFn):
     def __init__(self,
                  alpha,
                  c,
@@ -162,7 +238,7 @@ class TabularRBFValueFn(ValueFn):
 
 
 
-class NeuroSFTD(ValueFn):
+class NeuroSFTD(incrementalValueFn):
     def __init__(self, projector, **argk):
         super(NeuroSFTD, self).__init__()
         self.projector = projector
@@ -197,7 +273,7 @@ class NeuroSFTD(ValueFn):
 
         self.net.backprop(target, dphi, dV)
 
-class TabularNeuroSFTD(ValueFn):
+class TabularNeuroSFTD(incrementalValueFn):
     def __init__(self, actions, projector, **argk):
         super(TabularNeuroSFTD, self).__init__()
         self.projector = projector
@@ -242,7 +318,7 @@ class TabularNeuroSFTD(ValueFn):
 
 
 
-class TabularAvgRewNeuroSFTD(ValueFn):
+class TabularAvgRewNeuroSFTD(incrementalValueFn):
     def __init__(self, actions, projector, alphamu, **argk):
         super(TabularAvgRewNeuroSFTD, self).__init__()
         self.projector = projector
@@ -302,7 +378,7 @@ class TabularAvgRewNeuroSFTD_Factory(object):
         return TabularAvgRewNeuroSFTD( **params)
 
 
-class TabularAvgRewSFTD(ValueFn):
+class TabularAvgRewSFTD(incrementalValueFn):
     def __init__(self, actions, projector, alpha, alphamu, eta, **argk):
         super(TabularAvgRewSFTD, self).__init__()
         self.projector = projector
@@ -362,7 +438,7 @@ class TabularAvgRewSFTD_Factory(object):
         return TabularAvgRewSFTD( **params)
 
 
-class TabularAvgRewNSFTD(ValueFn):
+class TabularAvgRewNSFTD(incrementalValueFn):
     def __init__(self, actions, projector, alpha, alphamu, eta, **argk):
         super(TabularAvgRewNSFTD, self).__init__()
         self.projector = projector
