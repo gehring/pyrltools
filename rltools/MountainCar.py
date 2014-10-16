@@ -27,7 +27,7 @@ class MountainCar(object):
 
     def step(self, action):
         self.update(action)
-        if self.inGoal() or self.step_count >= self.max_episode:
+        if self.isterminal():
             next_state = None
         else:
             next_state = self.state.copy()
@@ -67,6 +67,9 @@ class MountainCar(object):
         mountaincopy.state[:] = self.state
         mountaincopy.step_count = self.step_count
         return mountaincopy
+    
+    def isterminal(self):
+        return self.inGoal() or self.step_count >= self.max_episode
 
     @property
     def discrete_actions(self):
