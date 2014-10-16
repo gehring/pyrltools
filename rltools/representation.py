@@ -77,7 +77,7 @@ class Tiling(object):
         self.dims = np.array([ntiles]*len(input_index), dtype='int32')
         self.input_index = input_index
         self.size = ntilings*(ntiles**len(self.input_index))
-        self.index_offset = ntiles * np.arange(ntilings)
+        self.index_offset = ntiles**len(self.input_index) * np.arange(ntilings)
         self.ntiles = ntiles
         
     def __call__(self, state):
