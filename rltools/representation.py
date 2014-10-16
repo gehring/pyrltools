@@ -95,7 +95,7 @@ class TileCoding(Projector):
     def __init__(self,  
                  input_indicies, 
                  ntiles, 
-                 tilings, 
+                 ntilings, 
                  state_range, 
                  bias_term = True):
         super(TileCoding, self).__init__()
