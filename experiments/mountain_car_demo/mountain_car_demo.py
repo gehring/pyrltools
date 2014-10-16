@@ -14,8 +14,13 @@ proj = TileCoding(input_indicies = [[0,1]],
                  ntilings=[10], 
                  state_range = domain.state_range, 
                  bias_term = True)
-
-phi = lambda s: proj(s) if s != None else np.zeros(proj.size)
+class PHI(object):
+    def __init__(self):
+        self.size = proj.size
+    def __call__(self, s):
+        return proj(s) if s != None else np.zeros(proj.size)
+    
+phi = PHI()
 
 valuefn = LinearTD(len(domain.discrete_actions), 
                    phi,

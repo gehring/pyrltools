@@ -83,7 +83,7 @@ class Tiling(object):
         self.ntiles = ntiles
         
     def __call__(self, state):
-        proj_state = csc_matrix((self.size, 1), dtype = 'int32')
+        proj_state = np.zeros((self.size, 1), dtype = 'int32')
         proj_state[self.getIndices(state)] = 1
         return proj_state
 
@@ -110,9 +110,9 @@ class TileCoding(Projector):
 
     def __call__(self, state):
         if self.bias_term:
-            return sparse.vstack(chain((t(state) for t in self.tilings), [1]), 'csc', dtype= 'int32')
+            return np.hstack(chain((t(state) for t in self.tilings), [1]), dtype= 'int32')
         else:
-            return sparse.vstack((t(state) for t in self.tilings), 'csc', dtype= 'int32')
+            return np.hstack((t(state) for t in self.tilings), dtype= 'int32')
 
     @property
     def size(self):
