@@ -47,10 +47,10 @@ def LSTDlambda(policy,
         z = p_t
         t=0
         while not environment.isterminal() and t<max_episode_length:
-            x_tp1 = environment.step(policy(x_t))[1]
+            r, x_tp1 = environment.step(policy(x_t))
             p_tp1 = phi(x_tp1)
             A += np.outer(z, p_t - gamma*p_tp1)
-            b += z * feature(x_t)
+            b += z * (feature(x_t) if feature != None else r)
             z = gamma*lamb * z + p_tp1
             x_t = x_tp1
             p_t = p_tp1

@@ -81,7 +81,7 @@ class Tiling(object):
         self.ntiles = ntiles
         
     def __call__(self, state):
-        proj_state = np.zeros((self.size, 1), dtype = 'int32')
+        proj_state = np.zeros(self.size, dtype = 'int32')
         proj_state[self.getIndices(state)] = 1
         return proj_state
 
@@ -108,7 +108,7 @@ class TileCoding(Projector):
 
     def __call__(self, state):
         if self.bias_term:
-            return np.hstack(chain((t(state) for t in self.tilings), [1]))
+            return np.hstack(chain((t(state) for t in self.tilings), [np.array(1, dtype='int32')]))
         else:
             return np.hstack((t(state) for t in self.tilings))
 
