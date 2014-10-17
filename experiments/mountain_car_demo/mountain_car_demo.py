@@ -48,7 +48,34 @@ def eval(valuefn):
         s = np.array(s)
 #         val[i] = valuefn(s, agent.policy(s))
         val[i] = max([valuefn(s,0), valuefn(s,1), valuefn(s,2)])
-    return x[:,None], y[None,:], -val.reshape((100,100))
+    X, Y = np.meshgrid(x, y)
+    return X, Y, val.reshape((100,100)).T
+
+
+def getVectorField(valuefn):
+    res=20
+    U = np.empty(res**2)
+    V = np.empty(res**2)
+    C = np.empty(res**2)
+    x = np.linspace(domain.state_range[0][0], domain.state_range[1][0], res)
+    y = np.linspace(domain.state_range[0][1], domain.state_range[1][1], res)
+    for i,s in enumerate(product(x, y)):
+        s = np.array(s)
+        s_next = s.copy()
+        a = np.argmax([valuefn(s,0), valuefn(s,1), valuefn(s,2)])
+        s_next[1] += (act[a][0]*10 + np.cos(3*s[0])*-0.0025)
+        s_next[:] = np.clip(s_next, *domain.state_range)
+        s_next[0] += s_next[1]
+
+        s_next[:] = np.clip(s_next, *domain.state_range)
+        if s_next[0] <= domain.state_range[0][1] and s_next[1] < 0:
+            s_next[1] = 0
+        s_next -= s
+        U[i] = s_next[0]
+        V[i] = s_next[1]
+        C[i] = a/2.0
+    X, Y = np.meshgrid(x, y)
+    return X, Y, U.reshape((res,res)).T, V.reshape((res,res)).T, C.reshape((res,res)).T
 
 
 # val = LSTDlambda(pump_pi, domain, 0.9, None, phi, 1000, 1000, 0.6)
@@ -57,13 +84,14 @@ def eval(valuefn):
 
 
 # plt.ion()
-fig = plt.figure()
-ax = fig.gca(projection='3d')
-ax.view_init(55,55)
-ax.plot_surface(*eval(valuefn), cmap = cm.coolwarm)
-# plt.imshow(eval(valuefn), interpolation= 'none')
+# fig = plt.figure()
+# ax = fig.gca(projection='3d')
+# ax.view_init(55,55)
+# ax.plot_surface(*eval(valuefn), cmap = cm.coolwarm)
+plt.contourf(*eval(valuefn))
+plt.quiver(*getVectorField(valuefn))
 plt.title('initial')
-plt.savefig('C:\\Users\\Clement\\Documents\\mountain_car_demo\\valuefn\\0.png')
+plt.savefig('D:\\mountain_car_demo\\policy\\0.png')
 # plt.pause(0.0005)
 
 k = 1
@@ -77,18 +105,19 @@ for i in xrange(num_episodes):
     agent.step(r_t, s_t)
 #
     if i % 25 == 0:
-#         plt.gca().clear()
+        plt.gca().clear()
 #         plt.gcf().clear()
 #         plt.
-#         plt.imshow(eval(valuefn), interpolation= 'none')
+        plt.contourf(*eval(valuefn))
+        plt.quiver(*getVectorField(valuefn))
 #         plt.colorbar()
-        fig.clear()
-        ax = fig.gca(projection='3d')
-        ax.view_init(55,55)
-        ax.plot_surface(*eval(valuefn), cmap = cm.coolwarm)
+#         fig.clear()
+#         ax = fig.gca(projection='3d')
+#         ax.view_init(55,55)
+#         ax.plot_surface(*eval(valuefn), cmap = cm.coolwarm)
         plt.title('episode ' + str(i))
-        plt.savefig('C:\\Users\\Clement\\Documents\\mountain_car_demo\\valuefn\\' + str(k) + '.png')
+        plt.savefig('D:\\mountain_car_demo\\policy\\' + str(k) + '.png')
         k +=1
 #         plt.pause(0.0005)
-    print count
+#     print count
 
