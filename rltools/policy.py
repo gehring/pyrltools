@@ -21,8 +21,7 @@ class Egreedy(Policy):
         m = np.nanargmax(values)
         values[:] = self.epsilon/len(self.actions)
         values[m] += 1-self.epsilon
-        a = np.random.choice(range(len(self.actions)), p=values)
-        return self.actions[a]
+        return self.actions[weighted_values(values)[0]]
 
 class Egreedy_Factory(object):
     def __init__(self, **argk):
