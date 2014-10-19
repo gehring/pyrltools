@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from itertools import product
 
-domain = MountainCar(random_start= True, max_episode=10000)
+domain = MountainCar(random_start= False, max_episode=10000)
 
 act = domain.discrete_actions
 pump_pi= lambda s: act[0] if s[1]<0 else act[2]
@@ -33,13 +33,13 @@ phi = PHI()
 valuefn = LinearTD(len(domain.discrete_actions),
                    phi,
                    alpha = 0.01,
-                   lamb = 0.5,
+                   lamb = 0.0,
                    gamma= 0.99)
 policy = Egreedy(np.arange(len(domain.discrete_actions)), valuefn, epsilon = 0.05)
 agent = TabularActionSarsa(domain.discrete_actions, policy, valuefn)
 
 
-num_episodes = 5000
+num_episodes = 500
 def eval(valuefn):
     val = np.empty(10000)
     x = np.linspace(domain.state_range[0][0], domain.state_range[1][0], 100)
@@ -88,10 +88,10 @@ def getVectorField(valuefn):
 # ax = fig.gca(projection='3d')
 # ax.view_init(55,55)
 # ax.plot_surface(*eval(valuefn), cmap = cm.coolwarm)
-plt.contourf(*eval(valuefn))
-plt.quiver(*getVectorField(valuefn))
-plt.title('initial')
-plt.savefig('D:\\mountain_car_demo\\policy\\0.png')
+# plt.contourf(*eval(valuefn))
+# # plt.quiver(*getVectorField(valuefn))
+# plt.title('initial')
+# plt.savefig('D:\\mountain_car_demo\\policy\\0.png')
 # plt.pause(0.0005)
 
 k = 1
@@ -103,21 +103,21 @@ for i in xrange(num_episodes):
         r_t, s_t = domain.step(agent.step(r_t, s_t))
         count += 1
     agent.step(r_t, s_t)
-#
-    if i % 25 == 0:
-        plt.gca().clear()
-#         plt.gcf().clear()
-#         plt.
-        plt.contourf(*eval(valuefn))
-        plt.quiver(*getVectorField(valuefn))
-#         plt.colorbar()
-#         fig.clear()
-#         ax = fig.gca(projection='3d')
-#         ax.view_init(55,55)
-#         ax.plot_surface(*eval(valuefn), cmap = cm.coolwarm)
-        plt.title('episode ' + str(i))
-        plt.savefig('D:\\mountain_car_demo\\policy\\' + str(k) + '.png')
-        k +=1
+# #
+#     if i % 25 == 0:
+#         plt.gca().clear()
+# #         plt.gcf().clear()
+# #         plt.
+#         plt.contourf(*eval(valuefn))
+# #         plt.quiver(*getVectorField(valuefn))
+# #         plt.colorbar()
+# #         fig.clear()
+# #         ax = fig.gca(projection='3d')
+# #         ax.view_init(55,55)
+# #         ax.plot_surface(*eval(valuefn), cmap = cm.coolwarm)
+#         plt.title('episode ' + str(i))
+# #         plt.savefig('D:\\mountain_car_demo\\policy\\' + str(k) + '.png')
+#         k +=1
 #         plt.pause(0.0005)
-#     print count
+    print count
 
