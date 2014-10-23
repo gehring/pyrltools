@@ -107,11 +107,19 @@ class LinearTD(ValueFn):
         self.e = np.zeros_like(self.theta)
         self.num_actions = num_actions
 
-    def __call__(self, state, action):
+    def __call__(self, state, action= None):
         if state == None:
             return 0
+        elif action == None:
+            if issubclass(state, np.uint):
+                return np.sum(self.theta[:,state], axis=1)
+            else:
+                return self.theta.dot(self.phi(state))
         else:
-            return self.phi(state).dot(self.theta[action,:])
+            if issubclass(state, np.uint):
+                return np.sum(self.theta[action,state])
+            else:
+                return self.theta[action,:].dot(self.phi(state))
 
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t == None:
@@ -122,6 +130,53 @@ class LinearTD(ValueFn):
         delta = r + self.gamma*self(s_tp1, a_tp1) - self(s_t, a_t)
         self.theta += self.alpha*delta*self.e
         self.e *= self.gamma*self.lamb
+
+
+class LinearTDPolicyMixture(ValueFn):
+        def __init__(self,
+                 num_actions,
+                 projector,
+                 alpha,
+                 lamb,
+                 gamma,
+                 **argk):
+        super(LinearTDPolicyMixture, self).__init__()
+        self.projector = projector
+        self.gamma = gamma
+        self.alpha = alpha
+        self.lamb = lamb
+        self.phi = projector
+        self.theta = np.zeros((num_actions, projector.size))
+        self.e = np.zeros_like(self.theta)
+        self.num_actions = num_actions
+
+    def __call__(self, state, action = None):
+        if state == None:
+            return 0
+        elif action == None:
+            if issubclass(state, np.uint):
+                return np.sum(self.theta[:,state], axis=1)
+            else:
+                return self.theta.dot(self.phi(state))
+        else:
+            if issubclass(state, np.uint):
+                return np.sum(self.theta[action,state])
+            else:
+                return self.theta[action,:].dot(self.phi(state))
+
+    def update(self, s_t, r, s_tp1, rho):
+        if s_t == None:
+            self.e[:,:] = 0
+            return
+        phi_t = self.phi(s_t)
+        self.e *= self.gamma*self.lamb
+        if issubclass(state, np.uint):
+            self.e[:,phi_t] += rho[:,None]
+        else:
+             self.e += rho[:,None]*phi_t
+        delta = r + self.gamma*self(s_tp1)- self(s_t)
+        self.theta += self.alpha*delta[:,None]*self.e
+
 
 
 class RBFValueFn(incrementalValueFn):

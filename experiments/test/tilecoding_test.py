@@ -1,20 +1,20 @@
-from rltools.representation import TileCoding
+from rltools.representation import TileCodingDense
 from itertools import product
 import numpy as np
 import matplotlib.pyplot as plt
 
 state_range = [ np.array([-10,-10]), np.array([10, 10])]
-phi_1 = TileCoding([[0,1]],
+phi_1 = TileCodingDense([[0,1]],
                    [10],
                    [10],
                    state_range,
                    bias_term = True)
-phi_2 = TileCoding([[0,1]],
+phi_2 = TileCodingDense([[0,1]],
                    [5],
                    [40],
                    state_range,
                    bias_term = True)
-phi_3 = TileCoding([[0,1]],
+phi_3 = TileCodingDense([[0,1]],
                    [32],
                    [1],
                    state_range,

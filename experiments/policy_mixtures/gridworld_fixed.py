@@ -3,32 +3,6 @@ from itertools import product
 from rltools.GridWorld import GridWorld, boundary_condition
 import numpy as np
 import matplotlib.pyplot as plt
-#
-# def train(agent, domain, num_episodes):
-#     for i in xrange(num_episodes):
-#         r_t, s_t = domain.reset()
-#         agent.reset()
-#         count = 0
-#         cumulative_reward = 0
-#
-#         while s_t != None:
-#             # apply an action from the agent
-#             # the domain will return a 'None' state when terminating
-#             r_t, s_t = domain.step(agent.step(r_t, s_t))
-#             count += 1
-#             cumulative_reward += r_t
-#
-#         # final update step for the agent
-#         agent.step(r_t, s_t)
-#
-#         if i % 2 == 0:
-#             if render_value_fn:
-#                 plt.gca().clear()
-#                 plt.contourf(*getValueFn(valuefn))
-#                 plt.title('episode ' + str(i))
-#                 plt.savefig(file_path + str(k) + '.png')
-#                 k +=1
-#
 
 gamma = 0.9
 

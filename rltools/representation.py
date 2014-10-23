@@ -69,7 +69,8 @@ class Tiling(object):
                  ntiles,
                  ntilings,
                  state_range,
-                 offset = None):
+                 offset = None,
+                 hashing = None):
 
         self.state_range = [state_range[0][input_index].copy(), state_range[1][input_index].copy()]
         self.state_range[0] -= (self.state_range[1]-self.state_range[0])/(ntiles-1)
@@ -77,21 +78,30 @@ class Tiling(object):
         self.offset = offset
         if offset == None:
             self.offset = -np.linspace(0, 1.0/ntiles, ntilings, False);
-        self.dims = np.array([ntiles]*len(input_index), dtype='int32')
-        self.input_index = np.array(input_index, dtype='int32')
-        self.size = ntilings*(ntiles**len(self.input_index))
-        self.index_offset = ntiles**len(self.input_index) * np.arange(ntilings)
+
+
+        self.hashing = hashing
+        ntiles = np.array(ntiles, dtype = 'uint')
+
+        if ntiles.size == 1:
+            ntiles = np.array([ntiles]*len(input_index), dtype='uint')
+
+        if self.hashing == None:
+            self.hashing = IdentityHash(ntiles)
+
+        self.input_index = np.array(input_index, dtype='uint')
+        self.size = ntilings*(self.hashing.memory)
+        self.index_offset = self.hashing.memory * np.arange(ntilings)
         self.ntiles = ntiles
 
+
     def __call__(self, state):
-        proj_state = np.zeros(self.size, dtype = 'int32')
-        proj_state[self.getIndices(state)] = 1
-        return proj_state
+        return self.getIndices(state)
 
     def getIndices(self, state):
         nstate = (state[self.input_index] - self.state_range[0])/(self.state_range[1]-self.state_range[0])
-        indicies = np.clip(((self.offset[None,:] + nstate[:,None])*self.ntiles).astype(int), 0, self.ntiles-1)
-        return np.ravel_multi_index(indicies, self.dims) + self.index_offset
+        indicies =((self.offset[None,:] + nstate[:,None])*self.ntiles).astype(np.uint)
+        return self.hashing(indicies) + self.index_offset
 
 class TileCoding(Projector):
     def __init__(self,
@@ -106,18 +116,89 @@ class TileCoding(Projector):
                         for in_index, nt, t in zip(input_indicies, ntiles, ntilings)]
         self.__size = sum(map(lambda x: x.size, self.tilings))
         self.bias_term = bias_term
+        self.index_offset = np.zeros(len(ntilings), dtype = 'uint')
+        self.index_offset[1:] = np.cumsum(map(lambda x: x.size, self.tilings[:-1]))
+        self.index_offset = np.hstack( [np.array([off]*t.size, dtype='uint')
+                                            for off, t in zip(self.index_offset[:-1], self.tilings)])
+
         if bias_term:
+            self.index_offset = np.hstack((self.index_offset, np.array(self.__size, dtype='uint')))
             self.__size += 1
+
 
     def __call__(self, state):
         if self.bias_term:
-            return np.hstack(chain((t(state) for t in self.tilings), [np.array(1, dtype='int32')]))
+            return np.hstack(chain((t(state) for t in self.tilings), [np.array(0, dtype='uint')])) + self.index_offset
         else:
-            return np.hstack((t(state) for t in self.tilings))
+            return np.hstack((t(state) for t in self.tilings)) + self.index_offset
 
     @property
     def size(self):
         return self.__size
+
+class TileCodingDense():
+        def __init__(self,
+                 input_indicies,
+                 ntiles,
+                 ntilings,
+                 state_range,
+                 bias_term = True):
+        super(TileCodingDense, self).__init__()
+        self.tilecoding = TileCoding(input_indicies,
+                                     ntiles,
+                                     ntilings,
+                                     state_range,
+                                     bias_term)
+
+    def __call__(self, state):
+        phi = np.zeros(self.tilecoding.size)
+        phi[self.tilecoding(state)] = 1
+        return phi
+
+    @property
+    def size(self):
+        return self.tilecoding.size
+
+class Hashing(object):
+    def __init__(self, **kargs):
+        pass
+    def __call__(self, indices):
+        pass
+
+
+class UNH(Hashing):
+    def __init__(self, memory):
+        super(UNH, self).__init__()
+        self.rndseq = np.zeros(16384)
+        self.memory = memory
+        for i in range(4):
+            self.rndseq = self.rndseq << 8 | np.random.random_integers(np.iinfo('integer').min,
+                                                                       np.iinfo('integer').max,
+                                                                       16384) & 0xff
+    def __call__(self, indices):
+        index = np.remainder(indicies*np.arange(indices.size), self.rndseq.size)
+        return np.remainder(np.sum(self.rndseq[index]), self.memory)
+
+class PythonHash(Hashing):
+    def __init__(self, memory):
+        super(PythonHash, self).__init__()
+        self.memory = memory
+
+    def __call__(self, indices):
+        indicies = indicies.copy()
+        indicies.flags.writeable = False
+        return np.remainder(hash(indicies.data), self.memory)
+
+class IdentityHash(Hashing):
+    def __init__(self, dims):
+        super(IdentityHash, self).__init__()
+        self.memory = np.prod(dims)
+        self.dims = dims
+
+    def __call__(self, indices):
+        return np.remainder(np.ravel_multi_index(indicies, self.dims),
+                            self.memory)
+
 
 class RBFCoding(Projector):
     def __init__(self,  stddev, c, **params):

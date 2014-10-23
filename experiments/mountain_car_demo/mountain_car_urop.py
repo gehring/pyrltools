@@ -1,11 +1,11 @@
 from itertools import product
 from mountaincar import MountainCar
 from tilecoding import TileCoding
+from swingpendulum import SwingPendulum
 
 import mountaincar
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 class Egreedy(object):
     def __init__(self, num_actions, valuefn, epsilon):
@@ -14,7 +14,8 @@ class Egreedy(object):
         self.num_actions = num_actions
 
     def __call__(self, state):
-        # TODO: write code to sample from an e-greedy policy
+        # TODO: implement an e-greedy policy
+        # this method should return a sampled action with respect to the policy
         action_index = None
         return action_index
 
@@ -55,7 +56,6 @@ class LinearTD(object):
 
             # delta \leftarrow r + \gamma * Q(s_{t+1}, a_{t+1}) - Q(s_t, a_t)
             # theta_a \leftarrow theta_a + \alpha * delta * grad_{\theta_a}(Q(s_t,a_t))
-
             return
 
 class TabularActionSarsa(object):
@@ -87,6 +87,7 @@ class TabularActionSarsa(object):
         return self.actions[self.policy(state)]
 
 domain = MountainCar(random_start= False, max_episode=10000)
+# domain = SwingPendulum(random_start= False, max_episode_length=10000)
 
 phi = TileCoding(input_indicies = [np.array([0,1])],
                  ntiles = [10],
@@ -97,7 +98,7 @@ phi = TileCoding(input_indicies = [np.array([0,1])],
 valuefn = LinearTD(len(domain.discrete_actions),
                    phi,
                    alpha = 0.01,
-                   gamma= 0.99)
+                   gamma= 0.995)
 
 # this is a sub-optimal policy for mountain car that naively always
 # increases the energy of the system. You can swap the e-greedy policy
@@ -121,7 +122,7 @@ def getValueFn(valuefn):
     X, Y = np.meshgrid(x, y)
     return X, Y, val.reshape((100,100)).T
 
-render_value_fn = False
+render_value_fn = True
 
 file_path = './'
 
@@ -137,17 +138,19 @@ for i in xrange(num_episodes):
     r_t, s_t = domain.reset()
     agent.reset()
     count = 0
+    cumulative_reward = 0
 
     while s_t != None:
         # apply an action from the agent
         # the domain will return a 'None' state when terminating
         r_t, s_t = domain.step(agent.step(r_t, s_t))
         count += 1
+        cumulative_reward += r_t
 
     # final update step for the agent
     agent.step(r_t, s_t)
 
-    if i % 25 == 0:
+    if i % 2 == 0:
         if render_value_fn:
             plt.gca().clear()
             plt.contourf(*getValueFn(valuefn))
@@ -155,7 +158,7 @@ for i in xrange(num_episodes):
             plt.savefig(file_path + str(k) + '.png')
             k +=1
 
-    # print how many steps it took to reach the goal
-    # this should be around 120-130 steps (for non-random start)
-    print count
+    # print cumulative reward it took to reach the goal
+    # this should converge to around -120 for non-random start mountain car
+    print cumulative_reward
 

@@ -17,11 +17,16 @@ class Egreedy(Policy):
         self.epsilon = argk.get('epsilon', 0.1)
 
     def __call__(self, state):
-        values = np.array([self.value_fn(state, act) for act in self.actions])
-        m = np.nanargmax(values)
+        p = self.getprob(state)
+        return self.actions[weighted_values(p)[0]]
+
+    def getprob(self, state):
+        values = self.value_fn(state)
+        m = np.argmax(values)
         values[:] = self.epsilon/len(self.actions)
         values[m] += 1-self.epsilon
-        return self.actions[weighted_values(values)[0]]
+        return values
+
 
 class Egreedy_Factory(object):
     def __init__(self, **argk):
@@ -61,21 +66,20 @@ class MixedPolicy_Factory(object):
 
 class SoftMax(Policy):
     def __init__(self, actions, valuefn, **argk):
-        super(SoftMax, self).__init__()
+        super(SoftMax_mixture, self).__init__()
         self.actions = actions
         self.value_fn = valuefn
         self.temp = argk.get('temperature', 0.1)
 
     def __call__(self, state):
-        values = np.array([self.value_fn(state, act) for act in self.actions])
-        if np.any(np.isnan(values)):
-            values[:] = 1.0/len(self.actions)
-        else:
-            values /= self.temp
-            values = np.exp(values)
-            values /= np.sum(values)
-        a = np.random.choice(range(len(self.actions)), p=values)
-        return self.actions[a]
+        p = self.getprob(state)
+        return self.actions[weighted_values(p)](state)
+
+    def getprob(self, state):
+        values = self.value_fn(state)
+        values /= self.temp
+        ev = np.exp(values)
+        return ev/np.sum(ev)
 
 class SoftMax_Factory(object):
     def __init__(self, **argk):
@@ -100,6 +104,22 @@ class SoftMax_mixture(Policy):
         self.values /= self.temp
         ev = np.exp(self.values)
         return self.policies[weighted_values(ev/np.sum(ev))](state)
+
+# class linearSoftMax_mixture(Policy):
+#     def __init__(self, valuefn, policies, **argk):
+#         super(SoftMax_mixture, self).__init__()
+#         self.value_fn = valuefn
+#         self.policies = policies
+#         self.temp = argk.get('temperature', 0.1)
+#
+#     def __call__(self, state):
+#         if issubclass(state, np.uint):
+#             values = np.sum(self.value_fn.theta[:,state], axis=1)
+#         else:
+#             values = self.value_fn.theta.dot(state)
+#         values /= self.temp
+#         ev = np.exp(values)
+#         return self.policies[weighted_values(ev/np.sum(ev))](state)
 
 class Max_mixture(Policy):
     def __init__(self, valuefns, policies, **argk):
@@ -129,4 +149,5 @@ def policy_evaluation(rewards,
                            gamma,
                            r,
                            **args) for r in rewards]
+
 
