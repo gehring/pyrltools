@@ -126,29 +126,33 @@ class LinearTD(ValueFn):
             self.e = np.zeros_like(self.theta)
             return
 
-        self.e[a_t,:] += self.phi(s_t)
+        phi_t = self.phi(s_t)
+        self.e *= self.gamma*self.lamb
+        if issubclass(phi_t, np.uint):
+            self.e[a_t,phi_t] += 1
+        else:
+            self.e[a_t,:] += phi_t
         delta = r + self.gamma*self(s_tp1, a_tp1) - self(s_t, a_t)
         self.theta += self.alpha*delta*self.e
-        self.e *= self.gamma*self.lamb
 
 
 class LinearTDPolicyMixture(ValueFn):
-        def __init__(self,
+    def __init__(self,
                  num_actions,
                  projector,
                  alpha,
                  lamb,
                  gamma,
                  **argk):
-        super(LinearTDPolicyMixture, self).__init__()
-        self.projector = projector
-        self.gamma = gamma
-        self.alpha = alpha
-        self.lamb = lamb
-        self.phi = projector
-        self.theta = np.zeros((num_actions, projector.size))
-        self.e = np.zeros_like(self.theta)
-        self.num_actions = num_actions
+            super(LinearTDPolicyMixture, self).__init__()
+            self.projector = projector
+            self.gamma = gamma
+            self.alpha = alpha
+            self.lamb = lamb
+            self.phi = projector
+            self.theta = np.zeros((num_actions, projector.size))
+            self.e = np.zeros_like(self.theta)
+            self.num_actions = num_actions
 
     def __call__(self, state, action = None):
         if state == None:
@@ -170,10 +174,10 @@ class LinearTDPolicyMixture(ValueFn):
             return
         phi_t = self.phi(s_t)
         self.e *= self.gamma*self.lamb
-        if issubclass(state, np.uint):
+        if issubclass(phi_t, np.uint):
             self.e[:,phi_t] += rho[:,None]
         else:
-             self.e += rho[:,None]*phi_t
+            self.e += rho[:,None]*phi_t
         delta = r + self.gamma*self(s_tp1)- self(s_t)
         self.theta += self.alpha*delta[:,None]*self.e
 
