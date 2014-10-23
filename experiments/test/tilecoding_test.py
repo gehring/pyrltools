@@ -1,24 +1,31 @@
-from rltools.representation import TileCodingDense
+from rltools.representation import TileCodingDense, UNH, PythonHash, IdentityHash
 from itertools import product
 import numpy as np
 import matplotlib.pyplot as plt
+import timeit
 
 state_range = [ np.array([-10,-10]), np.array([10, 10])]
 phi_1 = TileCodingDense([[0,1]],
                    [10],
-                   [10],
+                   [20],
+                   None,
                    state_range,
                    bias_term = True)
 phi_2 = TileCodingDense([[0,1]],
-                   [5],
-                   [40],
+                   [20],
+                   [10],
+                   [PythonHash(200)],
                    state_range,
                    bias_term = True)
 phi_3 = TileCodingDense([[0,1]],
-                   [32],
-                   [1],
+                   [20],
+                   [10],
+                   [UNH(200)],
                    state_range,
                    bias_term = True)
+print phi_1.size
+print phi_2.size
+print phi_3.size
 
 resolution = 100
 grid = [np.array(x) for x in product(np.linspace(-10, 10, resolution),
@@ -26,6 +33,10 @@ grid = [np.array(x) for x in product(np.linspace(-10, 10, resolution),
 Phi_1 = np.array([phi_1(x) for x in grid])
 Phi_2 = np.array([phi_2(x) for x in grid])
 Phi_3 = np.array([phi_3(x) for x in grid])
+
+print timeit.timeit('[phi_1(x) for x in grid]', setup="from __main__ import grid, phi_1", number=2)
+print timeit.timeit('[phi_2(x) for x in grid]', setup="from __main__ import grid, phi_2", number=2)
+print timeit.timeit('[phi_3(x) for x in grid]', setup="from __main__ import grid, phi_3", number=2)
 
 def test_and_plot(f):
     y = np.array([f(x) for x in grid])
