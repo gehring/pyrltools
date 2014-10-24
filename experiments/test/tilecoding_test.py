@@ -34,9 +34,9 @@ Phi_1 = np.array([phi_1(x) for x in grid])
 Phi_2 = np.array([phi_2(x) for x in grid])
 Phi_3 = np.array([phi_3(x) for x in grid])
 
-print timeit.timeit('[phi_1(x) for x in grid]', setup="from __main__ import grid, phi_1", number=2)
-print timeit.timeit('[phi_2(x) for x in grid]', setup="from __main__ import grid, phi_2", number=2)
-print timeit.timeit('[phi_3(x) for x in grid]', setup="from __main__ import grid, phi_3", number=2)
+# print timeit.timeit('[phi_1(x) for x in grid]', setup="from __main__ import grid, phi_1", number=10)
+# print timeit.timeit('[phi_2(x) for x in grid]', setup="from __main__ import grid, phi_2", number=10)
+# print timeit.timeit('[phi_3(x) for x in grid]', setup="from __main__ import grid, phi_3", number=10)
 
 def test_and_plot(f):
     y = np.array([f(x) for x in grid])

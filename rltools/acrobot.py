@@ -2,29 +2,29 @@ import numpy as np
 from scipy.integrate import odeint
 
 class Acrobot(object):
-    
+
     umax = 1
     umin = 1
-    
+
     dt = np.array([0.1])
-    
+
     start_state = np.array([0,0,0,0])
     __discrete_actions = [np.array([-umin]),
                           np.array([0]),
                           np.array([-umax])]
-    
+
     action_range = [np.array([-umin]),
                     np.array([-umax]),]
 
 
-    def __init__(self, 
-                 random_start = False, 
+    def __init__(self,
+                 random_start = False,
                  max_episode = 1000,
                  m1 = 1,
                  m2 = 1,
                  l1 = 1,
                  l2 = 1,
-                 g = 9.81, 
+                 g = 9.81,
                  **argk):
         self.state = np.zeros(4)
         self.random_start = random_start
@@ -54,7 +54,7 @@ class Acrobot(object):
         self.step_count = 0
 
         return 0, self.state.copy()
-    
+
     def state_dot(self, q, u):
         m1 = self.m1
         m2 = self.m2
@@ -66,7 +66,7 @@ class Acrobot(object):
         s2 = np.sin(q[1])
         s12 = np.sin(q[0]+q[1])
         m2l1l2c2 = m2*l1*l2*c2
-        
+
         H= np.array((((m1+m2)*l1**2 + m2*l2**2 + 2*m2l1l2c2, m2*l2**2 + m2l1l2c2),
                      (m2*l2**2 + m2l1l2c2, m2*l2**2))
                     )
@@ -74,23 +74,24 @@ class Acrobot(object):
                      (m2*l1*l2*q[2]*s2, 0))
                     )
         G = g* np.array(((m1+m2)*l1*s1, m2*l2*s12))
-        
+
         u = np.array((u,0))
-        
+
         qdot = np.linalg.solve(H, u - G- C.dot(q[2:]))
-        
-        return qdot
+
+        return np.hstack((q[2:], qdot))
 
     def update(self, action):
         u = np.clip(action, *self.action_range)
-        new_state = odeint( self.state_dot, self.state, self.dt, args=u)
-        
+        self.state = odeint( self.state_dot, self.state, self.dt, args=u)
+        self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
+
     def inGoal(self):
         pass
 
     def copy(self):
         pass
-    
+
     def isterminal(self):
         pass
 
