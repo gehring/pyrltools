@@ -26,6 +26,12 @@ class Acrobot(object):
                  l2 = 1,
                  g = 9.81,
                  **argk):
+        self.l1 = l1
+        self.l2 = l2
+        self.m1 = m1
+        self.m2 = m2
+        self.g =g
+
         self.state = np.zeros(4)
         self.random_start = random_start
         self.max_episode = max_episode
