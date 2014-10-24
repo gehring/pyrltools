@@ -1,13 +1,16 @@
 import pyglet
 import numpy as np
 from pyglet import clock
+from pyglet.window import key
 from rltools.acrobot import Acrobot
 
 
+
 acrobot = Acrobot()
-acrobot.state[:] = [1,1,0,0]
-
-
+acrobot.state[:] = [1,1,1,1]
+acrobot.action_range[0][:] = -10
+acrobot.action_range[1][:] = 10
+u = np.zeros(1)
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
     samples=4,
@@ -75,10 +78,21 @@ def on_draw():
 
 @window.event
 def on_resize(width, height):
-    pyglet.gl.glViewport(0, 0, width, height)
     pyglet.gl.glMatrixMode(pyglet.gl.GL_PROJECTION)
     pyglet.gl.glLoadIdentity()
-    pyglet.gl.glOrtho(-2, 2, -2, 2, -1, 1)
+    pyglet.gl.glViewport(0, 0, width, height)
+    rangex = (-2,2)
+    rangey = (-2,2)
+    ratio = float(height)/width
+    lx = rangex[1] - rangex[0]
+    ly = rangey[1] - rangey[0]
+
+    if lx*ratio >= ly:
+        dy = lx*ratio - ly
+        pyglet.gl.glOrtho(rangex[0], rangex[1], rangey[0]- dy/2, rangey[1]+dy/2, -1, 1)
+    else:
+        dx = ly/ratio - lx
+        pyglet.gl.glOrtho(rangex[0]-dx/2, rangex[1] + dx/2, rangey[0], rangey[1], -1, 1)
     pyglet.gl.glMatrixMode(pyglet.gl.GL_MODELVIEW)
     return True
 
@@ -96,9 +110,30 @@ def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
     pyglet.gl.glTranslatef(mcoord2[0] - mcoord1[0], mcoord2[1] - mcoord1[1], 0)
 
 def update(dt):
-    # acrobot.dt[:] = dt
-    # acrobot.step( np.zeros(1))
-    acrobot.state += acrobot.state_dot(acrobot.state, np.zeros(1)) * dt
+    acrobot.dt[:] = 1/60.0
+    acrobot.step(u)
+    # acrobot.state += acrobot.state_dot(acrobot.state, np.zeros(1)) * dt
+
+def on_key_press(symbol, modifiers):
+    global u
+    f = 10
+    if symbol == key.RIGHT:
+        u += f
+    if symbol == key.LEFT:
+        u += -f
+    print u
+def on_key_release(symbol, modifiers):
+    global u
+    f=10
+    if symbol == key.RIGHT:
+        u += -f
+    if symbol == key.LEFT:
+        u += f
+    print u
+
+window.push_handlers(on_key_press)
+window.push_handlers(on_key_release)
+
 
 
 if __name__ == '__main__':
@@ -110,6 +145,26 @@ if __name__ == '__main__':
     pyglet.gl.glClearColor(0, 0, 0, 1.0)
     pyglet.gl.glLineWidth(3)
     pyglet.gl.glPointSize(6)
+
+    height = window.height
+    width = window.width
+
+    pyglet.gl.glMatrixMode(pyglet.gl.GL_PROJECTION)
+    pyglet.gl.glLoadIdentity()
+    pyglet.gl.glViewport(0, 0, width, height)
+    rangex = (-2,2)
+    rangey = (-2,2)
+    ratio = float(height)/width
+    lx = rangex[1] - rangex[0]
+    ly = rangey[1] - rangey[0]
+
+    if lx*ratio >= ly:
+        dy = lx*ratio - ly
+        pyglet.gl.glOrtho(rangex[0], rangex[1], rangey[0]- dy/2, rangey[1]+dy/2, -1, 1)
+    else:
+        dx = ly/ratio - lx
+        pyglet.gl.glOrtho(rangex[0]-dx/2, rangex[1] + dx/2, rangey[0], rangey[1], -1, 1)
+    pyglet.gl.glMatrixMode(pyglet.gl.GL_MODELVIEW)
 
     # clock.schedule_interval(update, 1.0/60.0)
     clock.schedule(update)
