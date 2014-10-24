@@ -6,13 +6,7 @@ from rltools.acrobot import Acrobot
 
 acrobot = Acrobot()
 acrobot.state[:] = [1,1,0,0]
-acrobot.step(np.zeros(1))
-acrobot.step(np.zeros(1))
-acrobot.step(np.zeros(1))
-acrobot.step(np.zeros(1))
-acrobot.step(np.zeros(1))
-acrobot.step(np.zeros(1))
-acrobot.step(np.zeros(1))
+
 
 
 configTemp = pyglet.gl.Config(sample_buffers=1,

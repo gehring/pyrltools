@@ -3,18 +3,18 @@ from scipy.integrate import odeint
 
 class Acrobot(object):
 
-    umax = 1
-    umin = 1
+    umax = 10
+    umin = -10
 
     dt = np.array([0.1])
 
     start_state = np.array([0,0,0,0])
-    __discrete_actions = [np.array([-umin]),
+    __discrete_actions = [np.array([umin]),
                           np.array([0]),
-                          np.array([-umax])]
+                          np.array([umax])]
 
-    action_range = [np.array([-umin]),
-                    np.array([-umax]),]
+    action_range = [np.array([umin]),
+                    np.array([umax]),]
 
 
     def __init__(self,
@@ -87,7 +87,7 @@ class Acrobot(object):
                     )
         G = g* np.array(((m1+m2)*l1*s1, m2*l2*s12))
 
-        u = np.array((u[0],0))
+        u = np.array((0, u[0]))
 
         qdot = Hinv.dot( u - G- C.dot(q[2:]))
 
