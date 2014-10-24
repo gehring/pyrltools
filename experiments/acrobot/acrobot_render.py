@@ -4,6 +4,9 @@ from pyglet import clock
 from rltools.acrobot import Acrobot
 
 
+
+acrobot = Acrobot()
+
 configTemp = pyglet.gl.Config(sample_buffers=1,
     samples=4,
     double_buffer=True,
@@ -19,8 +22,6 @@ except:
     config=pyglet.gl.Config(double_buffer=True)
 
 window = pyglet.window.Window(config=config, resizable=True)
-
-acrobot = Acrobot()
 
 
 def get_mouse_coord(x, y):
