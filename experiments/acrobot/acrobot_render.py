@@ -48,26 +48,27 @@ def draw_acrobot(acrobot):
     l2 = acrobot.l2
     pyglet.gl.glPushMatrix()
     pyglet.gl.glRotated(theta[0], 0,0,1)
-    pyglet.graphics.draw(1, pyglet.gl.GL_LINES,
-                             ('v2f', ((0,0), (l1,0))),
-                             ('c4B', ((255,255,255,255))))
+    pyglet.graphics.draw(2, pyglet.gl.GL_LINES,
+                             ('v2f', (0,0, l1,0)),
+                             ('c4B', (255,255,255,255)*2))
     pyglet.graphics.draw(1, pyglet.gl.GL_POINTS,
-                             ('v2f', ((0,0))),
-                             ('c4B', ((100,100,255,255))))
+                             ('v2f', (0,0)),
+                             ('c4B', (100,100,255,255)))
     pyglet.gl.glTranslated(l1,0,0)
     pyglet.gl.glRotated(theta[1], 0,0,1)
-    pyglet.graphics.draw(1, pyglet.gl.GL_LINES,
-                             ('v2f', ((0,0), (l2,0))),
-                             ('c4B', ((255,255,255,255))))
+    pyglet.graphics.draw(2, pyglet.gl.GL_LINES,
+                             ('v2f', (0,0, l2,0)),
+                             ('c4B', (255,255,255,255)*2))
     pyglet.graphics.draw(1, pyglet.gl.GL_POINTS,
-                             ('v2f', ((0,0))),
-                             ('c4B', ((100,100,255,255))))
+                             ('v2f', (0,0)),
+                             ('c4B', (100,100,255,255)))
     pyglet.gl.glPopMatrix()
 
 
 @window.event
 def on_draw():
     window.clear()
+    draw_acrobot(acrobot)
 
 @window.event
 def on_resize(width, height):

@@ -73,9 +73,13 @@ class Acrobot(object):
         s12 = np.sin(q[0]+q[1])
         m2l1l2c2 = m2*l1*l2*c2
 
-        H= np.array((((m1+m2)*l1**2 + m2*l2**2 + 2*m2l1l2c2, m2*l2**2 + m2l1l2c2),
-                     (m2*l2**2 + m2l1l2c2, m2*l2**2))
-                    )
+        a = (m1+m2)*l1**2 + m2*l2**2 + 2*m2l1l2c2
+        b =  m2*l2**2 + m2l1l2c2
+        c = m2*l2**2 + m2l1l2c2
+        d = m2*l2**2
+        Hinv= np.array(((d, -b),
+                     (-c, a))
+                    )/ (a*d - b*c)
         C= np.array(((0, -m2*l1*l2*(2*q[2]+q[3])*s2),
                      (m2*l1*l2*q[2]*s2, 0))
                     )
@@ -83,7 +87,7 @@ class Acrobot(object):
 
         u = np.array((u,0))
 
-        qdot = np.linalg.solve(H, u - G- C.dot(q[2:]))
+        qdot = Hinv.dot( u - G- C.dot(q[2:]))
 
         return np.hstack((q[2:], qdot))
 
