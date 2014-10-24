@@ -49,7 +49,7 @@ class Acrobot(object):
                              np.random.uniform(self.state_range[0][2], self.state_range[1][2]),
                              np.random.uniform(self.state_range[0][3], self.state_range[1][3])]
         else:
-            self.state[:] = self.state_state
+            self.state[:] = self.start_state
 
         self.step_count = 0
 

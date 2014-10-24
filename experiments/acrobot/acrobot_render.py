@@ -1,7 +1,7 @@
 import pyglet
 import numpy as np
 from pyglet import clock
-from pyrltools.acrobot import Acrobot
+from rltools.acrobot import Acrobot
 
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
@@ -103,5 +103,5 @@ if __name__ == '__main__':
     pyglet.gl.glClearColor(0, 0, 0, 1.0)
     pyglet.gl.glLineWidth(3)
     pyglet.gl.glPointSize(6)
-    clock.schedule_interval(update, 1/60.0)
+    clock.schedule_interval(update, 1/10.0)
     pyglet.app.run()
