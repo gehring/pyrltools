@@ -82,8 +82,8 @@ class Acrobot(object):
         Hinv= np.array(((d, -b),
                      (-c, a))
                     )/ (a*d - b*c)
-        C= np.array(((b, -m2*l1*l2*(2*q[2]+q[3])*s2),
-                     (m2*l1*l2*q[2]*s2, b))
+        C= np.array(((self.b, -m2*l1*l2*(2*q[2]+q[3])*s2),
+                     (m2*l1*l2*q[2]*s2, self.b))
                     )
         G = g* np.array(((m1+m2)*l1*s1, m2*l2*s12))
 
