@@ -25,12 +25,14 @@ class Acrobot(object):
                  l1 = 1,
                  l2 = 1,
                  g = 9.81,
+                 b = 0.1,
                  **argk):
         self.l1 = l1
         self.l2 = l2
         self.m1 = m1
         self.m2 = m2
         self.g =g
+        self.b =b
 
         self.state = np.zeros(4)
         self.random_start = random_start
@@ -80,8 +82,8 @@ class Acrobot(object):
         Hinv= np.array(((d, -b),
                      (-c, a))
                     )/ (a*d - b*c)
-        C= np.array(((0, -m2*l1*l2*(2*q[2]+q[3])*s2),
-                     (m2*l1*l2*q[2]*s2, 0))
+        C= np.array(((b, -m2*l1*l2*(2*q[2]+q[3])*s2),
+                     (m2*l1*l2*q[2]*s2, b))
                     )
         G = g* np.array(((m1+m2)*l1*s1, m2*l2*s12))
 
