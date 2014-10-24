@@ -4,8 +4,16 @@ from pyglet import clock
 from rltools.acrobot import Acrobot
 
 
-
 acrobot = Acrobot()
+acrobot.state[:] = [1,1,0,0]
+acrobot.step(np.zeros(1))
+acrobot.step(np.zeros(1))
+acrobot.step(np.zeros(1))
+acrobot.step(np.zeros(1))
+acrobot.step(np.zeros(1))
+acrobot.step(np.zeros(1))
+acrobot.step(np.zeros(1))
+
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
     samples=4,
@@ -43,10 +51,11 @@ def get_mouse_coord(x, y):
         return mcoord
 
 def draw_acrobot(acrobot):
-    theta = acrobot.state[:2]
+    theta = np.degrees(acrobot.state[:2])
     l1 = acrobot.l1
     l2 = acrobot.l2
     pyglet.gl.glPushMatrix()
+    pyglet.gl.glRotated(-90, 0,0,1)
     pyglet.gl.glRotated(theta[0], 0,0,1)
     pyglet.graphics.draw(2, pyglet.gl.GL_LINES,
                              ('v2f', (0,0, l1,0)),
@@ -75,7 +84,7 @@ def on_resize(width, height):
     pyglet.gl.glViewport(0, 0, width, height)
     pyglet.gl.glMatrixMode(pyglet.gl.GL_PROJECTION)
     pyglet.gl.glLoadIdentity()
-    pyglet.gl.glOrtho(0, 10, 0, 10, -1, 1)
+    pyglet.gl.glOrtho(-2, 2, -2, 2, -1, 1)
     pyglet.gl.glMatrixMode(pyglet.gl.GL_MODELVIEW)
     return True
 
@@ -93,8 +102,10 @@ def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
     pyglet.gl.glTranslatef(mcoord2[0] - mcoord1[0], mcoord2[1] - mcoord1[1], 0)
 
 def update(dt):
-    acrobot.dt[0] = dt
-    acrobot.step(np.zeros(1))
+    # acrobot.dt[:] = dt
+    # acrobot.step( np.zeros(1))
+    acrobot.state += acrobot.state_dot(acrobot.state, np.zeros(1)) * dt
+
 
 if __name__ == '__main__':
     pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
@@ -105,5 +116,7 @@ if __name__ == '__main__':
     pyglet.gl.glClearColor(0, 0, 0, 1.0)
     pyglet.gl.glLineWidth(3)
     pyglet.gl.glPointSize(6)
-    clock.schedule_interval(update, 1/10.0)
+
+    # clock.schedule_interval(update, 1.0/60.0)
+    clock.schedule(update)
     pyglet.app.run()

@@ -85,7 +85,7 @@ class Acrobot(object):
                     )
         G = g* np.array(((m1+m2)*l1*s1, m2*l2*s12))
 
-        u = np.array((u,0))
+        u = np.array((u[0],0))
 
         qdot = Hinv.dot( u - G- C.dot(q[2:]))
 
@@ -93,7 +93,7 @@ class Acrobot(object):
 
     def update(self, action):
         u = np.clip(action, *self.action_range)
-        self.state = odeint( lambda x: self.state_dot(x, u), self.state, self.dt)[0]
+        self.state = odeint( lambda x, t: self.state_dot(x, u), y0 = self.state, t = np.hstack(((0.0), self.dt)))[-1]
         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
 
     def inGoal(self):
