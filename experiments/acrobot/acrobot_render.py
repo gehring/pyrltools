@@ -1,4 +1,6 @@
 import pyglet
+import numpy as np
+from pyglet import clock
 from pyrltools.acrobot import Acrobot
 
 
@@ -88,6 +90,10 @@ def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
     mcoord2 = get_mouse_coord(x + dx, y+ dy)
     pyglet.gl.glTranslatef(mcoord2[0] - mcoord1[0], mcoord2[1] - mcoord1[1], 0)
 
+def update(dt):
+    acrobot.dt[0] = dt
+    acrobot.step(np.zeros(1))
+
 if __name__ == '__main__':
     pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
     pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA, pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
@@ -97,4 +103,5 @@ if __name__ == '__main__':
     pyglet.gl.glClearColor(0, 0, 0, 1.0)
     pyglet.gl.glLineWidth(3)
     pyglet.gl.glPointSize(6)
+    clock.schedule_interval(update, 1/60.0)
     pyglet.app.run()
