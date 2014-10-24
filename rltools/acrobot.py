@@ -83,7 +83,7 @@ class Acrobot(object):
 
     def update(self, action):
         u = np.clip(action, *self.action_range)
-        self.state = odeint( self.state_dot, self.state, self.dt, args=u)
+        self.state = odeint( self.state_dot, self.state, self.dt, args=(u))
         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
 
     def inGoal(self):
