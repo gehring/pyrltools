@@ -120,7 +120,7 @@ class Acrobot(object):
         u = np.clip(action, *self.action_range)
 #         self.state = odeint( lambda x, t: self.state_dot(x, u), y0 = self.state, t = np.hstack(((0.0), self.dt)))[-1]
 #         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
-        self.solver.set_f_params(u = u)
+        self.solver.set_f_params(u)
         self.solver.set_initial_value(self.state)
         self.state = self.solver.integrate(self.dt)[-1]
         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
