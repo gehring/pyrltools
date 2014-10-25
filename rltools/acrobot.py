@@ -1,13 +1,12 @@
 import numpy as np
-# from scipy.integrate import odeint
-from scipy.integrate import ode
+from scipy.integrate import odeint
 
 class Acrobot(object):
 
     umax = 10
     umin = -10
 
-    dt = np.array([ 0.1])
+    dt = np.array([0, 0.1])
 
     start_state = np.array([0,0,0,0])
     __discrete_actions = [np.array([umin]),
@@ -17,7 +16,6 @@ class Acrobot(object):
     action_range = [np.array([umin]),
                     np.array([umax]),]
 
-    steps = 100
 
 
     def __init__(self,
@@ -28,19 +26,18 @@ class Acrobot(object):
                  l1 = 1,
                  l2 = 1,
                  g = 9.81,
-                 b = 0.0,
+                 b1 = 0.1,
+                 b2 = 0.1,
                  **argk):
         self.l1 = l1
         self.l2 = l2
         self.m1 = m1
         self.m2 = m2
         self.g =g
-        self.b =b
+        self.b1 =b1
+        self.b2 = b2
         self.Ic1 = m1*l1**2/3
         self.Ic2 = m2*l2**2/3
-
-        self.solver = ode(self.state_dot)
-        self.solver.set_integrator('dop853')
 
         self.state = np.zeros(4)
         self.random_start = random_start
@@ -68,8 +65,6 @@ class Acrobot(object):
             self.state[:] = self.start_state
 
         self.step_count = 0
-        self.t = 0
-        self.solver.set_initial_value(self.state)
 
         return 0, self.state.copy()
 
@@ -109,8 +104,8 @@ class Acrobot(object):
         Hinv= np.array(((d, -b),
                      (-b, a))
                     )/ (a*d - b*c)
-        C= np.array(((self.b -2*m2l1lc2*s[1]*q[3], -m2l1lc2*q[3]*s[1]),
-                     (m2l1lc2*q[2]*s[1], self.b))
+        C= np.array(((self.b1 -2*m2l1lc2*s[1]*q[3], -m2l1lc2*q[3]*s[1]),
+                     (m2l1lc2*q[2]*s[1], self.b2))
                     )
         G = g* np.array(((m1*lc1 + m2*l1)*s[0] + m2*lc2*s12, m2*lc2*s12))
 
@@ -122,13 +117,9 @@ class Acrobot(object):
 
     def update(self, action):
         u = np.clip(action, *self.action_range)
-#         self.state = odeint( lambda x, t: self.state_dot(x, u), y0 = self.state, t = np.hstack(((0.0), self.dt)))[-1]
-#         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
-        self.solver.set_f_params(u)
-#         self.solver.set_initial_value(self.state)
-        self.state = self.solver.integrate(self.t + self.dt, step=self.steps)
-        self.t += self.dt
+        self.state = odeint( lambda x, t: self.state_dot(x, u), y0 = self.state, t = np.hstack(((0.0), self.dt)))[-1]
         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
+
 
     def inGoal(self):
         pass
