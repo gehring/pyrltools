@@ -1,12 +1,13 @@
 import numpy as np
-from scipy.integrate import odeint
+# from scipy.integrate import odeint
+from scipy.integrate import ode
 
 class Acrobot(object):
 
     umax = 10
     umin = -10
 
-    dt = np.array([0.1])
+    dt = np.array([0, 0.1])
 
     start_state = np.array([0,0,0,0])
     __discrete_actions = [np.array([umin]),
@@ -35,6 +36,9 @@ class Acrobot(object):
         self.b =b
         self.Ic1 = m1*l1**2/3
         self.Ic2 = m2*l2**2/3
+
+        self.solver = ode(self.state_dot)
+        self.solver.set_integrator('dop853')
 
         self.state = np.zeros(4)
         self.random_start = random_start
@@ -65,7 +69,7 @@ class Acrobot(object):
 
         return 0, self.state.copy()
 
-    def state_dot(self, q, u):
+    def state_dot(self, t, q, u):
         m1 = self.m1
         m2 = self.m2
         l1 = self.l1
@@ -114,7 +118,11 @@ class Acrobot(object):
 
     def update(self, action):
         u = np.clip(action, *self.action_range)
-        self.state = odeint( lambda x, t: self.state_dot(x, u), y0 = self.state, t = np.hstack(((0.0), self.dt)))[-1]
+#         self.state = odeint( lambda x, t: self.state_dot(x, u), y0 = self.state, t = np.hstack(((0.0), self.dt)))[-1]
+#         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
+        self.solver.set_f_params(u = u)
+        self.solver.set_initial_value(self.state)
+        self.state = self.solver.integrate(self.dt)[-1]
         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
 
     def inGoal(self):
