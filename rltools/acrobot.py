@@ -68,7 +68,7 @@ class Acrobot(object):
 
         return 0, self.state.copy()
 
-    def state_dot(self, t, q, u):
+    def state_dot(self, q, t, u):
         m1 = self.m1
         m2 = self.m2
         l1 = self.l1
@@ -117,7 +117,7 @@ class Acrobot(object):
 
     def update(self, action):
         u = np.clip(action, *self.action_range)
-        self.state = odeint( lambda x, t: self.state_dot(x, u), y0 = self.state, t = np.hstack(((0.0), self.dt)))[-1]
+        self.state = odeint(self.state_dot, y0 = self.state, t = self.dt, args=(u))[-1]
         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
 
 
