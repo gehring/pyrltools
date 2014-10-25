@@ -33,8 +33,8 @@ class Acrobot(object):
         self.m2 = m2
         self.g =g
         self.b =b
-        self.I1 = m1*l1**2/3
-        self.I2 = m2*l2**2/3
+        self.Ic1 = m1*l1**2/3
+        self.Ic2 = m2*l2**2/3
 
         self.state = np.zeros(4)
         self.random_start = random_start
@@ -69,10 +69,11 @@ class Acrobot(object):
         m1 = self.m1
         m2 = self.m2
         l1 = self.l1
-        I1 = self.I1
-        I2 = self.I2
         lc1 = self.l1/2
         lc2 = self.l2/2
+        I1 = self.Ic1 + m1*lc1**2
+        I2 = self.Ic2 + m2*lc2**2
+
         g = self.g
         c = np.cos(q[:2])
         s = np.sin(q[:2])
