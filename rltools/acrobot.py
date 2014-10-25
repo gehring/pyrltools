@@ -7,7 +7,7 @@ class Acrobot(object):
     umax = 10
     umin = -10
 
-    dt = np.array([0, 0.1])
+    dt = np.array([ 0.1])
 
     start_state = np.array([0,0,0,0])
     __discrete_actions = [np.array([umin]),
@@ -16,6 +16,8 @@ class Acrobot(object):
 
     action_range = [np.array([umin]),
                     np.array([umax]),]
+
+    steps = 100
 
 
     def __init__(self,
@@ -66,6 +68,8 @@ class Acrobot(object):
             self.state[:] = self.start_state
 
         self.step_count = 0
+        self.t = 0
+        self.solver.set_initial_value(self.state)
 
         return 0, self.state.copy()
 
@@ -121,8 +125,9 @@ class Acrobot(object):
 #         self.state = odeint( lambda x, t: self.state_dot(x, u), y0 = self.state, t = np.hstack(((0.0), self.dt)))[-1]
 #         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
         self.solver.set_f_params(u)
-        self.solver.set_initial_value(self.state)
-        self.state = self.solver.integrate(self.dt)[-1]
+#         self.solver.set_initial_value(self.state)
+        self.state = self.solver.integrate(self.t + self.dt, step=self.steps)
+        self.t += self.dt
         self.state[:2] = np.remainder(self.state[:2], 2*np.pi)
 
     def inGoal(self):
