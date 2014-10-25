@@ -25,7 +25,7 @@ class Acrobot(object):
                  l1 = 1,
                  l2 = 1,
                  g = 9.81,
-                 b = 0.1,
+                 b = 0.0,
                  **argk):
         self.l1 = l1
         self.l2 = l2
@@ -33,6 +33,8 @@ class Acrobot(object):
         self.m2 = m2
         self.g =g
         self.b =b
+        self.I1 = m1*l1**2/3
+        self.I2 = m2*l2**2/3
 
         self.state = np.zeros(4)
         self.random_start = random_start
@@ -67,25 +69,41 @@ class Acrobot(object):
         m1 = self.m1
         m2 = self.m2
         l1 = self.l1
-        l2 = self.l2
+        I1 = self.I1
+        I2 = self.I2
+        lc1 = self.l1/2
+        lc2 = self.l2/2
         g = self.g
-        c2 = np.cos(q[1])
-        s1 = np.sin(q[0])
-        s2 = np.sin(q[1])
+        c = np.cos(q[:2])
+        s = np.sin(q[:2])
         s12 = np.sin(q[0]+q[1])
-        m2l1l2c2 = m2*l1*l2*c2
+#         m2l1l2c2 = m2*l1*l2*c2
+        m2l1lc2 = m2*l1*lc2
+        # double pendulum
+#         a = (m1+m2)*l1**2 + m2*l2**2 + 2*m2l1l2c2
+#         b =  m2*l2**2 + m2l1l2c2
+#         c = m2*l2**2 + m2l1l2c2
+#         d = m2*l2**2
+#         Hinv= np.array(((d, -b),
+#                      (-c, a))
+#                     )/ (a*d - b*c)
+#         C= np.array(((self.b, -m2*l1*l2*(2*q[2]+q[3])*s2),
+#                      (m2*l1*l2*q[2]*s2, self.b))
+#                     )
+#         G = g* np.array(((m1+m2)*l1*s1 + m2*l2*s12, m2*l2*s12))
+#
+#         u = np.array((0, u[0]))
 
-        a = (m1+m2)*l1**2 + m2*l2**2 + 2*m2l1l2c2
-        b =  m2*l2**2 + m2l1l2c2
-        c = m2*l2**2 + m2l1l2c2
-        d = m2*l2**2
+        a = I1 + I2 + m2*l1**2 + 2*m2l1lc2*c[1]
+        b =  I2 + m2l1lc2*c[1]
+        d = I2
         Hinv= np.array(((d, -b),
-                     (-c, a))
+                     (-b, a))
                     )/ (a*d - b*c)
-        C= np.array(((self.b, -m2*l1*l2*(2*q[2]+q[3])*s2),
-                     (m2*l1*l2*q[2]*s2, self.b))
+        C= np.array(((self.b -2*m2l1lc2*s[1]*q[3], -m2l1lc2*q[3]*s[1]),
+                     (m2l1lc2*q[2]*s[1], self.b))
                     )
-        G = g* np.array(((m1+m2)*l1*s1 + m2*l2*s12, m2*l2*s12))
+        G = g* np.array(((m1*lc1 + m2*l1)*s[0] + m2*lc2*s12, m2*lc2*s12))
 
         u = np.array((0, u[0]))
 
