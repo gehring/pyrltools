@@ -7,11 +7,14 @@ from rltools.acrobot import Acrobot
 
 
 acrobot = Acrobot(random_start = False, m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
-acrobot.start_state[:] = [2,2,0,0]
+acrobot.start_state[:] = [-0.1*np.random.rand(1),0,0,0]
 acrobot.reset()
 acrobot.action_range[0][:] = -10
 acrobot.action_range[1][:] = 10
 u = np.zeros(1)
+
+controller = acrobot.get_swingup_policy()
+auto = True
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
     samples=4,
@@ -111,18 +114,24 @@ def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
     pyglet.gl.glTranslatef(mcoord2[0] - mcoord1[0], mcoord2[1] - mcoord1[1], 0)
 
 def update(dt):
-    acrobot.dt[-1] = dt
-    acrobot.step(u)
+    acrobot.dt[-1] =  dt#1.0/60
+    if auto:
+        acrobot.step(controller(acrobot.state))
+    else:
+        acrobot.step(u)
 
 def on_key_press(symbol, modifiers):
-    global u
+    global u, auto
     f = 10
     if symbol == key.RIGHT:
         u += f
     if symbol == key.LEFT:
         u += -f
     if symbol == key.R:
+        acrobot.start_state[:] = [- 0.2*np.random.rand(1) + 0.1,0,0,0]
         acrobot.reset()
+    if symbol == key.A:
+        auto = not auto
 
     print u
 def on_key_release(symbol, modifiers):
@@ -169,5 +178,5 @@ if __name__ == '__main__':
         pyglet.gl.glOrtho(rangex[0]-dx/2, rangex[1] + dx/2, rangey[0], rangey[1], -1, 1)
     pyglet.gl.glMatrixMode(pyglet.gl.GL_MODELVIEW)
 
-    clock.schedule_interval(update, 1.0/60.0)
+    clock.schedule_interval(update, 1.0/100.0)
     pyglet.app.run()
