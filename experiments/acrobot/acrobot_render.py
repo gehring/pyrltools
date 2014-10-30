@@ -1,5 +1,6 @@
 import numpy as np
 import pyglet
+import pickle
 from pyglet import clock
 from pyglet.window import key
 from rltools.acrobot import Acrobot
@@ -14,7 +15,10 @@ acrobot.action_range[1][:] = 10
 u = np.zeros(1)
 
 controller = acrobot.get_swingup_policy()
-auto = True
+name = 'test3'
+with open('agent-'+name+'.data', 'rb') as f:
+    (phi, valuefn, policy,agent) = pickle.load(f)
+mode = 2
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
     samples=4,
@@ -115,13 +119,15 @@ def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
 
 def update(dt):
     acrobot.dt[-1] =  dt#1.0/60
-    if auto:
+    if mode == 1:
         acrobot.step(controller(acrobot.state))
+    elif mode == 2:
+        acrobot.step(agent.proposeAction(acrobot.state))
     else:
         acrobot.step(u)
 
 def on_key_press(symbol, modifiers):
-    global u, auto
+    global u, mode
     f = 10
     if symbol == key.RIGHT:
         u += f
@@ -131,7 +137,9 @@ def on_key_press(symbol, modifiers):
         acrobot.start_state[:] = [- 0.2*np.random.rand(1) + 0.1,0,0,0]
         acrobot.reset()
     if symbol == key.A:
-        auto = not auto
+        mode = 1 if mode != 1 else 0
+    if symbol == key.S:
+        mode = 2 if mode != 2 else 0
 
     print u
 def on_key_release(symbol, modifiers):

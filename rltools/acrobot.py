@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.integrate import odeint
 from control import lqr
+import copy
 
 class Acrobot(object):
 
@@ -17,6 +18,13 @@ class Acrobot(object):
     action_range = [np.array([umin]),
                     np.array([umax]),]
 
+    thres = np.pi/4
+    goal_range = [np.array([np.pi - thres, -thres, -thres, -thres]),
+                  np.array([np.pi + thres, thres, thres, thres]),]
+
+    max_speed = 24
+    state_range = [np.array([0, 0, -max_speed, -max_speed]),
+                   np.array([np.pi*2, np.pi*2, max_speed, max_speed])]
 
 
     def __init__(self,
@@ -130,13 +138,14 @@ class Acrobot(object):
         return Acrobot_LQR_enerygyshaping(self)
 
     def inGoal(self):
-        pass
+        return np.all(np.logical_and(self.state>self.goal_range[0],
+                                     self.state<self.goal_range[1]))
 
     def copy(self):
-        pass
+        return copy.deepcopy(self)
 
     def isterminal(self):
-        pass
+        return self.step_count>self.max_episode or self.inGoal()
 
     @property
     def discrete_actions(self):

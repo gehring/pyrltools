@@ -96,6 +96,7 @@ class LinearTD(ValueFn):
                  alpha,
                  lamb,
                  gamma,
+                 replacing_trace = True,
                  **argk):
         super(LinearTD, self).__init__()
         self.projector = projector
@@ -105,21 +106,24 @@ class LinearTD(ValueFn):
         self.phi = projector
         self.theta = np.zeros((num_actions, projector.size))
         self.e = np.zeros_like(self.theta)
+        self.replacing_trace = replacing_trace
         self.num_actions = num_actions
 
     def __call__(self, state, action= None):
         if state == None:
             return 0
         elif action == None:
-            if issubclass(state, np.uint):
-                return np.sum(self.theta[:,state], axis=1)
+            phi_t = self.phi(state)
+            if issubclass(phi_t.dtype.type, np.uint):
+                return np.sum(self.theta[:,phi_t], axis=1)
             else:
-                return self.theta.dot(self.phi(state))
+                return self.theta.dot(phi_t)
         else:
-            if issubclass(state, np.uint):
-                return np.sum(self.theta[action,state])
+            phi_t = self.phi(state)
+            if issubclass(phi_t.dtype.type, np.uint):
+                return np.sum(self.theta[action,phi_t])
             else:
-                return self.theta[action,:].dot(self.phi(state))
+                return self.theta[action,:].dot(phi_t)
 
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t == None:
@@ -128,10 +132,15 @@ class LinearTD(ValueFn):
 
         phi_t = self.phi(s_t)
         self.e *= self.gamma*self.lamb
-        if issubclass(phi_t, np.uint):
+
+        if issubclass(phi_t.dtype.type, np.uint):
             self.e[a_t,phi_t] += 1
         else:
             self.e[a_t,:] += phi_t
+
+        if self.replacing_trace:
+            self.e = np.clip(self.e, 0,1)
+
         delta = r + self.gamma*self(s_tp1, a_tp1) - self(s_t, a_t)
         self.theta += self.alpha*delta*self.e
 
@@ -158,15 +167,18 @@ class LinearTDPolicyMixture(ValueFn):
         if state == None:
             return 0
         elif action == None:
-            if issubclass(state, np.uint):
-                return np.sum(self.theta[:,state], axis=1)
+            phi_t = self.phi(state)
+            if issubclass(phi_t.dtype.type, np.uint):
+                return np.sum(self.theta[:,phi_t], axis=1)
             else:
-                return self.theta.dot(self.phi(state))
+                return self.theta.dot(phi_t)
         else:
-            if issubclass(state, np.uint):
-                return np.sum(self.theta[action,state])
+            phi_t = self.phi(state)
+            if issubclass(phi_t.dtype.type, np.uint):
+                return np.sum(self.theta[action,phi_t])
             else:
-                return self.theta[action,:].dot(self.phi(state))
+                return self.theta[action,:].dot(phi_t)
+
 
     def update(self, s_t, r, s_tp1, rho):
         if s_t == None:
@@ -174,7 +186,7 @@ class LinearTDPolicyMixture(ValueFn):
             return
         phi_t = self.phi(s_t)
         self.e *= self.gamma*self.lamb
-        if issubclass(phi_t, np.uint):
+        if issubclass(phi_t.dtype.type, np.uint):
             self.e[:,phi_t] += rho[:,None]
         else:
             self.e += rho[:,None]*phi_t
