@@ -1,6 +1,6 @@
 from rltools.policy import policy_evaluation, SoftMax, Egreedy
 from rltools.valuefn import LinearTDPolicyMixture, LinearTD, linearValueFn
-from rltools.agent import LinearTabularPolicySarsa, TabularActionSarsa
+from rltools.agent import LinearTabularPolicySarsa, TabularActionSarsa, TabularPolicySarsa
 from itertools import product
 from rltools.GridWorld import GridWorld, boundary_condition
 import numpy as np
@@ -16,11 +16,11 @@ dx = np.array([ [1,0],
                 [0,-1]], dtype='int32')
 
 def getVectorField(valuefn):
-    res=12
+    res=10
     U = np.empty(res**2)
     V = np.empty(res**2)
-    x = np.linspace(0, 11, res)
-    y = np.linspace(0, 11, res)
+    x = np.linspace(0, 9, res)
+    y = np.linspace(0, 9, res)
     for i,s in enumerate(product(x, y)):
         s = np.array(s)
         a = np.argmax([valuefn(s,0), valuefn(s,1), valuefn(s,2), valuefn(s,3)])
@@ -30,10 +30,10 @@ def getVectorField(valuefn):
     return X, Y, U.reshape((res,res)).T, V.reshape((res,res)).T
 
 def viewValuefn(valuefn):
-    res=12
+    res=10
     V = np.empty(res**2)
-    x = np.linspace(0, 11, res)
-    y = np.linspace(0, 11, res)
+    x = np.linspace(0, 9, res)
+    y = np.linspace(0, 9, res)
     for i,s in enumerate(product(x, y)):
         s = np.array(s)
         V[i] = valuefn(s)# max([valuefn(s,0), valuefn(s,1), valuefn(s,2), valuefn(s,3)])
@@ -76,12 +76,12 @@ def terminal(state):
 
 class phi(object):
     def __init__(self):
-        self.size = 12*12+1
+        self.size = 10*10+1
     def __call__(self, state):
         phi_t = np.zeros(self.size, dtype = 'int32')
         if state != None:
             state = np.array(state, dtype = 'int32')
-            phi_t[np.ravel_multi_index(state, (12,12))] = 1
+            phi_t[np.ravel_multi_index(state, (10,10))] = 1
             phi_t[-1] = 1
         return phi_t
 
@@ -103,16 +103,17 @@ valuefns = [policy_evaluation([reward],
                               number_episodes = 1000,
                               max_episode_length = 20)[-1]
             for pi in pis]
-valuefn = LinearTDPolicyMixture(4, phi(), alpha, lamb, gamma)
+# valuefn = LinearTDPolicyMixture(4, phi(), alpha, lamb, gamma)
+valuefn = LinearTD(4, phi(), alpha, lamb, gamma, True)
 for i,v in enumerate(valuefns):
     valuefn.theta[i,:] = v.theta
 # valuefn = LinearTD(4, phi(), alpha, lamb, gamma, True)
 # policy = Egreedy(np.arange(4), valuefn, epsilon=0.05)
 # agent = TabularActionSarsa(range(4), policy, valuefn)
 mix_policy = Egreedy(np.arange(4), valuefn, epsilon = 0.05)
-agent = LinearTabularPolicySarsa(range(4), mix_policy, pis, valuefn)
+agent = TabularPolicySarsa(range(4), mix_policy, pis, valuefn)
 
-num_episodes = 20000
+num_episodes = 100
 domain = gridworld
 for i in xrange(num_episodes):
     r_t, s_t = domain.reset()
