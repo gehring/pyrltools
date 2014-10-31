@@ -5,6 +5,19 @@ from pyglet import clock
 from pyglet.window import key
 from rltools.acrobot import Acrobot
 
+class TrivialPolicy(object):
+    def __init__(self, action):
+        self.action = action
+    def __call__(self, state):
+        return self.action
+    
+class DiscreteToContPi(object):
+    def __init__(self, actions, pi):
+        self.pi=pi
+        self.actions = actions
+    def __call__(self, state):
+        return self.actions[self.pi(state)]
+
 
 
 acrobot = Acrobot(random_start = False, m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
@@ -15,7 +28,7 @@ acrobot.action_range[1][:] = 10
 u = np.zeros(1)
 
 controller = acrobot.get_swingup_policy()
-name = 'cosr2'
+name = 'mix1'
 with open('agent-'+name+'.data', 'rb') as f:
     (phi, valuefn, policy,agent) = pickle.load(f)
 mode = 2
