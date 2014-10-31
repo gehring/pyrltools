@@ -26,49 +26,49 @@ domain = Acrobot(random_start= False,
                   m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
 domain.dt[-1] = 0.05
 
-thres = np.pi/4
+# tiles_all = np.array([6,6,7,7])
+# ntiles = [ tiles_all[i] for i in input_indicies]
+# 
+# ntilings = [12,
+#             3,
+#             3,
+#             3,
+#             3,
+#             2,
+#             2,
+#             2,
+#             2,
+#             2,
+#             2,
+#             3,
+#             3,
+#             3,
+#             3]
+# 
+# phi = TileCoding(input_indicies,
+#                  ntiles,
+#                  ntilings,
+#                  None,
+#                  domain.state_range,
+#                  bias_term = True)
+# valuefn = LinearTD(len(domain.discrete_actions), phi, 0.2/48, 0.8, 0.9999)
+# policy = Egreedy(np.arange(3), valuefn, epsilon = 0.0)
+# agent = TabularActionSarsa(domain.discrete_actions, policy, valuefn)
+
+
+num_episodes = 400
+namein= 'test6'
+with open('agent-'+namein+'.data', 'rb') as f:
+    (phi, valuefn, policy,agent) = pickle.load(f)
+nameout='test7'
+valuefn.alpha = 0.1/48
+
+thres = np.pi/8
 domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -thres]),
                   np.array([np.pi + thres, thres, thres, thres]),]
 
-tiles_all = np.array([6,6,7,7])
-ntiles = [ tiles_all[i] for i in input_indicies]
-
-ntilings = [12,
-            3,
-            3,
-            3,
-            3,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            3,
-            3,
-            3,
-            3]
-
-phi = TileCoding(input_indicies,
-                 ntiles,
-                 ntilings,
-                 None,
-                 domain.state_range,
-                 bias_term = True)
-valuefn = LinearTD(len(domain.discrete_actions), phi, 0.2/48, 0.8, 0.9999)
-policy = Egreedy(np.arange(3), valuefn, epsilon = 0.0)
-agent = TabularActionSarsa(domain.discrete_actions, policy, valuefn)
-
-
-num_episodes = 100
-# namein= 'test1'
-# with open('agent-'+namein+'.data', 'rb') as f:
-#     (phi, valuefn, policy,agent) = pickle.load(f)
-nameout='test2'
-# valuefn.alpha = 0.1/48
-
 for i in xrange(num_episodes):
-
+    domain.start_state[:] = [-0.1*np.random.rand(1),0,0,0]
     r_t, s_t = domain.reset()
     agent.reset()
     count = 0
@@ -93,12 +93,12 @@ for i in xrange(num_episodes):
     print cumulative_reward
 
 print '======== NEXT TEST STARTING ========='
-nameout = 'test3'
-thres = np.pi/6
+nameout = 'test7'
+thres = np.pi/9
 domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -thres]),
                   np.array([np.pi + thres, thres, thres, thres]),]
 for i in xrange(num_episodes):
-
+    domain.start_state[:] = [-0.1*np.random.rand(1),0,0,0]
     r_t, s_t = domain.reset()
     agent.reset()
     count = 0

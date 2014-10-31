@@ -119,22 +119,24 @@ class LinearTabularPolicySarsa(Agent):
         self.policies = policies
         self.valuefn = valuefn
         self.s_t = None
+        self.rho = None
         self.actions = actions
 
     def step(self, r, s_tp1):
         if s_tp1 != None:
             p_pi = self.policy.getprob(s_tp1)
             pi_tp1 = weighted_values(p_pi)
-            p_a = np.vstack([self.policies[p].getprob(s_tp1) for p in self.policies])
-            a_tp1 = weighted_values(p_a[pi_tp1,:])
-            rho = p_a[:,a_tp1]/ p_a[:,a_tp1].dot(p_pi)
+            p_a = np.vstack([p.getprob(s_tp1) for p in self.policies])
+            a_tp1 = weighted_values(p_a[pi_tp1,:])[0]
+            rho_tp1 = p_a[:,a_tp1]/ p_a[:,a_tp1].dot(p_pi)
         else:
             a_tp1 = None
-            rho = None
+            rho_tp1 = None
             a_tp1 = None
-        self.valuefn.update(self.s_t, r, s_tp1, rho)
+        self.valuefn.update(self.s_t, r, s_tp1, self.rho)
 
         self.s_t = s_tp1
+        self.rho = rho_tp1
 
         return self.actions[a_tp1] if a_tp1 != None else None
 

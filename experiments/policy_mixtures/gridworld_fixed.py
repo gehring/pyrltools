@@ -34,8 +34,9 @@ class phi(object):
         self.size = 12*12+1
     def __call__(self, state):
         phi_t = np.zeros(self.size, dtype = 'int32')
-        if phi_t != None:
-            phi_t[np.ravel_multi_index(state+1, (12,12))] = 1
+        if state != None:
+            state = np.array(state, dtype = 'int32')
+            phi_t[np.ravel_multi_index(state, (12,12))] = 1
             phi_t[-1] = 1
         return phi_t
 

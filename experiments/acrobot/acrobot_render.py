@@ -15,7 +15,7 @@ acrobot.action_range[1][:] = 10
 u = np.zeros(1)
 
 controller = acrobot.get_swingup_policy()
-name = 'test3'
+name = 'test7'
 with open('agent-'+name+'.data', 'rb') as f:
     (phi, valuefn, policy,agent) = pickle.load(f)
 mode = 2
