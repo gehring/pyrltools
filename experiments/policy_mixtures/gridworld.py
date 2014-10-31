@@ -143,7 +143,7 @@ val =    policy_evaluation([reward],
                               max_episode_length = 20)[-1]
                               
 
-plt.contourf(*viewValuefn(linearValueFn(valuefn.theta[0,:], phi())))
+plt.contourf(*viewValuefn(val))
 plt.quiver(*getVectorField(valuefn))
 plt.show()
     

@@ -77,7 +77,7 @@ for i in xrange(num_episodes):
     while s_t != None:
         # apply an action from the agent
         # the domain will return a 'None' state when terminating
-        r_t = -np.cos(s_t[0]) + min(np.cos(s_t[1]+np.pi), 0)
+        r_t = -np.cos(s_t[0]) + min(np.cos(s_t[1]), 0.4)
         cumulative_reward += r_t
         r_t, s_t = domain.step(agent.step(r_t, s_t))
         
