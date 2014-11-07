@@ -10,7 +10,7 @@ class TrivialPolicy(object):
         self.action = action
     def __call__(self, state):
         return self.action
-    
+
 class DiscreteToContPi(object):
     def __init__(self, actions, pi):
         self.pi=pi
@@ -28,7 +28,7 @@ acrobot.action_range[1][:] = 10
 u = np.zeros(1)
 
 controller = acrobot.get_swingup_policy()
-name = 'mix1'
+name = 'mix2'
 with open('agent-'+name+'.data', 'rb') as f:
     (phi, valuefn, policy,agent) = pickle.load(f)
 mode = 2

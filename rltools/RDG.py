@@ -21,12 +21,11 @@ class RDG(object):
         return self.getState()
 
     def getState(self):
-        # get a vector with ones in the indices of the occupied node
-        # and zero everywhere else
-        s = self.states + (self.num_nodes * self.dummy_indices)
-        obs = np.zeros(self.size, dtype = 'int32')
-        obs[s] = 1
-        return obs
+        # get a vector with the indices of the non-zero entries
+        s = (self.states + (self.num_nodes * self.dummy_indices)).astype('uint')
+#         obs = np.zeros(self.size, dtype = 'int32')
+#         obs[s] = 1
+        return s
 
     def copy(self):
         newrdg = RDG(1, 1, 1)

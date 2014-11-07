@@ -5,7 +5,7 @@ from rltools.policy import Egreedy
 from rltools.acrobot import Acrobot
 import pickle
 import numpy as np
-from agent import PolicySarsa
+from rltools.agent import PolicySarsa
 
 
 
@@ -14,14 +14,14 @@ class TrivialPolicy(object):
         self.action = action
     def __call__(self, state):
         return self.action
-    
+
 class DiscreteToContPi(object):
     def __init__(self, actions, pi):
         self.pi=pi
         self.actions = actions
     def __call__(self, state):
         return self.actions[self.pi(state)]
-    
+
 
 input_indicies = [np.arange(4),
                   np.array([0,1,2]),
@@ -40,13 +40,13 @@ input_indicies = [np.arange(4),
                   np.array([3])]
 
 domain = Acrobot(random_start= False,
-                 max_episode = 100000,
+                 max_episode = 1000,
                   m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
 domain.dt[-1] = 0.05
 
 tiles_all = np.array([6,6,7,7])
 ntiles = [ tiles_all[i] for i in input_indicies]
- 
+
 ntilings = [12,
             3,
             3,
@@ -62,7 +62,7 @@ ntilings = [12,
             3,
             3,
             3]
- 
+
 phi = TileCoding(input_indicies,
                  ntiles,
                  ntilings,
@@ -82,13 +82,17 @@ mix_policy = Egreedy(np.arange(5), valuefn, epsilon = 0.0)
 agent = PolicySarsa(mix_policy, policies, valuefn)
 # agent = TabularActionSarsa(domain.discrete_actions, policy, valuefn)
 
+# namein= 'mix1'
+# with open('agent-'+namein+'.data', 'rb') as f:
+#     (phi, valuefn, (mix_policy, policies),agent) = pickle.load(f)
+
 
 num_episodes = 1000
 
-nameout='mix1'
-valuefn.alpha = 0.2/48
+nameout='mix3'
+valuefn.alpha = 0.1/48
 
-thres = 0.001
+thres =np.pi/2
 domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -thres]),
                   np.array([np.pi + thres, thres, thres, thres]),]
 
@@ -102,13 +106,11 @@ for i in xrange(num_episodes):
     while s_t != None:
         # apply an action from the agent
         # the domain will return a 'None' state when terminating
-        r_t = -np.cos(s_t[0]) + np.cos(s_t[1])*0.5
-        cumulative_reward += r_t
         r_t, s_t = domain.step(agent.step(r_t, s_t))
-        
+        cumulative_reward += r_t
         count += 1
 
-    if i%5 == 0:
+    if i%2 == 0:
         with open('agent-'+nameout+'.data', 'wb') as f:
             pickle.dump((phi, valuefn, (mix_policy, policies) , agent), f)
 

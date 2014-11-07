@@ -64,7 +64,7 @@ class Acrobot(object):
 
         self.step_count += 1
 
-        return -1, next_state
+        return -1 if not self.inGoal() else 0, next_state
 
     def reset(self):
         if self.random_start:
@@ -145,7 +145,7 @@ class Acrobot(object):
         return copy.deepcopy(self)
 
     def isterminal(self):
-        return self.step_count>self.max_episode or self.inGoal()
+        return self.step_count>self.max_episode
 
     @property
     def discrete_actions(self):

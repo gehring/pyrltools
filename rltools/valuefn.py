@@ -99,7 +99,6 @@ class LinearTD(ValueFn):
                  replacing_trace = True,
                  **argk):
         super(LinearTD, self).__init__()
-        self.projector = projector
         self.gamma = gamma
         self.alpha = alpha
         self.lamb = lamb
