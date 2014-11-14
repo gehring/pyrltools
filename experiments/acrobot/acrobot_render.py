@@ -21,14 +21,14 @@ class DiscreteToContPi(object):
 
 
 acrobot = Acrobot(random_start = False, m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
-acrobot.start_state[:] = [-0.1*np.random.rand(1),0,0,0]
+acrobot.start_state[:] = [np.pi-0.001*np.random.rand(1),0,0,0]
 acrobot.reset()
 acrobot.action_range[0][:] = -10
 acrobot.action_range[1][:] = 10
 u = np.zeros(1)
 
 controller = acrobot.get_swingup_policy()
-name = 'mix2'
+name = 'test4'
 with open('agent-'+name+'.data', 'rb') as f:
     (phi, valuefn, policy,agent) = pickle.load(f)
 mode = 2
@@ -131,7 +131,7 @@ def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
     pyglet.gl.glTranslatef(mcoord2[0] - mcoord1[0], mcoord2[1] - mcoord1[1], 0)
 
 def update(dt):
-    acrobot.dt[-1] =  dt#1.0/60
+    acrobot.dt[-1] =  dt#1.0/100
     if mode == 1:
         acrobot.step(controller(acrobot.state))
     elif mode == 2:
@@ -147,7 +147,7 @@ def on_key_press(symbol, modifiers):
     if symbol == key.LEFT:
         u += -f
     if symbol == key.R:
-        acrobot.start_state[:] = [- 0.2*np.random.rand(1) + 0.1,0,0,0]
+#         acrobot.start_state[:] = [- 0.2*np.random.rand(1) + 0.1,0,0,0]
         acrobot.reset()
     if symbol == key.A:
         mode = 1 if mode != 1 else 0

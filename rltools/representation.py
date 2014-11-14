@@ -185,7 +185,7 @@ class IdentityHash(Hashing):
     def __init__(self, dims, wrap = False):
         super(IdentityHash, self).__init__()
         self.memory = np.prod(dims)
-        self.dims = dims
+        self.dims = dims.astype('uint')
         self.wrap = wrap
 
     def __call__(self, indices):

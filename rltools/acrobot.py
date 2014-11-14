@@ -37,6 +37,7 @@ class Acrobot(object):
                  g = 9.81,
                  b1 = 0.1,
                  b2 = 0.1,
+                 start_sampler = None,
                  **argk):
         self.l1 = l1
         self.l2 = l2
@@ -53,6 +54,7 @@ class Acrobot(object):
         self.state = np.zeros(4)
         self.random_start = random_start
         self.max_episode = max_episode
+        self.start_sampler = start_sampler
         self.reset()
 
     def step(self, action):
@@ -68,10 +70,13 @@ class Acrobot(object):
 
     def reset(self):
         if self.random_start:
-            self.state[:] = [np.random.uniform(self.state_range[0][0], self.state_range[1][0]),
-                             np.random.uniform(self.state_range[0][1], self.state_range[1][1]),
-                             np.random.uniform(self.state_range[0][2], self.state_range[1][2]),
-                             np.random.uniform(self.state_range[0][3], self.state_range[1][3])]
+            if self.start_sampler == None:
+                self.state[:] = [np.random.uniform(self.state_range[0][0], self.state_range[1][0]),
+                                 np.random.uniform(self.state_range[0][1], self.state_range[1][1]),
+                                 np.random.uniform(self.state_range[0][2], self.state_range[1][2]),
+                                 np.random.uniform(self.state_range[0][3], self.state_range[1][3])]
+            else:
+                self.state[:] = self.start_sampler()
         else:
             self.state[:] = self.start_state
 
