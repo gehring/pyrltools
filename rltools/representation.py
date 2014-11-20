@@ -168,8 +168,9 @@ class UNH(Hashing):
                                                                        np.iinfo('int16').max,
                                                                        16384) & 0xff
     def __call__(self, indices):
-        index = np.remainder(indices + self.increment*np.arange(indices.shape[0])[:,None], self.rndseq.size)
+        index = np.remainder(indices + self.increment*np.arange(indices.shape[0])[:,None], self.rndseq.size).astype('int')
         return np.remainder(np.sum(self.rndseq[index], axis=0), self.memory).astype('uint')
+    
 class PythonHash(Hashing):
     def __init__(self, memory):
         super(PythonHash, self).__init__()

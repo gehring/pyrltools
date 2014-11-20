@@ -22,7 +22,10 @@ class Egreedy(Policy):
 
     def getprob(self, state):
         values = self.value_fn(state)
-        m = np.argmax(values)
+        
+        # argmax with random tie breaking
+        m = np.random.choice(np.argmax(values),1)[0]
+        
         values[:] = self.epsilon/len(self.actions)
         values[m] += 1-self.epsilon
         return values

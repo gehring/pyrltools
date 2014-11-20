@@ -38,8 +38,10 @@ def generateLP(X, Y):
 def getQP(X, Y):
     n = X.shape[0]
     m = Y.shape[0]
-    xxt = np.zeros((n*m, n*m))
+#     xxt = np.zeros((n*m, n*m))
+    xxt = scipy.sparse.csc_matrix((n*m, n*m), dtype='float32')
     yx = np.zeros(n*m)
+#     yx = scipy.sparse.csc_matrix(n*m, dtype='float32')
     
     
     toolbar_width = 40
@@ -52,12 +54,13 @@ def getQP(X, Y):
     for i in xrange(X.shape[1]):
         x = scipy.sparse.block_diag(([X[:,i]]*m))
         
-        xxti = x.T.dot(x)
-        ri = np.repeat(np.arange(xxti.shape[0]), np.diff(xxti.indptr))
-        xxt[ri,xxti.indices] += xxti.data
+#         xxti = x.T.dot(x)
+#         ri = np.repeat(np.arange(xxti.shape[0]), np.diff(xxti.indptr))
+#         xxt[ri,xxti.indices] += xxti.data
         
-#         xxt += x.T.dot(x)
+        xxt = xxt+ x.T.dot(x)
         yx += x.T.dot((Y[:,i].reshape((-1,1))))[:,0]
+        
         if i%interval == 0:
             # update the bar
             sys.stdout.write("-")
@@ -66,13 +69,20 @@ def getQP(X, Y):
     sys.stdout.write("\n")
     
 #     A = scipy.linalg.block_diag(*([np.ones(m)]*n))
-    A = spmatrix(np.ones(m*n), [j for i in range(n) for j in [i]*m], range(n*m))
-    b = np.ones(n)
+    A = spmatrix(np.ones(m*n), 
+                 [j for i in range(n) for j in [i]*m], 
+                 [j for i in range(n) for j in range(i,n*m, n)])
+    b = np.ones(n)/ np.sum(X[:,1])
 #     G = np.vstack((np.eye(n*m), -np.eye(n*m)))
     G = spmatrix( [1]*(n*m) + [-1]*(n*m), range(n*m*2), range(n*m)*2)
     h = np.hstack((np.ones(n*m), np.zeros(n*m)))
-    return (cvxopt.matrix(xxt/X.shape[1]), 
-            cvxopt.matrix(yx/X.shape[1]), 
+    
+    xxt = (xxt/X.shape[1]).tocoo()
+#     yx =  scipy.sparse.coo_matrix(yx.reshape(-1,1).astype('float32'))
+#     cvxopt.matrix(xxt/X.shape[1])
+    return (spmatrix(xxt.data.tolist(), xxt.row.tolist(), xxt.col.tolist(), xxt.shape), 
+#             spmatrix(yx.data.tolist(), yx.row.tolist(), yx.col.tolist(), yx.shape, tc='d'), 
+            cvxopt.matrix(yx),
             G, 
             cvxopt.matrix(h), 
             A, 
@@ -87,7 +97,7 @@ def generate_RDG_seq(obs_seq, rdg):
     states[rdg.getState(),i] = 1   
     return states
 
-def generate_many_seq(seq_length, number_seq, rdg):
+def generate_many_seq(seq_length, number_seq, rdg, p0):
     for i in xrange(number_seq):
         obs, states = generate_sequence(hmm, seq_length)
         rdg_states = generate_RDG_seq(obs, rdg)
@@ -101,7 +111,7 @@ weight = 2
 T = np.array([[weight, 1] + [0]*(size-2)]
              + [ [0]*i + [1,weight,1] + [0]*(size-i-3) for i in xrange(size-2)]
              + [[0]*(size-2) + [1,weight]], dtype='float')
-
+  
 weight = 1
 out_weight= 0.4
 # random observations around the current state
@@ -110,47 +120,60 @@ O = np.array([[weight, 1, 1] + [out_weight]*(size-3)]
              + [ [out_weight]*i + [1, 1,weight,1, 1] + [out_weight]*(size-i-5) for i in xrange(size-4)]
              + [[out_weight]*(size-4) + [1, 1,weight, 1]]
              + [[out_weight]*(size-3) + [1, 1,weight]], dtype='float')
-
-
+  
+  
 T = T/ np.sum(T, 1)[:,None]
 O = O/ np.sum(O, 1)[:,None]
 p0 = np.ones(size)/size
 hmm = DiscreteHMM(p0, T, O)
-
-seq_length = 30
-
-num_graphs = 40
-num_nodes = 20
+  
+seq_length = 20
+  
+num_graphs = 60
+num_nodes = 40
 rdg = RDG(num_graphs, num_nodes, num_obs=size)
- 
+   
 # with open('solution.data', 'rb') as f:
 #     rdg, w, hmm = pickle.load(f)
- 
-rdg_states, bs = zip(*generate_many_seq(seq_length, 100, rdg))
- 
+   
+rdg_states, bs = zip(*generate_many_seq(seq_length, 200, rdg,p0))
+   
 print "generating QP..."
-# qp = getQP(np.hstack(rdg_states), np.hstack(bs))
-qp = getQP(np.hstack(bs), np.hstack(bs))
-  
+qp = getQP(np.hstack(rdg_states), np.hstack(bs))
+# qp = getQP(rdg_states[0], bs[0])
+# qp = getQP(np.hstack(bs), np.hstack(bs))
+    
 print 'problem generated! Now solving!'
 sol = cvxopt.solvers.qp(*qp)
 print 'LP solver finished!'
-  
-w = np.array(sol['x']).reshape((size, -1), order='F')
+#    
+w = np.array(sol['x']).reshape((size, -1), order='C')
 with open('solution.data', 'wb') as f:
-    pickle.dump((rdg, w, hmm), f)
+    pickle.dump((rdg, w, hmm, rdg_states, bs), f)
+    
+# with open('solution.data', 'rb') as f:
+#     rdg, w, hmm, rdg_states, bs = pickle.load(f)
+
+plt.figure(2)
+plt.subplot((211))
+plt.imshow(bs[0])
+
+plt.subplot((212))
+plt.imshow(w.dot(rdg_states[0]))
+
 
 obs, states = generate_sequence(hmm, seq_length)
 rdg_states = generate_RDG_seq(obs, rdg)
 bs = hmm.filter_all(obs, p0)
+
 
 plt.figure(1)
 plt.subplot((211))
 plt.imshow(bs)
 
 plt.subplot((212))
-# plt.imshow(w.dot(rdg_states))
-plt.imshow(w.dot(bs))
+plt.imshow(w.dot(rdg_states))
+# plt.imshow(w.dot(bs))
 plt.show()
 
 # def getLPMinMax(X, Y):

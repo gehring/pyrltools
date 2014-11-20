@@ -89,6 +89,18 @@ def LSTDlambda(policy,
 #     theta = np.linalg.solve(A, b)
 #     return linearValueFn(theta, phi)
 
+class MLPValueFn(ValueFn):
+    def __init__(self, mlp, actions):
+        self.mlp = mlp
+        self.actions = actions
+    def __call__(self, s, a = None):
+        if a is not None:
+            return self.mlp(self.phi(s,a))
+        else:
+            sa = np.vstack(( self.phi(s,a) for a in self.actions))
+            return self.mlp(sa)
+        
+
 class LinearTD(ValueFn):
     def __init__(self,
                  num_actions,

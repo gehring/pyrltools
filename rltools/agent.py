@@ -1,5 +1,6 @@
 import numpy as np
 from policy import weighted_values
+from rltools.policy import Egreedy
 
 class Agent(object):
     def __init__(self):
@@ -201,6 +202,135 @@ class LinearTabularPolicySarsa(Agent):
     def proposeAction(self, state):
         return self.actions[self.policies[self.policy(state)](state)]
 
+class FittedQIteration(Agent):
+    def __init__(self, actions,
+                 policy, 
+                 stateactions_projector, 
+                 valuefn_regressor,
+                 gamma,
+                 num_iterations = None,
+                 valuefn = None, 
+                 samples = None,
+                 batch_size = 2000,
+                 max_samples = 10000,
+                 dtype = np.float,
+                 improve_behaviour = True,
+                 **argk):
+        self.actions = actions
+        
+        # policy is expected to return a continuous action
+        self.policy = policy
+        
+        self.phi = stateactions_projector
+        self.regressor = valuefn_regressor
+        self.gamma = gamma
+        self.samples = samples
+        if self.samples == None:
+            self.samples = (np.empty((0,0), dtype=dtype), 
+                            np.empty(0,dtype=dtype), 
+                            np.array(0, dtype='O') )
+        self.sample_i = self.samples.shape[0]
+        
+        # this flag forces the oldest samples to be forgotten
+        self.full = self.sample_i >= self.max_samples
+        
+        self.batch_size = batch_size
+        self.max_samples = max_samples
+        self.valuefn = valuefn
+        self.dtype = dtype
+        def maxValue(s):
+            if s is not None:
+                vals = self.valuefn(s, self.actions)
+                return np.max(vals)
+            else:
+                return 0
+        self.maxval = np.vectorize(maxValue, otype = [np.float])
+        
+        # state tracking
+        self.s_t = None
+        self.a_t = None
+        self.count = 0
+        
+        # update the behviour's valuefn
+        self.improve_behaviour = improve_behaviour
+        
+        self.num_iter = num_iterations
+        if self.num_iter is None:
+            self.num_iter = 1/(1-gamma)
+        
+    def step(self, r, s_tp1):
+        if s_tp1 != None:
+            a_tp1 = self.policy(s_tp1)
+        else:
+            a_tp1 = None
+        self.update_samples(self.s_t, self.a_t, r, s_tp1)
+
+        self.s_t = s_tp1
+        self.a_t = a_tp1
+        
+        self.count += 1
+        
+        # if enough time has elapsed, recompute the max Q-value function
+        if self.count>= self.batch_size:
+            self.valuefn = None
+            for i in xrange(self.num_iter):
+                self.valuefn = self.regressor(self.generateRegressionData())
+            if self.improve_behaviour:
+                self.policy.valuefn = self.valuefn
+            self.count = 0
+        
+
+        return a_tp1
+
+    def reset(self):
+        self.s_t = None
+        self.a_t = None
+
+    def proposeAction(self, state):
+        return self.policy(state)
+    
+    def getGreedyPolicy(self):
+        return Egreedy(self.actions, self.valuefn, epsilon = 0.0)
+        
+    def generateRegressionData(self):
+        sa_t, r_t, s_tp1 = self.samples
+        if self.full:
+            if self.valuefn == None:
+                y = r_t
+            else:
+                y = r_t + self.maxval(s_tp1)*self.gamma
+            x = sa_t
+        else:
+            if self.valuefn == None:
+                y = r_t[:self.sample_i]
+            else:
+                y = r_t[:self.sample_i] + self.maxval(s_tp1[:self.n_samples])*self.gamma
+            x = sa_t[:self.sample_i]
+        return x, y
+    
+    def update_samples(self, new_s_t, new_a_t, new_r_t, new_s_tp1):
+        sa_t, r_t, s_tp1 = self.samples
+        
+        # check if current matrices can contain sample
+        if sa_t.shape[0] <= self.n_samples:
+            # resize matrices
+            sa_t = sa_t.resize((min(self.max_samples, max(100, sa_t.shape[0]*2)), self.phi.size))
+            r_t = r_t.resize(min(self.max_samples,max(100, sa_t.shape[0]*2)))
+            s_tp1 = s_tp1.resize(min(self.max_samples,max(100, sa_t.shape[0]*2)))
+            self.samples = (sa_t, r_t, s_tp1)
+        
+        # add sample
+        sa_t[self.sample_i, : ] = self.phi(new_s_t, new_a_t)
+        r_t[self.sample_i] = new_r_t
+        s_tp1[self.sample_i] = new_s_tp1
+        
+        # if the max number of samples is reached, trigger the flag
+        if self.sample_i >= self.max_samples:
+            self.full = True
+        
+        # wrap around index if the max samples is reached
+        self.sample_i = (self.sample_i+1) % self.max_samples
+        
 
 class Sarsa_Factory(object):
     def __init__(self, **argk):
