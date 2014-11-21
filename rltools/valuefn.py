@@ -1,6 +1,8 @@
 import numpy as np
 import scipy
+import scipy.sparse as sp
 from rltools.pyneuralnet import NeuralNet
+
 
 class ValueFn(object):
     def __init__(self):
@@ -90,15 +92,58 @@ def LSTDlambda(policy,
 #     return linearValueFn(theta, phi)
 
 class MLPValueFn(ValueFn):
-    def __init__(self, mlp, actions):
+    def __init__(self, mlp, actions, phi):
         self.mlp = mlp
+        self.phi = phi
         self.actions = actions
     def __call__(self, s, a = None):
-        if a is not None:
-            return self.mlp(self.phi(s,a))
+        if s is None:
+            if a is not None:
+                return 0
+            else:
+                return np.zeros(len(self.actions))
         else:
-            sa = np.vstack(( self.phi(s,a) for a in self.actions))
-            return self.mlp(sa)
+            if a is not None:
+                return self.mlp(self.phi(s,a))
+            else:
+                sa = np.vstack(( self.phi(s,a) for a in self.actions))
+                return self.mlp(sa)
+            
+class MLPSparseValueFn(ValueFn):
+    def __init__(self, mlp, actions, phi):
+        self.mlp = mlp
+        self.phi = phi
+        self.actions = actions
+    def __call__(self, s, a = None):
+        if s is None:
+            if a is not None:
+                return 0
+            else:
+                return np.zeros(len(self.actions))
+        else:
+            if a is not None:
+                return self.mlp(self.phi(s,a))
+            else:
+                sa = sp.vstack(( self.phi(s,a) for a in self.actions))
+                return self.mlp(sa)
+        
+class SklearnValueFn(ValueFn):
+    def __init__(self, clf, actions, phi):
+        self.clf = clf
+        self.phi = phi
+        self.actions = actions
+    def __call__(self, s, a = None):
+        if s is None:
+            if a is not None:
+                return 0
+            else:
+                return np.zeros(len(self.actions))
+        else:
+            if a is not None:
+                return self.clf.predict(self.phi(s,a))
+            else:
+                sa = np.vstack(( self.phi(s,a) for a in self.actions))
+                return self.clf.predict(sa)
         
 
 class LinearTD(ValueFn):

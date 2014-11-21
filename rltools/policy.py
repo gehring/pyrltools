@@ -24,7 +24,7 @@ class Egreedy(Policy):
         values = self.value_fn(state)
         
         # argmax with random tie breaking
-        m = np.random.choice(np.argmax(values),1)[0]
+        m = np.random.choice(np.argwhere(values == np.amax(values)).flatten(),1)[0]
         
         values[:] = self.epsilon/len(self.actions)
         values[m] += 1-self.epsilon

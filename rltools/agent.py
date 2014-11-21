@@ -1,6 +1,8 @@
 import numpy as np
 from policy import weighted_values
 from rltools.policy import Egreedy
+import matplotlib.pyplot as plt
+from sklearn import preprocessing
 
 class Agent(object):
     def __init__(self):
@@ -224,46 +226,47 @@ class FittedQIteration(Agent):
         self.phi = stateactions_projector
         self.regressor = valuefn_regressor
         self.gamma = gamma
+        
+        self.max_samples = max_samples
+        
         self.samples = samples
         if self.samples == None:
             self.samples = (np.empty((0,0), dtype=dtype), 
                             np.empty(0,dtype=dtype), 
                             np.array(0, dtype='O') )
-        self.sample_i = self.samples.shape[0]
+        self.sample_i = self.samples[0].shape[0]
         
         # this flag forces the oldest samples to be forgotten
         self.full = self.sample_i >= self.max_samples
         
         self.batch_size = batch_size
-        self.max_samples = max_samples
+        
         self.valuefn = valuefn
         self.dtype = dtype
-        def maxValue(s):
-            if s is not None:
-                vals = self.valuefn(s, self.actions)
-                return np.max(vals)
-            else:
-                return 0
-        self.maxval = np.vectorize(maxValue, otype = [np.float])
-        
+        self.maxval = np.vectorize(maxValue, 
+                                           otypes = [self.dtype],
+                                           excluded = 'valuefn')
         # state tracking
         self.s_t = None
         self.a_t = None
         self.count = 0
+        self.dtype = dtype
         
         # update the behviour's valuefn
         self.improve_behaviour = improve_behaviour
         
         self.num_iter = num_iterations
         if self.num_iter is None:
-            self.num_iter = 1/(1-gamma)
+            self.num_iter = int(1/(1-gamma))
         
     def step(self, r, s_tp1):
         if s_tp1 != None:
             a_tp1 = self.policy(s_tp1)
         else:
             a_tp1 = None
-        self.update_samples(self.s_t, self.a_t, r, s_tp1)
+            
+        if self.s_t is not None:
+            self.update_samples(self.s_t, self.a_t, r, s_tp1)
 
         self.s_t = s_tp1
         self.a_t = a_tp1
@@ -273,8 +276,11 @@ class FittedQIteration(Agent):
         # if enough time has elapsed, recompute the max Q-value function
         if self.count>= self.batch_size:
             self.valuefn = None
+            print 'generating new value fn'
             for i in xrange(self.num_iter):
-                self.valuefn = self.regressor(self.generateRegressionData())
+                print 'iteration  #'+str(i)
+                self.valuefn = self.regressor(*self.generateRegressionData())
+            
             if self.improve_behaviour:
                 self.policy.valuefn = self.valuefn
             self.count = 0
@@ -298,25 +304,27 @@ class FittedQIteration(Agent):
             if self.valuefn == None:
                 y = r_t
             else:
-                y = r_t + self.maxval(s_tp1)*self.gamma
+                y = r_t + self.maxval(s_tp1, valuefn = self.valuefn)*self.gamma
             x = sa_t
         else:
             if self.valuefn == None:
                 y = r_t[:self.sample_i]
             else:
-                y = r_t[:self.sample_i] + self.maxval(s_tp1[:self.n_samples])*self.gamma
+                y = r_t[:self.sample_i] + self.maxval(s_tp1[:self.sample_i],
+                                                       valuefn = self.valuefn)*self.gamma
             x = sa_t[:self.sample_i]
-        return x, y
+        i = np.random.permutation(x.shape[0])
+        return x[i,:], y[i]
     
     def update_samples(self, new_s_t, new_a_t, new_r_t, new_s_tp1):
         sa_t, r_t, s_tp1 = self.samples
         
         # check if current matrices can contain sample
-        if sa_t.shape[0] <= self.n_samples:
+        if not self.full and sa_t.shape[0] <= self.sample_i:
             # resize matrices
-            sa_t = sa_t.resize((min(self.max_samples, max(100, sa_t.shape[0]*2)), self.phi.size))
-            r_t = r_t.resize(min(self.max_samples,max(100, sa_t.shape[0]*2)))
-            s_tp1 = s_tp1.resize(min(self.max_samples,max(100, sa_t.shape[0]*2)))
+            sa_t = np.resize(sa_t, (min(self.max_samples, max(100, sa_t.shape[0]*2)), self.phi.size))
+            r_t = np.resize(r_t, min(self.max_samples,max(100, sa_t.shape[0]*2)))
+            s_tp1 = np.resize(s_tp1,min(self.max_samples,max(100, sa_t.shape[0]*2)))
             self.samples = (sa_t, r_t, s_tp1)
         
         # add sample
@@ -325,12 +333,18 @@ class FittedQIteration(Agent):
         s_tp1[self.sample_i] = new_s_tp1
         
         # if the max number of samples is reached, trigger the flag
-        if self.sample_i >= self.max_samples:
+        if self.sample_i+1 >= self.max_samples:
             self.full = True
         
         # wrap around index if the max samples is reached
         self.sample_i = (self.sample_i+1) % self.max_samples
         
+def maxValue(s, valuefn):
+    if s is not None:
+        vals = valuefn(s)
+        return np.max(vals)
+    else:
+        return 0
 
 class Sarsa_Factory(object):
     def __init__(self, **argk):

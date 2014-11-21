@@ -7,8 +7,12 @@ import time
 
 import theano
 import theano.tensor as T
+import theano.sparse
+
+from itertools import chain
 
 import sklearn.cross_validation
+from sklearn import preprocessing
 
 
 class HiddenLayer(object):
@@ -40,6 +44,7 @@ class HiddenLayer(object):
                            layer
         """
         self.input = input
+        self.n_out = n_out
 
         # `W` is initialized with `W_values` which is uniformely sampled
         # from sqrt(-6./(n_in+n_hidden)) and sqrt(6./(n_in+n_hidden))
@@ -125,42 +130,86 @@ class MLP(object):
         # LogisticRegression layer; the activation function can be replaced by
         # sigmoid or any other nonlinear function
         self.input = input
-        
-        self.hiddenLayer = HiddenLayer(
-            rng=rng,
-            input=input,
-            n_in=n_in,
-            n_out=n_hidden,
-            activation=T.tanh
-        )
-
-        # The logistic regression layer gets as input the hidden units
-        # of the hidden layer
-        self.outputlayer = HiddenLayer(
-            rng=rng,
-            input=self.hiddenLayer.output,
-            n_in=n_hidden,
-            n_out=n_out,
-            activation=None
-        )
-        # end-snippet-2 start-snippet-3
-        # L1 norm ; one regularization option is to enforce L1 norm to
-        # be small
-        self.L1 = (
-            abs(self.hiddenLayer.W).sum()
-            + abs(self.outputlayer.W).sum()
-        )
-
-        # square of L2 norm ; one regularization option is to enforce
-        # square of L2 norm to be small
-        self.L2_sqr = (
-            (self.hiddenLayer.W ** 2).sum()
-            + (self.outputlayer.W ** 2).sum()
-        )
-
-        # the parameters of the model are the parameters of the two layer it is
-        # made out of
-        self.params = self.hiddenLayer.params + self.outputlayer.params
+        if isinstance(n_hidden, int):
+            self.hiddenLayer = HiddenLayer(
+                rng=rng,
+                input=input,
+                n_in=n_in,
+                n_out=n_hidden,
+                activation=T.tanh
+            )
+    
+            # The logistic regression layer gets as input the hidden units
+            # of the hidden layer
+            self.outputlayer = HiddenLayer(
+                rng=rng,
+                input=self.hiddenLayer.output,
+                n_in=n_hidden,
+                n_out=n_out,
+                activation=None
+            )
+             # end-snippet-2 start-snippet-3
+            # L1 norm ; one regularization option is to enforce L1 norm to
+            # be small
+            self.L1 = (
+                abs(self.hiddenLayer.W).sum()
+                + abs(self.outputlayer.W).sum()
+            )
+    
+            # square of L2 norm ; one regularization option is to enforce
+            # square of L2 norm to be small
+            self.L2_sqr = (
+                (self.hiddenLayer.W ** 2).sum()
+                + (self.outputlayer.W ** 2).sum()
+            )
+    
+            # the parameters of the model are the parameters of the two layer it is
+            # made out of
+            self.params = self.hiddenLayer.params + self.outputlayer.params
+        else:
+            self.hiddenLayer = [HiddenLayer(
+                rng=rng,
+                input=input,
+                n_in=n_in,
+                n_out=n_hidden[0],
+                activation=T.tanh
+            )]
+            for n in n_hidden[1:]:
+                self.hiddenLayer.append(HiddenLayer(
+                rng=rng,
+                input=self.hiddenLayer[-1].output,
+                n_in=self.hiddenLayer[-1].n_out,
+                n_out=n,
+                activation=T.tanh
+            ))
+                # The logistic regression layer gets as input the hidden units
+            # of the hidden layer
+            self.outputlayer = HiddenLayer(
+                rng=rng,
+                input=self.hiddenLayer[-1].output,
+                n_in=n_hidden[-1],
+                n_out=n_out,
+                activation=None
+            )
+            # L1 norm ; one regularization option is to enforce L1 norm to
+            # be small
+            self.L1 = (
+                sum([ abs(h.W).sum() for h in self.hiddenLayer])
+                + abs(self.outputlayer.W).sum()
+            )
+    
+            # square of L2 norm ; one regularization option is to enforce
+            # square of L2 norm to be small
+            self.L2_sqr = (
+                sum([ (h.W ** 2).sum() for h in self.hiddenLayer])
+                + (self.outputlayer.W ** 2).sum()
+            )
+    
+            # the parameters of the model are the parameters of the two layer it is
+            # made out of
+            self.params = list(chain(*[h.params for h in self.hiddenLayer])) + self.outputlayer.params
+                
+       
         
         self.output = self.outputlayer.output
         
@@ -194,10 +243,10 @@ def MLPregression(learning_rate,
                                               test_size = validate_ratio,
                                               random_state = rng
                                               )
-    train_samples = theano.shared(train_samples.astype(theano.config.floatX),borrow = True)
-    test_samples = theano.shared(test_samples.astype(theano.config.floatX),borrow = True)
-    train_target = theano.shared(train_target.astype(theano.config.floatX),borrow = True)
-    test_target = theano.shared(test_target.astype(theano.config.floatX),borrow = True)
+    train_samples = theano.shared(train_samples.astype(theano.config.floatX),borrow = False)
+    test_samples = theano.shared(test_samples.astype(theano.config.floatX),borrow = False)
+    train_target = theano.shared(train_target.astype(theano.config.floatX),borrow = False)
+    test_target = theano.shared(test_target.astype(theano.config.floatX),borrow = False)
     
     
     n_train_batches = train_samples.get_value(borrow=True).shape[0] / batch_size
@@ -271,7 +320,121 @@ def MLPregression(learning_rate,
     for p, best_p in zip(mlp.params, best_params):
         p.set_value(best_p)
 
+
+    train_samples.set_value([[]])
+    train_target.set_value([])
+    test_samples.set_value([[]])
+    test_target.set_value([])
     return mlp.getf(x)
+
+def MLPSparseRegression(learning_rate, 
+                    mlp, 
+                    l2_coeff, 
+                    l1_coeff,
+                    samples,
+                    target,
+                    batch_size,
+                    validate_ratio,
+                    rng,
+                    n_epochs= 100,
+                    validation_freq = 2,
+                    patience = 10000,
+                    patience_increase = 2,
+                    improvement_thresh = 0.995):
+             
+    scaler = preprocessing.StandardScaler.fit(samples)
+    samples = scaler.transform(samples)
+    
+    train_samples, test_samples, train_target, test_target = \
+        sklearn.cross_validation.train_test_split(samples, 
+                                              target, 
+                                              test_size = validate_ratio,
+                                              random_state = rng
+                                              )
+    train_samples = theano.sparse.shared(train_samples.astype(theano.config.floatX),borrow = False)
+    test_samples = theano.sparse.shared(test_samples.astype(theano.config.floatX),borrow = False)
+    train_target = theano.shared(train_target.astype(theano.config.floatX),borrow = False)
+    test_target = theano.shared(test_target.astype(theano.config.floatX),borrow = False)
+    
+    
+    n_train_batches = train_samples.get_value(borrow=True).shape[0] / batch_size
+    n_test_batches = test_samples.get_value(borrow=True).shape[0] / batch_size
+    
+    x = mlp.input
+    y = T.fvector('y')
+#     y.tag.test_value = numpy.random.rand(batch_size*2).astype(theano.config.floatX)
+    index = T.lscalar()
+    index.tag.test_value = 0
+    
+    cost = (mlp.L2cost(y) + mlp.L1*l1_coeff + mlp.L2_sqr*l2_coeff)
+    
+    test_model = theano.function(
+            inputs=[index],
+            outputs=mlp.L2cost(y),
+            givens={
+                x: test_samples[index * batch_size:(index + 1) * batch_size],
+                y: test_target[index * batch_size:(index + 1) * batch_size]
+            }
+        )
+
+    gparams = [T.grad(cost, param) for param in mlp.params]
+    
+    updates = [ (param, param - learning_rate * gparam)
+                    for (param, gparam) in zip(mlp.params, gparams)]
+    
+    train_model = theano.function(
+        inputs = [index],
+        outputs = cost,
+        updates = updates,
+        givens = {
+            x: train_samples[index * batch_size:(index + 1) * batch_size],
+            y: train_target[index * batch_size:(index + 1) * batch_size]
+            }
+        )
+    
+    epoch = 0
+    count = 0
+
+    best_val = numpy.inf
+    
+    best_params = [ p.get_value(borrow = False) for p in mlp.params]
+    done_train = False
+    
+#     start_time = time.clock()
+    while epoch < n_epochs and (not done_train):
+        epoch += 1
+        for minibatch_index in xrange(n_train_batches):
+            minibatch_cost = train_model(minibatch_index)
+            
+            if count %validation_freq == 0:
+                val_cost = np.mean([test_model(i) for i in xrange(n_test_batches)])
+                
+                if val_cost < best_val:
+                    if val_cost < best_val*improvement_thresh:
+                        patience = max(patience, count*patience_increase)
+                    best_val = val_cost
+#                     print best_val
+                    best_params = [ p.get_value(borrow = False) for p in mlp.params]
+                    
+                    
+            # number of minibatches seen
+            count += 1
+            
+            # termination condition
+            done_train = patience <= count
+    
+#     end_time = time.clock()
+#     print 'Time taken for opt: ' + str(end_time - start_time) + 's'
+    for p, best_p in zip(mlp.params, best_params):
+        p.set_value(best_p)
+
+
+    train_samples.set_value([[]])
+    train_target.set_value([])
+    test_samples.set_value([[]])
+    test_target.set_value([])
+    return lambda x: mlp.getf(scaler.transform(x))
+
 
 def MLPfit(learning_rate, 
             n_hidden,
@@ -308,6 +471,43 @@ def MLPfit(learning_rate,
                          patience, 
                          patience_increase, 
                          improvement_thresh)
+    
+def MLPSparsefit(learning_rate, 
+            n_hidden,
+            rng, 
+            l2_coeff, 
+            l1_coeff,
+            samples,
+            target,
+            batch_size = 100,
+            validate_ratio=0.1,
+            n_epochs= 1000,
+            validation_freq = 2,
+            patience = 10000,
+            patience_increase = 2,
+            improvement_thresh = 0.995):
+    x = theano.sparse.matrix('x')
+#     x.tag.test_value =  numpy.random.rand(batch_size*2,samples.shape[1]).astype(theano.config.floatX)
+    mlp = MLP(rng, 
+              x,
+              samples.shape[1], 
+              n_hidden, 
+              1)
+    return MLPregression(learning_rate, 
+                         mlp, 
+                         l2_coeff, 
+                         l1_coeff, 
+                         samples, 
+                         target, 
+                         batch_size, 
+                         validate_ratio, 
+                         rng, 
+                         n_epochs, 
+                         validation_freq, 
+                         patience, 
+                         patience_increase, 
+                         improvement_thresh)
+
 
 
                 
