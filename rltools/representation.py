@@ -62,6 +62,39 @@ class TabularState(Projector):
     @property
     def size(self):
         return self.__size
+    
+class TabularActionProjector(object):
+    def __init__(self, actions, phi):
+        self.actions = actions
+        self.phi = phi
+        self.nactions = len(actions) if not isinstance(actions, int) else actions
+        self.size = phi.size*self.nactions
+    def __call__(self, state, action = None):
+        x = self.phi(state)
+        if action is None:
+            if issubclass(x.dtype.type, np.uint):
+                x = np.vstack(( x + self.phi.size*i for i in xrange(self.nactions)))
+                assert(issubclass(x.dtype.type, np.uint))
+            else:
+                x = np.diag(x[None,:], self.nactions)
+        else:
+            a = action
+            if not isinstance(action, int):
+                a = getActionIndex(action, self.actions)
+            if issubclass(x.dtype.type, np.uint):
+                x = x + self.phi.size*a
+                assert(issubclass(x.dtype.type, np.uint))
+            else:
+                x = np.pad(x, 
+                           (a*self.phi.size,
+                            self.phi.size*(self.nactions-a-1)),
+                            mode = 'constant')
+        return x
+        
+def getActionIndex(action, actions):
+    assert(not isinstance(actions, int))
+    return int(np.all(action == actions, axis=1).nonzero()[0][0])
+
 
 class Tiling(object):
     def __init__(self,
@@ -128,6 +161,8 @@ class TileCoding(Projector):
         if bias_term:
             self.index_offset = np.hstack((self.index_offset, np.array(self.__size, dtype='uint')))
             self.__size += 1
+            
+        self.__size  = int(self.__size)
 
 
     def __call__(self, state):

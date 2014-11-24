@@ -89,11 +89,11 @@ agent = FittedQIteration(actions,
                          phi, 
                          getSVRValueFn, 
                          gamma, 
-                         num_iterations= 60,
+                         num_iterations=20,
                          valuefn= None, 
                          samples= None, 
                          batch_size= 5000, 
-                         max_samples= 20000, 
+                         max_samples= 10000, 
                          dtype= theano.config.floatX, 
                          improve_behaviour= True)
 

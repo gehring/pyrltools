@@ -13,7 +13,7 @@ class Egreedy(Policy):
     def __init__(self, actions, valuefn, **argk):
         super(Egreedy, self).__init__()
         self.actions = actions
-        self.value_fn = valuefn
+        self.valuefn = valuefn
         self.epsilon = argk.get('epsilon', 0.1)
 
     def __call__(self, state):
@@ -21,7 +21,7 @@ class Egreedy(Policy):
         return self.actions[weighted_values(p)[0]]
 
     def getprob(self, state):
-        values = self.value_fn(state)
+        values = self.valuefn(state)
         
         # argmax with random tie breaking
         m = np.random.choice(np.argwhere(values == np.amax(values)).flatten(),1)[0]

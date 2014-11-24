@@ -29,6 +29,17 @@ class linearValueFn(ValueFn):
     def __call__(self, state):
         return self.proj(state).dot(self.theta)
 
+class linearQValueFn(ValueFn):
+    def __init__(self, weights, projector):
+        super(linearQValueFn, self).__init__()
+        self.theta= weights
+        self.proj = projector
+    def __call__(self, state, action = None):
+        phi_t = self.proj(state, action)
+        if issubclass(phi_t.dtype.type, np.uint):
+            return np.sum(self.theta[phi_t], 1)
+        else:
+            return phi_t.dot(self.theta)
 
 def LSTDlambda(policy,
            environment,
@@ -60,6 +71,16 @@ def LSTDlambda(policy,
 
     theta = np.linalg.lstsq(A, b)[0]
     return linearValueFn(theta, phi)
+
+def LSQ(X_t, r_t, X_tp1, gamma, phi):
+    A = X_t.T.dot(X_t - gamma*X_tp1)
+    b = X_t.T.dot(r_t)
+    if isinstance(A, sp.spmatrix):
+#         theta = sp.linalg.spsolve(A, b)
+        theta = sp.linalg.lsqr(A, b)[0]
+    else:
+        theta = np.linalg.solve(A, b)
+    return linearQValueFn(theta, phi)
 
 # def BatchLSTDlambda(policy,
 #            environment,
