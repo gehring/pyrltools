@@ -472,7 +472,7 @@ class LSPI(FittedQIteration):
         self.phi = stateactions_projector
         self.gamma = gamma
         self.policy = policy
-        self.actions = actions
+        self.actions = np.array(actions)
         
         self.argmaxval = np.vectorize(argmaxValue,
                                    otypes =[np.int],
@@ -488,30 +488,33 @@ class LSPI(FittedQIteration):
         self.improve_behaviour = improve_behaviour
         
     def step(self, r, s_tp1):
-        if s_tp1 != None:
-            a_tp1 = self.policy(s_tp1)
-        else:
-            a_tp1 = None
-            
         if self.s_t is not None:
             self.samples.update_samples(self.s_t, self.a_t, r, s_tp1)
+            self.count += 1
 
-        self.s_t = s_tp1
-        self.a_t = a_tp1
         
-        self.count += 1
+        
         
         # if enough time has elapsed, recompute the max Q-value function
         if self.count>= self.batch_size:
-            _, _, s_tp1 = self.samples.getSamples()
-            # get max actiions for each s_tp1
-            a_tp1 = self.actions[self.argmaxval(s_tp1, self.valuefn)]
+            _, _, sample_tp1 = self.samples.getSamples()
+            # get max actions for each sampled s_tp1
+            a_tp1 = self.actions[self.argmaxval(sample_tp1, self.valuefn)]
             X_t, r_t, X_tp1 = self.samples.constructSparseMatrices(a_tp1)
             self.valuefn = LSQ(X_t, r_t, X_tp1, self.gamma, self.phi)
             
             if self.improve_behaviour:
                 self.policy.valuefn = self.valuefn
             self.count = 0
+        
+        
+        if s_tp1 != None:
+            a_tp1 = self.policy(s_tp1)
+        else:
+            a_tp1 = None
+
+        self.s_t = s_tp1
+        self.a_t = a_tp1
         
 
         return a_tp1

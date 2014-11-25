@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 gamma = 0.99
 
 
-domain = MountainCar(False, 10000)
+domain = MountainCar(True, 10000)
 s_range = domain.state_range
 actions = domain.discrete_actions
 
@@ -43,10 +43,10 @@ agent = LSPI(np.array(actions),
              phi_sa, 
              valuefn = blank_valuefn , 
              samples = spsamples, 
-             batch_size = 100000, 
+             batch_size = 10000, 
              improve_behaviour = True)
 
-num_episodes = 500
+num_episodes = 2000
 k = 1
 valuefn = agent.valuefn
 agent.maxval = np.vectorize(maxValue,
