@@ -1,15 +1,15 @@
 from rltools.agent import FittedQIteration
 from rltools.policy import Egreedy
 from rltools.representation import TileCodingDense
-from rltools.theanotools import MLPfit
+# from rltools.theanotools import MLPfit
 from rltools.valuefn import MLPValueFn, SklearnValueFn
 from rltools.MountainCar import MountainCar
 
 from sklearn.svm import SVR
-from sklearn import preprocessing
+from sklearn import preprocessing, tree
 
 import numpy as np
-import theano
+# import theano
 
 import matplotlib.pyplot as plt
 
@@ -42,13 +42,13 @@ class IdenStateAction(object):
     def __call__(self, s, a):
         if s is None:
             return None
-        return self.proj(np.hstack((s,a))).astype(theano.config.floatX)
+        return self.proj(np.hstack((s,a)))#.astype(theano.config.floatX)
     
 class IdenStateActionNoProj(object):
     def __init__(self, size):
         self.size = size
     def __call__(self, s, a):
-        return np.hstack((s,a)).astype(theano.config.floatX)
+        return np.hstack((s,a))#.astype(theano.config.floatX)
 
 proj = TileCodingDense(input_indicies = [np.arange(3)],
                  ntiles=[4,4, 3],
@@ -59,22 +59,22 @@ proj = TileCodingDense(input_indicies = [np.arange(3)],
 phi = IdenStateAction(proj)
 phi = IdenStateActionNoProj(3)
 
-
-def getMLPValueFn(x, y):
-    mlp = MLPfit(0.01, 
-                 [100,10], 
-                 rng, 
-                 0.0001, 
-                 0.0, 
-                 x, 
-                 y, 
-                 1000, 
-                 0.2, 
-                 10000,
-                 1,
-                 patience = 100,
-                 patience_increase= 2)
-    return MLPValueFn(mlp, actions, phi)
+# 
+# def getMLPValueFn(x, y):
+#     mlp = MLPfit(0.01, 
+#                  [100,10], 
+#                  rng, 
+#                  0.0001, 
+#                  0.0, 
+#                  x, 
+#                  y, 
+#                  1000, 
+#                  0.2, 
+#                  10000,
+#                  1,
+#                  patience = 100,
+#                  patience_increase= 2)
+#     return MLPValueFn(mlp, actions, phi)
 
 def getSVRValueFn(x,y):
     scaler = preprocessing.StandardScaler().fit(x)
@@ -83,18 +83,25 @@ def getSVRValueFn(x,y):
     sclf = lambda s: clf.predict(scaler.transform(s))
     return MLPValueFn(sclf, actions, phi)
 
+def getTreeValueFn(x,y):
+    scaler = preprocessing.StandardScaler().fit(x)
+    t = tree.DecisionTreeRegressor(max_depth= 11)
+    clf = t.fit(scaler.transform(x), y)
+    sclf = lambda s: clf.predict(scaler.transform(s))
+    return MLPValueFn(sclf, actions, phi)
+
 policy = Egreedy(actions, blank_valuefn, epsilon= 0.05)
 agent = FittedQIteration(actions, 
                          policy, 
                          phi, 
-                         getSVRValueFn, 
+                         getTreeValueFn, 
                          gamma, 
-                         num_iterations=20,
+                         num_iterations=40,
                          valuefn= None, 
                          samples= None, 
-                         batch_size= 5000, 
-                         max_samples= 10000, 
-                         dtype= theano.config.floatX, 
+                         batch_size= 30000, 
+                         max_samples= 60000, 
+#                          dtype= theano.config.floatX, 
                          improve_behaviour= True)
 
 num_episodes = 500

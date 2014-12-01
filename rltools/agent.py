@@ -2,10 +2,11 @@ import numpy as np
 from policy import weighted_values
 from rltools.policy import Egreedy
 from itertools import izip, chain
-from rltools.valuefn import LSQ
+from rltools.valuefn import LSQ, SFLSQ
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
+import time
 
 class Agent(object):
     def __init__(self):
@@ -274,7 +275,6 @@ class FittedQIteration(Agent):
         # if enough time has elapsed, recompute the max Q-value function
         if self.count>= self.batch_size:
             self.valuefn = None
-            print 'generating new value fn'
             for i in xrange(self.num_iter):
                 print 'iteration  #'+str(i)
                 self.valuefn = self.regressor(*self.generateRegressionData())
@@ -375,6 +375,8 @@ class BinarySparseTransitionData(object):
         
         # this flag forces the oldest samples to be forgotten
         self.full = self.sample_i >= self.max_samples
+        if self.full:
+            self.sample_i = 0
         
     def update_samples(self, new_s_t, new_a_t, new_r_t, new_s_tp1):
         sa_t, r_t, s_tp1 = self.samples
@@ -422,6 +424,31 @@ class BinarySparseTransitionData(object):
         # build X_tp1 sparse matrix
         sa_tp1 = [ self.phi(s,a) if s is not None else np.empty(0)
                              for s,a in izip(s_tp1, a_tp1)]
+        
+        indices = [ np.vstack((np.ones(sa.size, dtype= 'uint')*i, sa) ) 
+                                for i,sa in enumerate(sa_tp1) ]
+        indices = np.hstack(indices)
+        X_tp1 = sp.csc_matrix((np.ones(indices.shape[1]), indices), 
+                              shape = shape, 
+                              dtype= 'int')
+        
+        return X_t, r_t, X_tp1
+    
+    def constructSparseMatricesfromPolicy(self, policy):
+        sa_t, r_t, s_tp1 = self.getSamples()
+        shape = (sa_t.shape[0], self.phi.size)
+        
+        # build X_t sparse matrix
+        indices = [ np.vstack((np.ones(sa.size, dtype= 'uint')*i, sa))  
+                                for i,sa in enumerate(sa_t) ]
+        indices = np.hstack(indices)
+        X_t = sp.csc_matrix((np.ones(indices.shape[1]), indices),
+                            shape = shape,
+                            dtype= 'int')
+        
+        # build X_tp1 sparse matrix
+        sa_tp1 = [ self.phi(s).T.dot(policy.getprob(s)).T if s is not None else np.empty(0)
+                             for s in s_tp1]
         
         indices = [ np.vstack((np.ones(sa.size, dtype= 'uint')*i, sa) ) 
                                 for i,sa in enumerate(sa_tp1) ]
@@ -497,15 +524,109 @@ class LSPI(FittedQIteration):
         
         # if enough time has elapsed, recompute the max Q-value function
         if self.count>= self.batch_size:
+            print 'Generating new policy'
+            start_time = time.clock()
             _, _, sample_tp1 = self.samples.getSamples()
             # get max actions for each sampled s_tp1
             a_tp1 = self.actions[self.argmaxval(sample_tp1, self.valuefn)]
             X_t, r_t, X_tp1 = self.samples.constructSparseMatrices(a_tp1)
+            print 'time taken to process '+str(X_t.shape[0]) +' samples: '\
+                         + str(time.clock() - start_time) + ' seconds'
             self.valuefn = LSQ(X_t, r_t, X_tp1, self.gamma, self.phi)
             
             if self.improve_behaviour:
                 self.policy.valuefn = self.valuefn
             self.count = 0
+            print 'total time taken for improvement step: ' + str(time.clock() - start_time) + ' seconds\n'
+        
+        
+        if s_tp1 != None:
+            a_tp1 = self.policy(s_tp1)
+        else:
+            a_tp1 = None
+
+        self.s_t = s_tp1
+        self.a_t = a_tp1
+        
+
+        return a_tp1
+
+    def reset(self):
+        self.s_t = None
+        self.a_t = None
+
+    def proposeAction(self, state):
+        return self.policy(state)
+    
+    def getGreedyPolicy(self):
+        return Egreedy(self.actions, self.valuefn, epsilon = 0.0)
+    
+class SFLSPI(FittedQIteration):
+    def __init__(self,
+                 actions,
+                 policy,
+                 gamma,
+                 stateactions_projector,
+                 valuefn = None,
+                 samples = None,
+                 batch_size = 2000,
+                 max_samples = 10000,
+                 improve_behaviour = True):
+        
+        self.samples = samples
+        if samples is None or isinstance(samples, tuple):
+            self.samples = TransitionData(samples, 
+                                          stateactions_projector, 
+                                          max_samples)
+        self.batch_size = batch_size
+        self.phi = stateactions_projector
+        self.gamma = gamma
+        self.policy = policy
+        self.actions = np.array(actions)
+        
+        self.argmaxval = np.vectorize(argmaxValue,
+                                   otypes =[np.int],
+                                   excluded = 'valuefn')
+        
+        self.valuefn = valuefn
+        
+        # state tracking
+        self.s_t = None
+        self.a_t = None
+        self.count = 0
+        
+        self.improve_behaviour = improve_behaviour
+        
+    def step(self, r, s_tp1):
+        if self.s_t is not None:
+            self.samples.update_samples(self.s_t, self.a_t, r, s_tp1)
+            self.count += 1
+
+        
+        
+        
+        # if enough time has elapsed, recompute the max Q-value function
+        if self.count>= self.batch_size:
+            print 'Generating new policy'
+            start_time = time.clock()
+            _, _, sample_tp1 = self.samples.getSamples()
+            # get max actions for each sampled s_tp1
+            a_tp1 = self.actions[self.argmaxval(sample_tp1, self.valuefn)]
+            print 'time taken to find max actions : '\
+                        + str(time.clock() - start_time) + ' seconds'
+            X_t, r_t, X_tp1 = self.samples.constructSparseMatrices(a_tp1)
+#             X_t, r_t, X_tp1 = self.samples.constructSparseMatricesfromPolicy(self.policy)
+            print 'time taken to process '+str(X_t.shape[0]) +' samples: '\
+                         + str(time.clock() - start_time) + ' seconds'
+            if hasattr(self.valuefn, 'theta'):
+                self.valuefn = SFLSQ(X_t, r_t, X_tp1, self.gamma, self.phi)#, theta0= self.valuefn.theta)
+            else:
+                self.valuefn = SFLSQ(X_t, r_t, X_tp1, self.gamma, self.phi)
+            
+            if self.improve_behaviour:
+                self.policy.valuefn = self.valuefn
+            self.count = 0
+            print 'total time taken for improvement step: ' + str(time.clock() - start_time) + ' seconds\n'
         
         
         if s_tp1 != None:

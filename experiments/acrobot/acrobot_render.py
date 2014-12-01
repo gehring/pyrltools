@@ -18,6 +18,19 @@ class DiscreteToContPi(object):
     def __call__(self, state):
         return self.actions[self.pi(state)]
 
+class IdenStateAction(object):
+    def __init__(self, proj, actions):
+        self.proj = proj
+        self.actions = actions
+        self.size = proj.size
+        
+    def __call__(self, s, a = None):
+        if s is None:
+            return None
+        if a is None:
+            return np.vstack([ self.proj(np.hstack((s,act))) for act in self.actions])
+        else:
+            return self.proj(np.hstack((s,a)))
 
 
 acrobot = Acrobot(random_start = False, m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
@@ -28,10 +41,10 @@ acrobot.action_range[1][:] = 10
 u = np.zeros(1)
 
 controller = acrobot.get_swingup_policy()
-name = 'test4'
+name = 'sarsa2'
 with open('agent-'+name+'.data', 'rb') as f:
-    (phi, valuefn, policy,agent) = pickle.load(f)
-mode = 2
+    (phi, policy, agent) = pickle.load(f)
+mode = 0
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
     samples=4,
@@ -135,6 +148,7 @@ def update(dt):
     if mode == 1:
         acrobot.step(controller(acrobot.state))
     elif mode == 2:
+#         acrobot.step(policy(acrobot.state))
         acrobot.step(agent.proposeAction(acrobot.state))
     else:
         acrobot.step(u)
@@ -147,7 +161,10 @@ def on_key_press(symbol, modifiers):
     if symbol == key.LEFT:
         u += -f
     if symbol == key.R:
-#         acrobot.start_state[:] = [- 0.2*np.random.rand(1) + 0.1,0,0,0]
+        acrobot.start_state[:] = [np.pi-(0.05)*(np.random.rand(1)-0.5),
+                             (np.random.rand(1)-0.5)*0.01,
+                             (np.random.rand(1)-0.5)*0.01,
+                             (np.random.rand(1)-0.5)*0.01]
         acrobot.reset()
     if symbol == key.A:
         mode = 1 if mode != 1 else 0

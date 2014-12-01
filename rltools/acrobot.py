@@ -2,6 +2,9 @@ import numpy as np
 from scipy.integrate import odeint
 from control import lqr
 import copy
+from Cython.Plex.Lexicons import State
+from matplotlib.collections import Collection
+import collections
 
 class Acrobot(object):
 
@@ -66,7 +69,7 @@ class Acrobot(object):
 
         self.step_count += 1
 
-        return -1 if not self.inGoal() else 0, next_state
+        return (-1 if not self.inGoal() else 0), next_state
 
     def reset(self):
         if self.random_start:
@@ -143,8 +146,11 @@ class Acrobot(object):
         return Acrobot_LQR_enerygyshaping(self)
 
     def inGoal(self):
-        return np.all(np.logical_and(self.state>self.goal_range[0],
-                                     self.state<self.goal_range[1]))
+        return np.all(np.logical_and(self.state[2:]>self.goal_range[0][2:],
+                                     self.state[2:]<self.goal_range[1][2:],
+                                     angle_range_check(self.goal_range[0][:2],
+                                                 self.goal_range[1][:2],
+                                                 self.state[:2])))
 
     def copy(self):
         return copy.deepcopy(self)
@@ -163,6 +169,83 @@ class Acrobot(object):
     @property
     def action_dim(self):
         return len(self.action_range[0])
+    
+def angle_range_check( a, b, x):
+    a = np.mod(a, 2*np.pi)
+    b = np.mod(b, 2*np.pi)
+    theta_bar = np.mod(b-a, 2*np.pi)
+    return np.mod(x-a, 2*np.pi)<=theta_bar
+
+def compute_acrobot_from_data(q,
+                              qdot, 
+                              qdotdot, 
+                              y,
+                              random_start = False,
+                              max_episode = 1000,
+                              start_sampler = None):
+    c = np.cos(q)
+    c1 = c[0,:]
+    c2 = c[1,:]
+    s2 = np.sin(q[1,:])
+    c12 = np.cos(np.sum(q, axis=1))
+    
+    qd1 = qdot[0,:]
+    qd2 = qdot[1,:]
+    qdd1 = qdotdot[0,:]
+    qdd2 = qdotdot[1,:]
+    
+    u = np.empty((q.shape[0], 5))
+    u[0,:] = qdd1
+    u[1,:] = 3*c2*qdd1 + s2*qd1**2 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
+    u[2,:] = 2*qdd2 + qdd1
+    u[3,:] = c1
+    u[4,:] = c12*2
+    
+    a = np.linalg.lstsq(u, y)[0]
+    return Acobot_from_data(a,
+                            random_start,
+                            max_episode,
+                            start_sampler)
+    
+    
+    
+
+class Acobot_from_data(Acrobot):
+    def __init__(self,
+                 a,
+                 random_start = False,
+                 max_episode = 1000,
+                 start_sampler = None,
+                 **argk):
+        super(Acobot_from_data, self).__init__(random_start =random_start,
+                                               max_episode = max_episode,
+                                               start_sampler = start_sampler,
+                                               **argk)
+        self.a = a
+        
+    def get_manipulator(self, q):
+        c1 = np.cos(q[0])
+        c2 = np.cos(q[1])
+        c12 = np.cos(q[0]+q[1])
+        s2 = np.sin(q[1])
+        
+        a = self.a
+        
+        aa = a[0] + a[1]*2*c2
+        b = a[1]*c2 + a[2]
+        d = a[2]
+        H= np.array(((aa, b),
+                     (b, d)))
+        
+        C= np.array(((-2*a[1]*s2*q[3], -a[1]*q[3]),
+                     (2*a[1]*s2*q[3], 0))
+                    )
+        G = np.array((a[3]*c1 + a[4]*c12, a[4]*c12))
+    
+        B = np.array((0, 1))
+        return (H, C, G, B)
+    
+        
 
 class Acrobot_energyshaping(object):
     desired_pos = np.array([np.pi,0,0,0])
@@ -278,6 +361,49 @@ class Acrobot_LQR_enerygyshaping(object):
             return self.lqr(q)
         else:
             return self.energyshaping(q)
+        
+def get_trajectories(acrobot,
+                     number = 1,
+                     length = 100,
+                     controller = None):
+    if controller is None:
+        controller = acrobot.get_swingup_policy()
+    
+    
+    traj = []
+    for i in xrange(number):
+        acrobot.reset()
+        
+        u = controller(acrobot.state)
+        steps = [(acrobot.state, u)]
+        
+        for j in xrange(length):
+            
+            acrobot.step(u)
+            u = controller(acrobot.state)
+            
+            steps.append((acrobot.state, u))
+            
+        traj.append(steps)
+        
+    states = [np.vstack(zip(*t)[0]) for t in traj]
+    torques = [np.hstack(zip(*t)[1]) for t in traj]
+    return (states, torques) if number > 1 else (states[0], torques[0])
+
+def get_qs_from_traj(states, torques, dt):
+    if isinstance(states, collections.Iterable):
+        qdd = np.vstack([ (s[1:,2:] - s[:-1,2:])/dt for s in states])
+        qd = np.vstack([ s[:-1,2:] for s in states])
+        q = np.vstack([ s[:-1,:2] for s in states])
+        y = np.hstack([ t[:-1] for t in torques])
+    else:
+        qdd = (states[1:,2:] - states[:-1,2:])/dt
+        qd = states[:-1,2:]
+        q = states[:-1,:2]
+        y = torques[:-1]
+        
+    return q, qd, qdd, y
+    
 
 
 

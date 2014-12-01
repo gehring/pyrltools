@@ -7,7 +7,8 @@ class Policy(object):
         pass
 
     def __call__(self, state):
-        pass
+        p = self.getprob(state)
+        return self.actions[weighted_values(p)[0]]
 
 class Egreedy(Policy):
     def __init__(self, actions, valuefn, **argk):
@@ -16,9 +17,6 @@ class Egreedy(Policy):
         self.valuefn = valuefn
         self.epsilon = argk.get('epsilon', 0.1)
 
-    def __call__(self, state):
-        p = self.getprob(state)
-        return self.actions[weighted_values(p)[0]]
 
     def getprob(self, state):
         values = self.valuefn(state)
@@ -69,14 +67,10 @@ class MixedPolicy_Factory(object):
 
 class SoftMax(Policy):
     def __init__(self, actions, valuefn, **argk):
-        super(SoftMax_mixture, self).__init__()
+        super(SoftMax, self).__init__()
         self.actions = actions
         self.value_fn = valuefn
         self.temp = argk.get('temperature', 0.1)
-
-    def __call__(self, state):
-        p = self.getprob(state)
-        return self.actions[weighted_values(p)](state)
 
     def getprob(self, state):
         values = self.value_fn(state)

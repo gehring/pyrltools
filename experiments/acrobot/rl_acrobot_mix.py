@@ -39,10 +39,10 @@ input_indicies = [np.arange(4),
                   np.array([2]),
                   np.array([3])]
 
-domain = Acrobot(random_start= False,
-                 max_episode = 1000,
+domain = Acrobot(random_start= True,
+                 max_episode = 2000,
                   m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
-domain.dt[-1] = 0.05
+domain.dt[-1] = 0.01
 
 tiles_all = np.array([6,6,7,7])
 ntiles = [ tiles_all[i] for i in input_indicies]
@@ -71,13 +71,13 @@ phi = TileCoding(input_indicies,
                  bias_term = True)
 
 dactions = domain.discrete_actions
-namein= 'test7'
-with open('agent-'+namein+'.data', 'rb') as f:
-    (phi, valuefn, learnedpo,agent) = pickle.load(f)
-lpi = DiscreteToContPi(dactions, learnedpo)
-policies = [ TrivialPolicy(a) for a in dactions] + [lpi, domain.get_swingup_policy()]
+# namein= 'test7'
+# with open('agent-'+namein+'.data', 'rb') as f:
+#     (phi, valuefn, learnedpo,agent) = pickle.load(f)
+# lpi = DiscreteToContPi(dactions, learnedpo)
+policies = [ TrivialPolicy(a) for a in dactions] + [ domain.get_swingup_policy()]
 
-valuefn = LinearTD(len(domain.discrete_actions), phi, 0.2/48, 0.8, 0.9999)
+valuefn = LinearTD(len(domain.discrete_actions), phi, 0.2/48, lamb = 0.99, gamma=0.99)
 mix_policy = Egreedy(np.arange(5), valuefn, epsilon = 0.0)
 agent = PolicySarsa(mix_policy, policies, valuefn)
 # agent = TabularActionSarsa(domain.discrete_actions, policy, valuefn)
@@ -89,15 +89,15 @@ agent = PolicySarsa(mix_policy, policies, valuefn)
 
 num_episodes = 1000
 
-nameout='mix3'
-valuefn.alpha = 0.1/48
+nameout='mix1'
+valuefn.alpha = 0.05/48
 
-thres =np.pi/2
+thres =np.pi/4
 domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -thres]),
                   np.array([np.pi + thres, thres, thres, thres]),]
 
 for i in xrange(num_episodes):
-    domain.start_state[:] = [-0.4*np.random.rand(1) + 0.2, -0.4*np.random.rand(1) + 0.2,0,0]
+#     domain.start_state[:] = [-0.4*np.random.rand(1) + 0.2, -0.4*np.random.rand(1) + 0.2,0,0]
     r_t, s_t = domain.reset()
     agent.reset()
     count = 0

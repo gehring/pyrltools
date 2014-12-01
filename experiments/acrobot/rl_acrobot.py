@@ -1,24 +1,25 @@
 from rltools.representation import TileCoding, UNH
-from rltools.agent import LSPI, BinarySparseTransitionData
+from rltools.agent import SFLSPI, LSPI, BinarySparseTransitionData
 from rltools.policy import Egreedy
 from rltools.acrobot import Acrobot
 import pickle
 import numpy as np
+from itertools import product
 input_indicies = [np.arange(4),
-                  np.array([0,1,2]),
-                  np.array([0,1,3]),
-                  np.array([3,1,2]),
-                  np.array([0,3,2]),
-                  np.array([0,1]),
-                  np.array([0,2]),
-                  np.array([0,3]),
-                  np.array([1,2]),
-                  np.array([1,3]),
-                  np.array([2,3]),
-                  np.array([0]),
-                  np.array([1]),
-                  np.array([2]),
-                  np.array([3])]
+                np.array([0,1,2]),
+                np.array([0,1,3]),
+                np.array([3,1,2]),
+                np.array([0,3,2]),
+                np.array([0,1]),
+                np.array([0,2]),
+                np.array([0,3]),
+                np.array([1,2]),
+                np.array([1,3]),
+                np.array([2,3]),
+                np.array([0]),
+                np.array([1]),
+                np.array([2]),
+                np.array([3])]
 input_indicies = [np.hstack((i, [4])) for i in input_indicies]
 
 dt = 0.01
@@ -51,7 +52,7 @@ ntilings = [24,
             3,
             3,
             3]
-memories = [ np.prod(nt)/4 + 100 for nt in ntiles]
+memories = [ np.prod(nt)/3 + 100 for nt in ntiles]
 hashing = [UNH(m) for m in memories]
 
 class IdenStateAction(object):
@@ -67,6 +68,27 @@ class IdenStateAction(object):
             return np.vstack([ self.proj(np.hstack((s,act))) for act in self.actions])
         else:
             return self.proj(np.hstack((s,a)))
+        
+def generate_samples(state_range, actions, domain, num_per_dim, phi_sa):
+    states = [np.linspace(mi, ma, num_per_dim, True) for mi, ma in zip(*state_range)]
+    states = [(np.array(sa[1:]), sa[0]) for sa in product(actions, *states)]
+    
+    sa_t = np.empty(len(states), dtype='O')
+    s_tp1 = np.empty(len(states), dtype='O')
+    r_t = np.empty(len(states), dtype='float')
+    for i,(s, a) in enumerate(states):
+        domain.state[:] = s
+        r, next_s = domain.step(a)
+        sa_t[i] = phi_sa(s,a)
+        r_t[i] = r
+        s_tp1[i] = next_s
+    rnd_index = np.random.choice(len(states), len(states), replace = False)
+    return (sa_t[rnd_index], r_t[rnd_index], s_tp1[rnd_index])
+
+        
+        
+               
+        
  
 phi = TileCoding(input_indicies,
                  ntiles,
@@ -77,7 +99,7 @@ phi = TileCoding(input_indicies,
 
 
 
-act = [ np.array(a) for a in np.linspace(-10, 10, 13, True)]
+act = [ np.array(a) for a in np.linspace(-10, 10, 5, True)]
 
 def blank_valuefn(s, a= None):
     if a is None:
@@ -91,16 +113,23 @@ print phi_sa.size
 
 policy = Egreedy(act, blank_valuefn, epsilon = 0.0)
 
-spsamples = BinarySparseTransitionData(None, 
+
+start_samples = None
+
+# print 'Building initial samples'
+# start_samples = generate_samples(s_range, act, domain, 6, phi_sa)
+# print str(start_samples[0].size) +' initial samples obtained'
+
+spsamples = BinarySparseTransitionData(start_samples, 
                                        phi_sa, 
-                                       max_samples=100000)
-agent = LSPI(act, 
+                                       max_samples=200000)
+agent = SFLSPI(act, 
              policy, 
              gamma, 
              phi_sa,
              blank_valuefn, 
              spsamples, 
-             10000, 
+             20000, 
              improve_behaviour = True)
 
 
@@ -109,11 +138,11 @@ num_episodes = 50000
 # namein= 'test4'
 # with open('agent-'+namein+'.data', 'rb') as f:
 #     (phi, valuefn, policy,agent) = pickle.load(f)
-nameout='lspi1'
+nameout='test'
 
-thres = np.pi/8
-domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -thres]),
-                  np.array([np.pi + thres, thres, thres, thres])]
+thres = np.pi/4
+domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -2*thres]),
+                  np.array([np.pi + thres, thres, thres, 2*thres])]
 
 w = np.array([8,8,4,4])
 p = np.array([np.pi, np.pi])

@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import scipy.sparse as sp
 from rltools.pyneuralnet import NeuralNet
 
@@ -39,6 +40,18 @@ class linearQValueFn(ValueFn):
             return np.sum(self.theta[phi_t], 1)
         else:
             return phi_t.dot(self.theta)
+        
+class kernelLinearQValueFn(ValueFn):
+    def __init__(self, alpha, projector, X, kernel):
+        super(linearQValueFn, self).__init__()
+        self.alpha= alpha
+        self.proj = projector
+        self.X = X
+        self.kernel = kernel
+    def __call__(self, state, action = None):
+        phi_t = self.proj(state, action)
+        k = self.kernel(self.X, phi_t)
+        return self.alpha.dot(k)
 
 def LSTDlambda(policy,
            environment,
@@ -72,35 +85,54 @@ def LSTDlambda(policy,
     return linearValueFn(theta, phi)
 
 def LSQ(X_t, r_t, X_tp1, gamma, phi):
+    print 'Solving for Q-value function'
+    start_time= time.clock()
     A = X_t.T.dot(X_t - gamma*X_tp1)
     b = X_t.T.dot(r_t)
-    m = A.max()
-    A /= m
-    b /= m
-#     print A.min()
     if isinstance(A, sp.spmatrix):
+        theta = sp.linalg.lsmr(A, b, damp=0.001)[0]
+    else:
+        theta = np.linalg.lstsq(A, b)[0]
+    print 'Solved in '+str(time.clock() - start_time) + ' seconds'
+    return linearQValueFn(theta, phi)
+
+def SFLSQ(X_t, r_t, X_tp1, gamma, phi, theta0= None):
+    print 'Solving for Q-value function'
+    start_time= time.clock()
+    A = (X_t - gamma*X_tp1)
+    b = r_t
+    if isinstance(A, sp.spmatrix):
+        if theta0 is not None:
+            b = r_t - A.dot(theta0)
         C = A.copy()
         C.data **= 2
         c_sum =C.sum(0).view(type=np.ndarray)[0,:]
-#         max_col = np.sqrt(c_sum.max())
-#         Ascaled = A/ max_col
-#         c_sum_scaled = (Ascaled**2).sum(0).view(type=np.ndarray)[0,:]
-        index = c_sum > 1e-12
-#         data = np.sqrt(c_sum[index])
-#         D = sp.spdiags(1.0/data, 0, data.size, data.size)
-#         sol = D.dot(sp.linalg.lsmr(A[:,index].dot(D), b, damp=0.01)[0])
-#         theta = np.zeros(A.shape[1])
-#         theta[index] = sol
-        
-#         theta = sp.linalg.lsmr(A, b)[0]
-        
-        
-        sol = sp.linalg.lsmr(A[:,index], b, damp=0.01)[0]
+        index = c_sum > 0.0
+        data = np.sqrt(c_sum[index])
+        D = sp.spdiags(1.0/data, 0, data.size, data.size)
+         
+        sol = D.dot(sp.linalg.lsmr(A[:,index].dot(D), b, damp=0.01)[0])
         theta = np.zeros(A.shape[1])
         theta[index] = sol
+        
+#         theta = sp.linalg.lsmr(A, b, damp=0.001)[0]
+        if theta0 is not None:
+            theta += theta0
     else:
-        theta = np.linalg.solve(A, b)
+        theta = np.linalg.lstsq(A, b)[0]
+    print 'Solved in '+str(time.clock() - start_time) + ' seconds'
     return linearQValueFn(theta, phi)
+
+def KernelRegression(X_1, X_2, y, kernel, lamb=0):
+    A = kernel(X_1) + kernel(X_2) - kernel(X_1,X_2) - kernel(X_2,X_1) \
+                    + lamb*sp.eye(X_1.shape[0], X_1.shape[0])
+    alpha = sp.linalg.lsqr(A, y)
+    return alpha
+
+def KSFLSQ(X_t, r_t, X_tp1, gamma, phi, kernel):
+    alpha = KernelRegression(X_t, gamma*X_tp1, r_t, kernel, 0.01)
+#     return kernelLinearQValueFn(alpha, phi, X, kernel)
+
 
 # def BatchLSTDlambda(policy,
 #            environment,

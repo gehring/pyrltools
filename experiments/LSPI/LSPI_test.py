@@ -1,9 +1,10 @@
 from rltools.MountainCar import MountainCar
 from rltools.representation import TabularActionProjector
 from rltools.representation import TileCoding
-from rltools.agent import LSPI, BinarySparseTransitionData
-from rltools.policy import Egreedy
+from rltools.agent import LSPI, BinarySparseTransitionData, SFLSPI
+from rltools.policy import Egreedy, SoftMax
 from rltools.agent import maxValue
+from itertools import product
 
 import numpy as np
 
@@ -33,11 +34,33 @@ def blank_valuefn(s, a= None):
     else:
         return 0
 
+def generate_samples(state_range, actions, domain, num_per_dim, phi_sa):
+    states = [np.linspace(mi, ma, num_per_dim, True) for mi, ma in zip(*state_range)]
+    states = [(np.array(sa[1:]), sa[0]) for sa in product(actions, *states)]
+    
+    sa_t = np.empty(len(states), dtype='O')
+    s_tp1 = np.empty(len(states), dtype='O')
+    r_t = np.empty(len(states), dtype='float')
+    for i,(s, a) in enumerate(states):
+        domain.state[:] = s
+        r, next_s = domain.step(a)
+        sa_t[i] = phi_sa(s,a)
+        r_t[i] = r
+        s_tp1[i] = next_s
+    rnd_index = np.random.choice(len(states), len(states), replace = False)
+    return (sa_t[rnd_index], r_t[rnd_index], s_tp1[rnd_index])
+
 policy = Egreedy(actions, blank_valuefn, epsilon=0.05)
-spsamples = BinarySparseTransitionData(None, 
+
+start_samples = None
+# print 'Building initial samples'
+# start_samples = generate_samples(s_range, actions, domain, 30, phi_sa)
+# print str(start_samples[0].size) +' initial samples obtained'
+
+spsamples = BinarySparseTransitionData(start_samples, 
                                        phi_sa, 
                                        max_samples=100000)
-agent = LSPI(np.array(actions), 
+agent = SFLSPI(np.array(actions), 
              policy, 
              gamma, 
              phi_sa, 
