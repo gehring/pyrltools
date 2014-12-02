@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.spatial.distance as distance
 from itertools import chain
 
 class Projector(object):
@@ -62,7 +63,7 @@ class TabularState(Projector):
     @property
     def size(self):
         return self.__size
-    
+
 class TabularActionProjector(object):
     def __init__(self, actions, phi):
         self.actions = actions
@@ -85,12 +86,12 @@ class TabularActionProjector(object):
                 x = x + self.phi.size*a
                 assert(issubclass(x.dtype.type, np.uint))
             else:
-                x = np.pad(x, 
+                x = np.pad(x,
                            (a*self.phi.size,
                             self.phi.size*(self.nactions-a-1)),
                             mode = 'constant')
         return x
-        
+
 def getActionIndex(action, actions):
     assert(not isinstance(actions, int))
     return int(np.all(action == actions, axis=1).nonzero()[0][0])
@@ -161,7 +162,7 @@ class TileCoding(Projector):
         if bias_term:
             self.index_offset = np.hstack((self.index_offset, np.array(self.__size, dtype='uint')))
             self.__size += 1
-            
+
         self.__size  = int(self.__size)
 
 
@@ -205,7 +206,7 @@ class UNH(Hashing):
     def __call__(self, indices):
         index = np.remainder(indices + self.increment*np.arange(indices.shape[0])[:,None], self.rndseq.size).astype('int')
         return np.remainder(np.sum(self.rndseq[index], axis=0), self.memory).astype('uint')
-    
+
 class PythonHash(Hashing):
     def __init__(self, memory):
         super(PythonHash, self).__init__()
@@ -402,4 +403,30 @@ class FlatStateAction_Factory(object):
         params.update([ x for x in argk.items()])
         domain = params.get('domain')
         return FlatStateAction(domain.state_dim, domain.action_dim)
+
+class Rbf_kernel(object):
+    def __init__(self, width):
+        self.w = width
+
+    def __call__(self, X, Y=None):
+        if Y is None:
+            dist = distance.squareform(distance.pdist(X,
+                                                      'seuclidian',
+                                                      V = self.w))
+        else:
+            dist = distance.cdist(X, Y, 'seuclidian', V = self.w)
+        K = np.exp(-dist**2)
+        return K
+
+class Poly_kernel(object):
+    def __init__(self, d, c):
+        self.c = c
+        self.d = d
+    def __call__(self, X, Y=None):
+        if Y is None:
+            dist = X.dot(X.T) + self.c
+        else:
+            dist = X.dot(Y.T) + self.c
+        return dist**self.d
+
 
