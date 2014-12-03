@@ -1,4 +1,4 @@
-from rltools.agent import FittedQIteration
+from rltools.agent import FittedQIteration, argmaxValue
 from rltools.policy import Egreedy
 from rltools.representation import TileCodingDense
 # from rltools.theanotools import MLPfit
@@ -15,16 +15,17 @@ import matplotlib.pyplot as plt
 
 rng = np.random.RandomState(312)
 
-gamma = 0.95
+gamma = 0.99
 
 domain = MountainCar(True, 1000)
 a_range = domain.action_range
 s_range = domain.state_range
 sa_range = [np.hstack((s_range[0], a_range[0])),
             np.hstack((s_range[1], a_range[1]))]
-actions = [ np.array([a]) for a in np.arange(a_range[0][0], 
-                                             a_range[1][0], 
-                                             0.1*(a_range[1][0]-a_range[0][0]))]
+actions = domain.discrete_actions
+# actions = [ np.array([a]) for a in np.arange(a_range[0][0], 
+#                                              a_range[1][0], 
+#                                              0.1*(a_range[1][0]-a_range[0][0]))]
 
 
 
@@ -85,7 +86,7 @@ def getSVRValueFn(x,y):
 
 def getTreeValueFn(x,y):
     scaler = preprocessing.StandardScaler().fit(x)
-    t = tree.DecisionTreeRegressor(max_depth= 11)
+    t = tree.DecisionTreeRegressor(max_depth= 12)
     clf = t.fit(scaler.transform(x), y)
     sclf = lambda s: clf.predict(scaler.transform(s))
     return MLPValueFn(sclf, actions, phi)
@@ -96,11 +97,11 @@ agent = FittedQIteration(actions,
                          phi, 
                          getTreeValueFn, 
                          gamma, 
-                         num_iterations=40,
+                         num_iterations=80,
                          valuefn= None, 
                          samples= None, 
-                         batch_size= 30000, 
-                         max_samples= 60000, 
+                         batch_size= 120000, 
+                         max_samples= 180000, 
 #                          dtype= theano.config.floatX, 
                          improve_behaviour= True)
 
@@ -127,6 +128,13 @@ for i in xrange(num_episodes):
     agent.step(r_t, s_t)
     if agent.valuefn is not valuefn:
             valuefn = agent.valuefn
+            
+            
+            allargmax = np.vectorize(argmaxValue,
+                               otypes =[np.int],
+                               excluded = 'valuefn')
+            
+            
     # debug stuff, to delete
             min_pos = -1.2
             max_pos = 0.6
@@ -141,7 +149,7 @@ for i in xrange(num_episodes):
             samples = np.hstack((xx.reshape((-1, 1)), yy.reshape((-1,1)))).astype(agent.dtype)
             v = np.empty(samples.shape[0], dtype='O')
             v[:] = [samples[i,:] for i in xrange(samples.shape[0])]
-            v = agent.maxval(v, agent.valuefn)
+            v = allargmax(v, agent.valuefn)
             plt.contourf(x, y, v.reshape((x.shape[0],-1)))
             plt.colorbar()
             plt.show()

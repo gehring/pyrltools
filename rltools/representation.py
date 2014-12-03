@@ -91,7 +91,32 @@ class TabularActionProjector(object):
                             self.phi.size*(self.nactions-a-1)),
                             mode = 'constant')
         return x
-
+    
+class StateActionProjection(object):
+    def __init__(self, actions, size = None, phi = None):
+        self.actions = actions
+        self.phi = phi
+        if phi is None:
+            assert(size is not None)
+            assert(type(size) is int)
+            self.size = size
+        else:
+            self.size = phi.size
+        
+    def __call__(self, state, action = None):
+        if self.phi is None:
+            if action is None:
+                x = np.vstack((np.hstack((state, a)) for a in self.actions))
+            else:
+                x = np.hstack((state, action))
+        else:    
+            if action is None:
+                x = np.vstack((self.phi(np.hstack((state, a))) for a in self.actions))
+            else:
+                x = self.phi(np.hstack((state, action)))
+            
+        return x
+    
 def getActionIndex(action, actions):
     assert(not isinstance(actions, int))
     return int(np.all(action == actions, axis=1).nonzero()[0][0])
@@ -300,34 +325,34 @@ class Normalizer_Factory(object):
         domain = new_param.get('domain')
         return Normalizer(stateactionproj, domain.state_range, domain.action_range )
 
-class TabularAction(StateActionProjector):
-    def __init__(self, state_size, num_action, projector = None, actions = None):
-        super(TabularAction, self).__init__()
-        self.num_action = num_action
-        self.actions = actions
-
-        if projector == None:
-            self.projector = IdentityProj(state_size)
-        else:
-            self.projector = projector
-
-    def __call__(self, state, actions):
-        p_size = self.projector.size
-        proj = np.zeros((len(actions), p_size * self.num_action))
-        for i, a in enumerate(actions):
-            if self.actions != None and not isinstance(a, int):
-                a = np.array(a)
-                a = [ j for j, act in enumerate(self.actions) if np.all(act == a)][0]
-            proj[i, p_size*a:p_size*(a+1)] = self.projector(state)
-
-        if len(actions) == 1:
-            return proj[0,:]
-        else:
-            return proj
-
-    @property
-    def size(self):
-        return self.projector.size*self.num_action
+# class TabularAction(StateActionProjector):
+#     def __init__(self, state_size, num_action, projector = None, actions = None):
+#         super(TabularAction, self).__init__()
+#         self.num_action = num_action
+#         self.actions = actions
+# 
+#         if projector == None:
+#             self.projector = IdentityProj(state_size)
+#         else:
+#             self.projector = projector
+# 
+#     def __call__(self, state, actions):
+#         p_size = self.projector.size
+#         proj = np.zeros((len(actions), p_size * self.num_action))
+#         for i, a in enumerate(actions):
+#             if self.actions != None and not isinstance(a, int):
+#                 a = np.array(a)
+#                 a = [ j for j, act in enumerate(self.actions) if np.all(act == a)][0]
+#             proj[i, p_size*a:p_size*(a+1)] = self.projector(state)
+# 
+#         if len(actions) == 1:
+#             return proj[0,:]
+#         else:
+#             return proj
+# 
+#     @property
+#     def size(self):
+#         return self.projector.size*self.num_action
 
 class Concatenator(Projector):
     def __init__(self, projectors, **params):
@@ -409,13 +434,13 @@ class Rbf_kernel(object):
         self.w = width
 
     def __call__(self, X, Y=None):
+        X = X/self.w
         if Y is None:
-            dist = distance.squareform(distance.pdist(X,
-                                                      'seuclidian',
-                                                      V = self.w))
+            dist = distance.squareform(distance.pdist(X, 'sqeuclidean'))
         else:
-            dist = distance.cdist(X, Y, 'seuclidian', V = self.w)
-        K = np.exp(-dist**2)
+            Y = Y/self.w
+            dist = distance.cdist(X, Y, 'sqeuclidean')
+        K = np.exp(-dist)
         return K
 
 class Poly_kernel(object):
@@ -429,4 +454,19 @@ class Poly_kernel(object):
             dist = X.dot(Y.T) + self.c
         return dist**self.d
 
+class Partial_Kernel(object):
+    def __init__(self, indices, kernel):
+        self.indices = indices
+        self.kernel = kernel
+    def __call__(self, X, Y=None):
+        if Y is not None:
+            return self.kernel(X[:,self.indices], Y[:,self.indices])
+        else:
+            return self.kernel(X[:,self.indices])
 
+class Multiplied_kernel(object):
+    def __init__(self, k1, k2):
+        self.k1 = k1
+        self.k2 = k2
+    def __call__(self, X, Y=None):
+        return self.k1(X,Y) * self.k2(X,Y)

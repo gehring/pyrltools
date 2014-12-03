@@ -13,7 +13,8 @@ class MountainCar(object):
 
     state_range =[ np.array([min_pos, -max_speed]),
                    np.array([max_pos, max_speed])]
-    action_range = [[-0.001], [0.001]]
+    action_range = [np.array([-0.001]), 
+                    np.array([0.001])]
 
     __discrete_actions = [ np.array([-0.001]),
                           np.array([0]),
@@ -34,7 +35,7 @@ class MountainCar(object):
 
         self.step_count += 1
 
-        return -1, next_state
+        return -1 , next_state
 
     def reset(self):
         if self.random_start:
@@ -95,9 +96,15 @@ class MountainCar_Factory(object):
 class PumpingPolicy(object):
     def __init__(self):
         pass
-    def __class__(self, state):
+    def __call__(self, state):
         return np.array([0.001]) if state[1] >= 0 else np.array([-0.001])
-
+    
+    def getprob(self, state):
+        p = np.zeros(3)
+        i = 2 if state[1] >= 0 else 0
+        p[i] = 1.0
+        return p
+    
 class InifiniteMountainCar(object):
     min_pos = -1.2
     max_pos = 0.6
