@@ -382,7 +382,19 @@ class TransitionData(object):
         X_tp1 = np.vstack([ self.phi(s).dot(policy.getprob(s)) if s is not None else np.zeros(self.phi.size)
                              for s in s_tp1])
         
-        return X_t, r_t, X_tp1    
+        return X_t, r_t, X_tp1
+    
+    def constructRegressionMatrices(self, gamma, getmaxvalue, ind = None):
+        sa_t, r_t, s_tp1 = self.getSamples()
+        if ind is not None:
+            sa_t  = sa_t[ind, :]
+            r_t = r_t[ind]
+            s_tp1 = s_tp1[ind]
+        
+        X = sa_t
+        y = r_t + gamma*getmaxvalue(s_tp1)
+        
+        return X, y
             
 class BinarySparseTransitionData(object):
     def __init__(self,
@@ -493,7 +505,24 @@ class BinarySparseTransitionData(object):
         
         return X_t, r_t, X_tp1
     
-    
+    def constructRegressionMatrices(self, gamma, getmaxvalue, ind = None):
+        sa_t, r_t, s_tp1 = self.getSamples()
+        if ind is not None:
+            sa_t  = sa_t[ind, :]
+            r_t = r_t[ind]
+            s_tp1 = s_tp1[ind]
+        shape = (sa_t.shape[0], self.phi.size)
+            
+        # build X_t sparse matrix
+        indices = [ np.vstack((np.ones(sa.size, dtype= 'uint')*i, sa))  
+                                for i,sa in enumerate(sa_t) ]
+        indices = np.hstack(indices)
+        X = sp.csc_matrix((np.ones(indices.shape[1]), indices),
+                            shape = shape,
+                            dtype= 'int')
+        y = r_t + gamma*getmaxvalue(s_tp1)
+        
+        return X, y
             
         
         

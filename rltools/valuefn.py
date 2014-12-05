@@ -41,6 +41,18 @@ class linearQValueFn(ValueFn):
         else:
             return phi_t.dot(self.theta)
         
+class KernelBasedValueFn(ValueFn):
+    def __init__(self, Qvalues, X, kernel, projector):
+        super(KernelBasedValueFn, self).__init__()
+        self.Q= Qvalues
+        self.X = X
+        self.kernel = kernel
+        self.phi = projector
+    def __call__(self, state, action = None):
+        phi_t = self.phi(state, action)
+        k = self.kernel(self.X, phi_t)
+        return k.T.dot(self.Q)
+        
 class kernelLinearQValueFn(ValueFn):
     def __init__(self, alpha, projector, X_t, X_tp1, gamma, kernel):
         super(kernelLinearQValueFn, self).__init__()
