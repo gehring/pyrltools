@@ -41,18 +41,64 @@ class linearQValueFn(ValueFn):
         else:
             return phi_t.dot(self.theta)
         
+class KernelBasedValueFn(ValueFn):
+    def __init__(self, Qvalues, X, kernel, projector):
+        super(KernelBasedValueFn, self).__init__()
+        self.Q= Qvalues
+        self.X = X
+        self.kernel = kernel
+        self.phi = projector
+    def __call__(self, state, action = None):
+        phi_t = self.phi(state, action)
+        k = self.kernel(self.X, phi_t)
+        return k.T.dot(self.Q)
+        
 class kernelLinearQValueFn(ValueFn):
-    def __init__(self, alpha, projector, X, kernel):
-        super(linearQValueFn, self).__init__()
+    def __init__(self, alpha, projector, X_t, X_tp1, gamma, kernel):
+        super(kernelLinearQValueFn, self).__init__()
         self.alpha= alpha
         self.proj = projector
-        self.X = X
+        self.X_t = X_t
+        self.X_tp1 = X_tp1
+        self.gamma = gamma
         self.kernel = kernel
     def __call__(self, state, action = None):
         phi_t = self.proj(state, action)
-        k = self.kernel(self.X, phi_t)
+        k = self.kernel(self.X_t, phi_t) \
+                - self.gamma*self.kernel(self.X_tp1, phi_t)
         return self.alpha.dot(k)
-
+    
+class quadKernelLinearQValueFn(ValueFn):
+    def __init__(self, kernel_valuefn):
+        self.valuefn = kernel_valuefn
+        self.kernel = kernel_valuefn.kernel
+        self.X_t = kernel_valuefn.X_t
+        self.X_tp1 = kernel_valuefn.X_tp1
+        self.alpha = kernel_valuefn.alpha
+        self.gamma = kernel_valuefn.gamma
+        self.A = self.X_t[:,self.kernel.k2.indices]
+        self.Ap = self.X_tp1[:,self.kernel.k2.indices]
+        self.alpha = self.valuefn.alpha
+        
+    def __call__(self, state, action = None):
+        return self.valuefn(state, action)
+    
+    def getmaxaction(self, state):
+        if state is not None:
+            b = self.kernel.k1(self.X_t, state.reshape((1,-1)))[:,0] * self.alpha
+            bp = self.kernel.k1(self.X_tp1, state.reshape((1,-1)))[:,0] * self.alpha
+            
+            A = self.A
+            Ap = self.Ap
+            
+            Coef = (A.T*b).dot(A) - self.gamma*(Ap.T*bp).dot(Ap)
+            res = -b.dot(A)*self.kernel.k2.kernel.c \
+                        + bp.dot(Ap)*self.kernel.k2.kernel.c*self.gamma
+            opt_a = np.linalg.lstsq(Coef, res)[0]
+            return opt_a
+        else:
+            return np.zeros(self.A.shape[1])
+    
 def LSTDlambda(policy,
            environment,
            gamma,
@@ -84,7 +130,7 @@ def LSTDlambda(policy,
     theta = np.linalg.lstsq(A, b)[0]
     return linearValueFn(theta, phi)
 
-def LSQ(X_t, r_t, X_tp1, gamma, phi):
+def LSQ(X_t, r_t, X_tp1, gamma, phi, **args):
     print 'Solving for Q-value function'
     start_time= time.clock()
     A = X_t.T.dot(X_t - gamma*X_tp1)
@@ -96,7 +142,7 @@ def LSQ(X_t, r_t, X_tp1, gamma, phi):
     print 'Solved in '+str(time.clock() - start_time) + ' seconds'
     return linearQValueFn(theta, phi)
 
-def SFLSQ(X_t, r_t, X_tp1, gamma, phi, theta0= None):
+def SFLSQ(X_t, r_t, X_tp1, gamma, phi, theta0= None, **args):
     print 'Solving for Q-value function'
     start_time= time.clock()
     A = (X_t - gamma*X_tp1)
@@ -104,18 +150,18 @@ def SFLSQ(X_t, r_t, X_tp1, gamma, phi, theta0= None):
     if isinstance(A, sp.spmatrix):
         if theta0 is not None:
             b = r_t - A.dot(theta0)
-        C = A.copy()
-        C.data **= 2
-        c_sum =C.sum(0).view(type=np.ndarray)[0,:]
-        index = c_sum > 0.0
-        data = np.sqrt(c_sum[index])
-        D = sp.spdiags(1.0/data, 0, data.size, data.size)
-         
-        sol = D.dot(sp.linalg.lsmr(A[:,index].dot(D), b, damp=0.01)[0])
-        theta = np.zeros(A.shape[1])
-        theta[index] = sol
+#         C = A.copy()
+#         C.data **= 2
+#         c_sum =C.sum(0).view(type=np.ndarray)[0,:]
+#         index = c_sum > 0.0
+#         data = np.sqrt(c_sum[index])
+#         D = sp.spdiags(1.0/data, 0, data.size, data.size)
+#          
+#         sol = D.dot(sp.linalg.lsmr(A[:,index].dot(D), b, damp=0.01)[0])
+#         theta = np.zeros(A.shape[1])
+#         theta[index] = sol
         
-#         theta = sp.linalg.lsmr(A, b, damp=0.001)[0]
+        theta = sp.linalg.lsmr(A, b, damp=0.001)[0]
         if theta0 is not None:
             theta += theta0
     else:
@@ -123,16 +169,21 @@ def SFLSQ(X_t, r_t, X_tp1, gamma, phi, theta0= None):
     print 'Solved in '+str(time.clock() - start_time) + ' seconds'
     return linearQValueFn(theta, phi)
 
-def KernelRegression(X_1, X_2, y, kernel, lamb=0):
-    A = kernel(X_1) + kernel(X_2) - kernel(X_1,X_2) - kernel(X_2,X_1) \
+def KernelRegression(X_1, X_2, y, gamma, kernel, lamb=0):
+    A = kernel(X_1) + gamma**2*kernel(X_2) - gamma*kernel(X_1,X_2) \
+                    - gamma*kernel(X_2,X_1) \
                     + lamb*sp.eye(X_1.shape[0], X_1.shape[0])
-    alpha = sp.linalg.lsqr(A, y)
+    alpha = sp.linalg.lsqr(A, y)[0]
     return alpha
 
-def KSFLSQ(X_t, r_t, X_tp1, gamma, phi, kernel):
-    alpha = KernelRegression(X_t, gamma*X_tp1, r_t, kernel, 0.01)
-#     return kernelLinearQValueFn(alpha, phi, X, kernel)
+def KSFLSQ(X_t, r_t, X_tp1, gamma, phi, kernel, lamb = 0.01, **args):
+    alpha = KernelRegression(X_t, X_tp1, r_t, gamma, kernel, lamb)
+    return kernelLinearQValueFn(alpha, phi, X_t, X_tp1, gamma, kernel)
 
+
+def QAKLSQ(X_t, r_t, X_tp1, gamma, phi, kernel, lamb=0.1, **args):
+    valuefn = KSFLSQ(X_t, r_t, X_tp1, gamma, phi, kernel, lamb)
+    return quadKernelLinearQValueFn(valuefn)
 
 # def BatchLSTDlambda(policy,
 #            environment,
