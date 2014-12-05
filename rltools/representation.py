@@ -405,8 +405,8 @@ class FlatStateAction_Factory(object):
         return FlatStateAction(domain.state_dim, domain.action_dim)
 
 class Rbf_kernel(object):
-    def __init__(self, width):
-        self.w = width
+    def __init__(self, width = None):
+        self.w = width if width is not None else 1
 
     def __call__(self, X, Y=None):
         if Y is None:
