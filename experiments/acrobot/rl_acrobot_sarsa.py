@@ -22,9 +22,9 @@ input_indicies = [np.arange(4),
                 np.array([2]),
                 np.array([3])]
 
-dt = 0.01
+dt = 0.05
 domain = Acrobot(random_start= False,
-                 max_episode = 20/dt-1,
+                 max_episode = 10/dt-1,
                   m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
 domain.dt[-1] = dt
 
@@ -97,7 +97,7 @@ num_episodes = 50000
 # namein= 'test4'
 # with open('agent-'+namein+'.data', 'rb') as f:
 #     (phi, valuefn, policy,agent) = pickle.load(f)
-nameout='sarsa2'
+nameout='sarsa05'
 
 thres = np.pi/4
 domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -2*thres]),

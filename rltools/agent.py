@@ -499,7 +499,7 @@ class BinarySparseTransitionData(object):
         indices = [ np.vstack((np.ones(sa.size, dtype= 'uint')*i, sa) ) 
                                 for i,sa in enumerate(sa_tp1) ]
         indices = np.hstack(indices)
-        X_tp1 = sp.csc_matrix((np.ones(indices.shape[1]), indices), 
+        X_tp1 = sp.csr_matrix((np.ones(indices.shape[1]), indices), 
                               shape = shape, 
                               dtype= 'int')
         

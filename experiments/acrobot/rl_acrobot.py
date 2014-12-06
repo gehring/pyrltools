@@ -1,5 +1,5 @@
-from rltools.representation import TileCoding, UNH
-from rltools.agent import SFLSPI, LSPI, BinarySparseTransitionData
+from rltools.representation import TileCoding, UNH, TabularActionProjector
+from rltools.agent import LSPI, BinarySparseTransitionData
 from rltools.policy import Egreedy
 from rltools.acrobot import Acrobot
 import pickle
@@ -20,11 +20,11 @@ input_indicies = [np.arange(4),
                 np.array([1]),
                 np.array([2]),
                 np.array([3])]
-input_indicies = [np.hstack((i, [4])) for i in input_indicies]
+# input_indicies = [np.hstack((i, [4])) for i in input_indicies]
 
 dt = 0.01
 domain = Acrobot(random_start= False,
-                 max_episode = 20/dt-1,
+                 max_episode = 10/dt-1,
                   m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
 domain.dt[-1] = dt
 
@@ -34,7 +34,8 @@ a_range = domain.action_range
 sa_range = [np.hstack((s_range[0], a_range[0])),
             np.hstack((s_range[1], a_range[1]))]
 
-tiles_all = np.array([6,6,7,7,3])
+# tiles_all = np.array([6,6,7,7,3])
+tiles_all = np.array([6,6,7,7])
 ntiles = [ tiles_all[i] for i in input_indicies]
  
 ntilings = [24,
@@ -99,7 +100,7 @@ phi = TileCoding(input_indicies,
 
 
 
-act = [ np.array(a) for a in np.linspace(-10, 10, 5, True)]
+act = np.array([ np.array([a]) for a in np.linspace(-10, 10, 5, True)])
 
 def blank_valuefn(s, a= None):
     if a is None:
@@ -108,7 +109,8 @@ def blank_valuefn(s, a= None):
         return 0
     
 gamma = 0.99
-phi_sa = IdenStateAction(phi, act)
+# phi_sa = IdenStateAction(phi, act)
+phi_sa = TabularActionProjector(act, phi)
 print phi_sa.size
 
 policy = Egreedy(act, blank_valuefn, epsilon = 0.0)
@@ -123,13 +125,13 @@ start_samples = None
 spsamples = BinarySparseTransitionData(start_samples, 
                                        phi_sa, 
                                        max_samples=200000)
-agent = SFLSPI(act, 
+agent = LSPI(act, 
              policy, 
              gamma, 
              phi_sa,
              blank_valuefn, 
              spsamples, 
-             20000, 
+             10000, 
              improve_behaviour = True)
 
 
@@ -138,11 +140,11 @@ num_episodes = 50000
 # namein= 'test4'
 # with open('agent-'+namein+'.data', 'rb') as f:
 #     (phi, valuefn, policy,agent) = pickle.load(f)
-nameout='test'
+nameout='tab-lspi'
 
 thres = np.pi/4
-domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -2*thres]),
-                  np.array([np.pi + thres, thres, thres, 2*thres])]
+domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -thres]),
+                  np.array([np.pi + thres, thres, thres, thres])]
 
 w = np.array([8,8,4,4])
 p = np.array([np.pi, np.pi])
