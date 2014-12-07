@@ -2,9 +2,6 @@ import numpy as np
 from scipy.integrate import odeint
 from control import lqr
 import copy
-from Cython.Plex.Lexicons import State
-from matplotlib.collections import Collection
-import collections
 
 class Acrobot(object):
 
@@ -138,6 +135,17 @@ class Acrobot(object):
         U = -self.m1*self.g*self.lc1*c - self.m2*self.g*(self.l1*c +
                                                          self.lc2*np.cos(q[0] + q[1]))
         return 0.5* q[2:].dot(H.dot(q[2:])) + U
+    
+    def get_dG(self, q):
+        g = self.g
+        m1 = self.m1
+        m2 = self.m2
+        lc1 = self.lc1
+        l1 = self.l1
+        lc2 = self.lc2
+        dG = np.array([(-g*(m1*lc1 + m2*l1 + m2*lc2), -m2*lc2*g),
+                       (-m2*g*lc2, -m2*g*lc2)])
+        return dG
 
     def get_pumping_policy(self):
         return Acrobot_energyshaping(self)
@@ -205,12 +213,13 @@ def compute_acrobot_from_data(q,
     qdd1 = qdotdot[:,0]
     qdd2 = qdotdot[:,1]
     
-    u = np.empty((q.shape[0], 5))
+    u = np.empty((q.shape[0], 7))
     u[:,0] = qdd1
     u[:,1] = 3*c2*qdd1 + s2*qd1**2 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
     u[:,2] = 2*qdd2 + qdd1
     u[:,3] = c1
     u[:,4] = c12*2
+    u[:,5:] = qdot
     
     a = np.linalg.lstsq(u, y)[0]
     return Acobot_from_data(a,
@@ -254,8 +263,8 @@ class Acobot_from_data(Acrobot):
 #                      (2*a[1]*s2*q[3], 0))
 #                     )
         
-        C= np.array(((-2*a[1]*s2*q[3], -a[1]*s2*q[3]),
-                     (a[1]*s2*q[2], 0))
+        C= np.array(((a[5]-2*a[1]*s2*q[3], -a[1]*s2*q[3]),
+                     (a[1]*s2*q[2], a[6]))
                     )
         
         G = np.array((a[3]*c1 + a[4]*c12, a[4]*c12))
@@ -269,11 +278,15 @@ class Acobot_from_data(Acrobot):
         U = -self.a[3]*c - self.a[4]*np.cos(q[:2])
         return 0.5* q[2:].dot(H.dot(q[2:])) + U
     
-        
+    def get_dG(self, q):
+        dG = np.array([(-self.a[3] - self.a[4], -self.a[4]),
+                       (-self.a[4], -self.a[4])])
+        return dG
+    
 
 class Acrobot_energyshaping(object):
     desired_pos = np.array([np.pi,0,0,0])
-    def __init__(self, acrobot, k1=2.0, k2=1.0, k3=0.1, desired_pos = None):
+    def __init__(self, acrobot, k1=1.14, k2=3.2, k3=1.1, desired_pos = None):
         if desired_pos == None:
             desired_pos= np.array([np.pi,0,0,0])
         self.desired_pos = desired_pos
@@ -316,17 +329,6 @@ class Acrobot_LQR(object):
         self.lqr = lqr(A,B[:,None],Q,R)
 
 
-    def get_dG(self, q):
-        g = self.acrobot.g
-        m1 = self.acrobot.m1
-        m2 = self.acrobot.m2
-        lc1 = self.acrobot.lc1
-        l1 = self.acrobot.l1
-        lc2 = self.acrobot.lc2
-        dG = np.array([(-g*(m1*lc1 + m2*l1 + m2*lc2), -m2*lc2*g),
-                       (-m2*g*lc2, -m2*g*lc2)])
-        return dG
-
     def get_linear(self, q, u):
         H, C, G, B = self.acrobot.get_manipulator(q)
         Hinv= -H
@@ -334,7 +336,7 @@ class Acrobot_LQR(object):
         Hinv[1,1]= H[0,0]
         Hinv /= (H[0,0]*H[1,1] - H[0,1]**2)
 
-        dG  = self.get_dG(q)
+        dG  = self.acrobot.get_dG(q)
 
         A = np.zeros((4,4))
         A[2:,:2] = -Hinv.dot(dG)
@@ -361,9 +363,9 @@ class Acrobot_LQR(object):
 class Acrobot_LQR_enerygyshaping(object):
     def __init__(self,
                  acrobot,
-                 k1=2.0,
-                 k2=1.0,
-                 k3=0.1,
+                 k1=1.14, 
+                 k2=3.2, 
+                 k3=1.1,
                  Q = None,
                  R = None,
                  desired_pos = None):
@@ -402,7 +404,7 @@ def get_trajectories(acrobot,
         for j in xrange(length):
             
             acrobot.step(u)
-            u = controller(acrobot.state)
+            u = np.clip(controller(acrobot.state), *acrobot.action_range)
             
             steps.append((acrobot.state, u))
             

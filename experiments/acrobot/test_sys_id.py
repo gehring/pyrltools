@@ -1,20 +1,19 @@
-from rltools.acrobot import Acrobot, Acobot_from_data, get_trajectories, get_qs_from_traj,\
+from rltools.acrobot import Acrobot, get_trajectories, get_qs_from_traj,\
     compute_acrobot_from_data
 
 import pyglet
 from pyglet import clock
 from pyglet.window import key
 import numpy as np
-import sys
 
 def get_U_matrix(q,
                   qdot, 
                   qdotdot, 
                   y):
     c = np.cos(q)
-    c12 = np.cos(np.sum(q, axis=1))
-    
-    c1 = c[:,0]
+    c12 = np.sin(np.sum(q, axis=1))
+     
+    c1 = np.sin(q[:,0])
     c2 = c[:,1]
     s2 = np.sin(q[:,1])
     
@@ -24,15 +23,16 @@ def get_U_matrix(q,
     qdd1 = qdotdot[:,0]
     qdd2 = qdotdot[:,1]
     
-    u = np.empty((q.shape[0], 5))
+    u = np.empty((q.shape[0], 7))
     u[:,0] = qdd1
     u[:,1] = 3*c2*qdd1 + s2*qd1**2 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
     u[:,2] = 2*qdd2 + qdd1
     u[:,3] = c1
     u[:,4] = c12*2
+    u[:,5:] = qdot
     return u
 
-domain = Acrobot(random_start = True, 
+domain = Acrobot(random_start = False, 
                  m1 = 1, 
                  m2 = 1, 
                  l1 = 1, 
@@ -44,15 +44,25 @@ domain.dt[-1] = 0.01
 domain.action_range = [np.array([-10]), np.array([10])]
 
 print 'generating trajectories...'
-controller = lambda q: np.random.rand()*20-10
-states, torques = get_trajectories(domain, 10, 1000, controller = controller)
+c = domain.get_swingup_policy()
+c.energyshaping.k1 = 2.0
+c.energyshaping.k2 = 1.0
+c.energyshaping.k3 = 0.1
+alph =0.0
+controller = lambda q: alph*c(q) + (1-alph)*np.random.rand()*20-10
+states, torques = get_trajectories(domain, 1, 10000, controller = controller)
 q, qd, qdd, y = get_qs_from_traj(states, torques, domain.dt[-1])
 qdd = np.vstack((domain.state_dot(np.hstack((q[i,:], qd[i,:])), 0, y[i])[2:] for i in xrange(q.shape[0])))
-# q[:,0] = np.remainder(q[:,0] - np.pi/2, 2*np.pi)
-# U = get_U_matrix(q, qd, qdd, y)
-print 'solving system id...'
 id_domain = compute_acrobot_from_data(q, qd, qdd, y, random_start = False)
-
+# q[:,0] = np.remainder(q[:,0] - np.pi/2, 2*np.pi)
+U = get_U_matrix(q, qd, qdd, y)
+print 'solving system id...'
+# print q[:10,:]
+# print qd[:10,:]
+# print qdd[:10,:]
+# 
+# print U[:10, :]
+# print y[:10]
 
 m1 = domain.m1
 m2 = domain.m2
@@ -63,21 +73,27 @@ l2 = domain.l2
 lc1 = domain.lc1
 lc2 = domain.lc2
 g = domain.g
+b1, b2 = domain.b1, domain.b2
 
 a = np.array([m1*lc1**2 + m2*l1**2 + m2*lc2**2+ I1 + I2,
               m2*l1*lc2,
               m2*lc2**2 + I2,
               (m1*lc1 + m2*l1)*g,
-              m2*lc2*g])
+              m2*lc2*g,
+              b1,
+              b2])
 
 
 # print qdd[0,:]
-# print domain.state_dot(np.hstack((q[0,:] + [np.pi/2,0], qd[0,:])), 0, y[0])
+# print domain.state_dot(np.hstack((q[0,:], qd[0,:])), 0, y[0])
 # print y[:2]
-# 
+ 
 # print U[:2,:].dot(a)
 # print np.linalg.norm(U.dot(a) - y)
-
+# print np.linalg.norm(U.dot(id_domain.a) - y)
+# print 'Cond and Det:'
+# print np.linalg.cond(U)
+# print np.linalg.det(U.T.dot(U))
 # print 'Results:'
 # print np.allclose(a, id_domain.a)
 print a
@@ -86,12 +102,15 @@ print id_domain.a
 # print qd[i,:], qdd[i,:]
 # print id_domain.state_dot(np.hstack((q[i,:], qd[i,:])), 0, y[i])
 # sys.exit()
-
+mode = 1
 u=0
-acrobot = domain# id_domain
+domain.random_start = False
+domain.reset()
+acrobot = domain #id_domain
 acrobot.start_state[0] = 0.02
 
-# controller = id_domain.get_swingup_policy()
+controller = id_domain.get_swingup_policy()
+# controller = domain.get_swingup_policy()
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
     samples=4,
@@ -157,7 +176,7 @@ def draw_acrobot(acrobot):
 @window.event
 def on_draw():
     window.clear()
-    draw_acrobot(id_domain)
+    draw_acrobot(acrobot)
 
 @window.event
 def on_resize(width, height):
@@ -194,7 +213,10 @@ def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
 
 def update(dt):
     acrobot.dt[-1] =  dt#1.0/100
-    acrobot.step(u)
+    if mode == 1:
+        acrobot.step(controller(acrobot.state))
+    else:
+        acrobot.step(u)
 
 def on_key_press(symbol, modifiers):
     global u
@@ -206,12 +228,20 @@ def on_key_press(symbol, modifiers):
 
     print u
 def on_key_release(symbol, modifiers):
-    global u
+    global u, mode
     f=10
     if symbol == key.RIGHT:
         u += -f
     if symbol == key.LEFT:
         u += f
+        
+    if symbol == key.A:
+        mode = 1 if mode != 1 else 0
+        print 'mode '+str(mode)
+        
+    if symbol == key.R:
+        acrobot.reset()
+        
     print u
 
 window.push_handlers(on_key_press)

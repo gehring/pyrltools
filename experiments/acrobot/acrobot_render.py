@@ -34,16 +34,16 @@ class IdenStateAction(object):
 
 
 acrobot = Acrobot(random_start = False, m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
-acrobot.start_state[:] = [np.pi-0.001*np.random.rand(1),0,0,0]
+acrobot.start_state[:] = [-0.01*np.random.rand(1),0,0,0]
 acrobot.reset()
 acrobot.action_range[0][:] = -10
 acrobot.action_range[1][:] = 10
 u = np.zeros(1)
 
 controller = acrobot.get_swingup_policy()
-name = 'sarsa2'
-with open('agent-'+name+'.data', 'rb') as f:
-    (phi, policy, agent) = pickle.load(f)
+# name = 'sarsa2'
+# with open('agent-'+name+'.data', 'rb') as f:
+#     (phi, policy, agent) = pickle.load(f)
 mode = 1
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
