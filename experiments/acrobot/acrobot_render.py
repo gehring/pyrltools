@@ -41,9 +41,9 @@ acrobot.action_range[1][:] = 10
 u = np.zeros(1)
 
 controller = acrobot.get_swingup_policy()
-# name = 'sarsa2'
-# with open('agent-'+name+'.data', 'rb') as f:
-#     (phi, policy, agent) = pickle.load(f)
+name = 'sarsa2'
+with open('agent-'+name+'.data', 'rb') as f:
+    (phi, policy, agent) = pickle.load(f)
 mode = 1
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
@@ -150,7 +150,7 @@ def update(dt):
     elif mode == 2:
         pass
 #         acrobot.step(policy(acrobot.state))
-#         acrobot.step(agent.proposeAction(acrobot.state))
+        acrobot.step(agent.proposeAction(acrobot.state))
     else:
         acrobot.step(u)
 
