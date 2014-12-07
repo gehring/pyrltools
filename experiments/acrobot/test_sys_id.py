@@ -107,7 +107,7 @@ u=0
 domain.random_start = False
 domain.reset()
 acrobot = domain #id_domain
-acrobot.start_state[0] = 0.02
+acrobot.start_state[0] = 0.005
 
 controller = id_domain.get_swingup_policy()
 # controller = domain.get_swingup_policy()

@@ -275,7 +275,7 @@ class Acobot_from_data(Acrobot):
     def get_E(self, q):
         H, C, G, B = self.get_manipulator(q)
         c = np.cos(q[0])
-        U = -self.a[3]*c - self.a[4]*np.cos(q[:2])
+        U = -self.a[3]*c - self.a[4]*np.cos(np.sum(q[:2]))
         return 0.5* q[2:].dot(H.dot(q[2:])) + U
     
     def get_dG(self, q):
@@ -311,6 +311,16 @@ class Acrobot_energyshaping(object):
 
         return u
 
+class Acrobot_PD(object):
+    def __init__(self, k1=10, k2=20, alpha=0.30):
+        self.k1 = k1
+        self.k2 =k2
+        self.alpha = alpha
+        
+    def __call__(self, q):
+        q2d = 2*self.alpha/np.pi * np.arctan(q[2])
+        u = self.k1*(q2d - q[1]) - self.k2*q[1]
+        return u
 class Acrobot_LQR(object):
     def __init__(self,
                  acrobot,
@@ -349,7 +359,7 @@ class Acrobot_LQR(object):
 
     def naive_test(self, q):
         qbar = self.get_qbar(q)
-        return qbar.dot(self.lqr[1].dot(qbar))< 1000
+        return qbar.dot(self.lqr[1].dot(qbar))< 3000
 
     def __call__(self, q):
         return -self.lqr[0].dot(self.get_qbar(q))
