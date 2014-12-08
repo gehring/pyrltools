@@ -15,6 +15,46 @@ import sklearn.cross_validation
 from sklearn import preprocessing
 
 
+class Theano_NRBF_Projector(object):
+    def __init__(self, centers, widths):
+        x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('x')
+        centers = centers.T
+        if widths.ndim > 1:
+            widths = widths.T
+            w = theano.shared(widths.reshape((1,widths.shape[0], -1)),
+                         borrow=False, 
+                         broadcastable = (True,False, False))
+        else:
+            w = theano.shared(widths.reshape((1,widths.shape[0], -1)),
+                         borrow = False,
+                         broadcastable = (True,False, True))
+        c = theano.shared(centers.reshape((1,centers.shape[0], -1)), borrow=False, broadcastable = (True,False, False))
+        
+        dsqr = -(((x - c)/w)**2).sum(axis=1, keepdims=False)
+        e_x = T.exp(dsqr - dsqr.min(axis=1, keepdims=True))
+        out = e_x / e_x.sum(axis=1, keepdims=True)
+        
+        dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dx')
+        self.proj = theano.function([x], out)
+        self.doutdx = theano.function([x,dx], T.Rop(out, x, dx))
+        
+    def __call__(self, state):
+        if state.ndim == 1:
+            state = state.reshape((1,-1))
+            phis = self.proj(state[:,:,None])[0,:]
+        else:
+            phis = self.proj(state[:,:,None])
+        return phis
+     
+    def getdphids(self, state, ds):
+        if ds.ndim == 1:
+            ds = ds.reshape((1,-1))
+        if state.ndim == 1:
+            state = state.reshape((1,-1))
+        dphids = self.doutdx(state[:,:,None], ds[:,:,None])
+        return dphids
+         
+        
 class HiddenLayer(object):
     def __init__(self, rng, input, n_in, n_out, W=None, b=None,
                  activation=T.tanh):

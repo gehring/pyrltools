@@ -276,11 +276,23 @@ class RBFCoding(Projector):
 class NRBFCoding(Projector):
     def __init__(self, stddev, c, **params):
         super(NRBFCoding, self).__init__()
-        self.RBFs = RBFCoding(stddev, c, **params)
-
+#         self.RBFs = RBFCoding(stddev, c, **params)
+        self.c = c.T[None,:,:]
+        if stddev.ndim == 1:
+            self.w = stddev[None,:,None]
+        else:
+            self.w = stddev.T[None,:,:]
+        
     def __call__(self, state):
-        x = self.RBFs(state)
-        return x/np.sum(x)
+#         x = self.RBFs(state)
+#         return x/np.sum(x)
+        if state.ndim == 1:
+            state = state.reshape((1,-1))
+
+        dsqr = -(((state[:,:,None] - self.c)/self.w)**2).sum(axis=1)
+        e_x = np.exp(dsqr - dsqr.min(axis=1)[:,None])
+        return e_x/ e_x.sum(axis=1)[:,None]
+
 
     @property
     def size(self):
