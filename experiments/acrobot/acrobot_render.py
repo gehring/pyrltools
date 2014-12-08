@@ -36,9 +36,11 @@ class IdenStateAction(object):
 acrobot = Acrobot(random_start = False, m1 = 1, m2 = 1, l1 = 1, l2=2, b1=0.1, b2=0.1)
 acrobot.start_state[:] = [-0.01*np.random.rand(1),0,0,0]
 acrobot.reset()
-acrobot.action_range[0][:] = -10
-acrobot.action_range[1][:] = 10
+acrobot.action_range[0][:] = -20
+acrobot.action_range[1][:] = 20
 u = np.zeros(1)
+
+time =0
 
 controller = acrobot.get_swingup_policy()
 # name = 'sarsa2'
@@ -144,6 +146,8 @@ def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
     pyglet.gl.glTranslatef(mcoord2[0] - mcoord1[0], mcoord2[1] - mcoord1[1], 0)
 
 def update(dt):
+    global time
+    time += dt
     acrobot.dt[-1] =  dt#1.0/100
     if mode == 1:
         acrobot.step(controller(acrobot.state))
@@ -153,24 +157,28 @@ def update(dt):
         acrobot.step(agent.proposeAction(acrobot.state))
     else:
         acrobot.step(u)
+    print time
 
 def on_key_press(symbol, modifiers):
-    global u, mode
+    global u, mode, time
     f = 10
     if symbol == key.RIGHT:
         u += f
     if symbol == key.LEFT:
         u += -f
     if symbol == key.R:
-        acrobot.start_state[:] = [np.pi-(0.05)*(np.random.rand(1)-0.5),
+        acrobot.start_state[:] = [-(0.05)*(np.random.rand(1)-0.5),
                              (np.random.rand(1)-0.5)*0.01,
                              (np.random.rand(1)-0.5)*0.01,
                              (np.random.rand(1)-0.5)*0.01]
         acrobot.reset()
+        time = 0
     if symbol == key.A:
         mode = 1 if mode != 1 else 0
     if symbol == key.S:
         mode = 2 if mode != 2 else 0
+        
+    
 
     print u
 def on_key_release(symbol, modifiers):

@@ -5,7 +5,7 @@ import numpy as np
 
 import timeit
 
-dim = 2
+dim = 20
 n_rbf = 4
 
 c = np.random.rand(n_rbf,dim).astype('float32')

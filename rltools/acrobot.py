@@ -298,17 +298,27 @@ class Acrobot_energyshaping(object):
 
     def __call__(self, q):
         H, C, G, B = self.acrobot.get_manipulator(q)
-
         C= C.dot(q[2:]) + G
-        detinv = 1/(H[1,1]*H[0,0] - H[0,1]**2)
-        a3 = (H[0,0]*detinv)
-        a2 = -(H[0,1]*detinv)
-        e_tilde = (self.acrobot.get_E(q) - self.Ed)
-        q2wrapped = np.remainder(q[1]+np.pi, np.pi*2) - np.pi
+#         detinv = 1/(H[1,1]*H[0,0] - H[0,1]**2)
+#         a3 = (H[0,0]*detinv)
+#         a2 = -(H[0,1]*detinv)
+#         e_tilde = (self.acrobot.get_E(q) - self.Ed)
+#         q2wrapped = np.remainder(q[1]+np.pi, np.pi*2) - np.pi
+# 
+#         y=-self.k1*q2wrapped - self.k2*q[3]
+#         u = y/a3 + a2*C[0]/a3 + C[1] - self.k3*e_tilde*q[3]
+        Ed = self.Ed
+        E = self.acrobot.get_E(q)
 
-        y=-self.k1*q2wrapped - self.k2*q[3]
-        u = y/a3 + a2*C[0]/a3 + C[1] - self.k3*e_tilde*q[3]
-
+#         Ed = 2*9.81*1.25
+#         E = 9.81*(np.cos(q[0]) + 2*(np.cos(q[0] + q[1])+np.cos(q[0]))) + 0.5*q[2:].dot(H.dot(q[2:]))
+        M22bar = H[1,1] - H[1,0]/H[0,0]*H[0,1]
+        h2bar = C[1] - H[1,0]/H[0,0]*C[0]
+        k1 = 10
+        k2 = 10
+        k3 = 1
+        ubar = (Ed -E) * q[3]
+        u = M22bar*(-k1*q[1] - k2*q[3]) + h2bar + k3*ubar
         return u
 
 class Acrobot_PD(object):
@@ -331,7 +341,7 @@ class Acrobot_LQR(object):
             desired_pos= np.array([np.pi,0,0,0])
         self.desired_pos = desired_pos
         if Q == None:
-            Q = np.diag([10,10,1,1])
+            Q = np.diag([1,1,1,1])
         if R == None:
             R = np.eye(1)
         self.acrobot = acrobot
@@ -359,7 +369,7 @@ class Acrobot_LQR(object):
 
     def naive_test(self, q):
         qbar = self.get_qbar(q)
-        return qbar.dot(self.lqr[1].dot(qbar))< 3000
+        return qbar.dot(self.lqr[1].dot(qbar))< 10000
 
     def __call__(self, q):
         return -self.lqr[0].dot(self.get_qbar(q))
