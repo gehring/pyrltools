@@ -1,4 +1,4 @@
-from rltools.MountainCar import MountainCar
+from rltools.MountainCar import MountainCar, PumpingPolicy
 from rltools.representation import TabularActionProjector
 from rltools.representation import TileCoding
 from rltools.agent import LSPI, BinarySparseTransitionData
@@ -6,14 +6,31 @@ from rltools.policy import Egreedy, SoftMax
 from rltools.agent import maxValue
 from itertools import product
 
+from scipy.interpolate import griddata
 import numpy as np
 
 import matplotlib.pyplot as plt
 from rltools.valuefn import LSQ,SFLSQ
+from sklearn.cluster.tests.test_k_means import n_samples
 
+def run_episode_from(s_t, domain, policy, gamma):
+    rewards, _ = domain.reset()
+    domain.state[:] = s_t
+    i = 1
+    while s_t is not None:
+        r_t, s_t = domain.step(policy(s_t))
+        rewards += r_t*gamma**i
+        i+= 1
+    return rewards
 
+def estimate_value_fn_Monte_Carlo(domain, policy, gamma, n_samples=1, resolution=10):
+    xx, yy = np.meshgrid(*[np.linspace(min, max, resolution, True)
+                                for min, max in zip(*domain.state_range)])
+    points = np.hstack((xx.reshape((-1, 1)), yy.reshape((-1, 1))))
+    values = np.array([ np.mean([run_episode_from(s, domain, policy, gamma) for i in xrange(n_samples)])
+                               for s in points])
 
-
+    return lambda s: griddata(points, values, [s])
 
 def plot_valuefn(maxval, valuefn):
     min_pos = -1.2
@@ -33,27 +50,39 @@ def plot_valuefn(maxval, valuefn):
     plt.contourf(x, y, v.reshape((x.shape[0],-1)))
     plt.colorbar()
     plt.show()
-    
+
 def plot_quiver(s_t, s_tp1):
     X,Y,U,V = np.array(zip(*[np.hstack((s,sp)) for s, sp in zip(s_t, s_tp1) if sp is not None]))
     plt.quiver(X, Y, U-X, V-Y)
     plt.show()
-    
+
+class NoAction(object):
+    def __init__(self, phi):
+        self.phi = phi
+        self.size = phi.size
+    def __call__(self, state, action=None):
+        if action is None:
+            return np.array([self.phi(state)])
+        else:
+            return self.phi(state)
 gamma = 0.99
+
 
 
 domain = MountainCar(True, 10000)
 s_range = domain.state_range
 actions = domain.discrete_actions
 
-phi = TileCoding([np.arange(2)], 
+phi = TileCoding([np.arange(2)],
                  [10],
-                 [10], 
-                 hashing=None, 
-                 state_range = s_range, 
+                 [10],
+                 hashing=None,
+                 state_range = s_range,
                  bias_term=True)
 
-phi_sa = TabularActionProjector(actions, phi)
+# phi_sa = TabularActionProjector(actions, phi)
+phi_sa = NoAction(phi)
+
 print phi_sa.size
 
 def blank_valuefn(s, a= None):
@@ -65,7 +94,7 @@ def blank_valuefn(s, a= None):
 def generate_samples(state_range, actions, domain, num_per_dim, phi_sa):
     states = [np.linspace(mi, ma, num_per_dim, True) for mi, ma in zip(*state_range)]
     states = [(np.array(sa[1:]), sa[0]) for sa in product(actions, *states)]
-    
+
     sa_t = np.empty(len(states), dtype='O')
     s_tp1 = np.empty(len(states), dtype='O')
     r_t = np.empty(len(states), dtype='float')
@@ -78,28 +107,36 @@ def generate_samples(state_range, actions, domain, num_per_dim, phi_sa):
     rnd_index = np.random.choice(len(states), len(states), replace = False)
     return (sa_t[rnd_index], r_t[rnd_index], s_tp1[rnd_index]), (states, s_tp1)
 
-policy = Egreedy(actions, blank_valuefn, epsilon=0.05)
+def dummy_max(v, val):
+    return np.array([ val(s) for s in v])
+
+policy =  PumpingPolicy() #Egreedy(actions, blank_valuefn, epsilon=0.05)
+
+
+# valfn = estimate_value_fn_Monte_Carlo(domain, policy, gamma, 1, 50)
+# plot_valuefn(dummy_max, valfn)
+
 
 start_samples = None
 # print 'Building initial samples'
 # start_samples, (states, s_tp1) = generate_samples(s_range, actions, domain, 30, phi_sa)
 # print str(start_samples[0].size) +' initial samples obtained'
 
-spsamples = BinarySparseTransitionData(start_samples, 
-                                       phi_sa, 
-                                       max_samples=100000)
-agent = LSPI(np.array(actions), 
-             policy, 
-             gamma, 
-             phi_sa, 
-             valuefn = blank_valuefn , 
-             samples = spsamples, 
-             batch_size = 10000,
-             iteration_per_batch = 1, 
-             improve_behaviour = True,
-             method = LSQ)
+spsamples = BinarySparseTransitionData(start_samples,
+                                       phi_sa,
+                                       max_samples=200000)
+agent = LSPI(np.array(actions),
+             policy,
+             gamma,
+             phi_sa,
+             valuefn = blank_valuefn ,
+             samples = spsamples,
+             batch_size = 200000,
+             iteration_per_batch = 1,
+             improve_behaviour = False,
+             method = SFLSQ)
 
-num_episodes = 2000
+num_episodes = 200000
 k = 1
 valuefn = agent.valuefn
 agent.maxval = np.vectorize(maxValue,
@@ -128,15 +165,15 @@ for i in xrange(num_episodes):
         r_t, s_t = domain.step(a_t)
         count += 1
         cumulative_reward += r_t
-#         if agent.valuefn is not valuefn:
+        if agent.valuefn is not valuefn:
 #             plot_valuefn(agent.argmaxval, agent.valuefn)
-#             plot_valuefn(agent.maxval, agent.valuefn)
-#             valuefn = agent.valuefn
+            plot_valuefn(agent.maxval, agent.valuefn)
+            valuefn = agent.valuefn
 
     # final update step for the agent
     agent.step(r_t, s_t)
-    
-    
+
+
 #
 #     if i % 2 == 0:
 #         if render_value_fn:
