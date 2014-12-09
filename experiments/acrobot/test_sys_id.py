@@ -92,7 +92,7 @@ a = np.array([m1*lc1**2 + m2*l1**2 + m2*lc2**2+ I1 + I2,
 # print np.linalg.norm(U.dot(a) - y)
 # print np.linalg.norm(U.dot(id_domain.a) - y)
 # print 'Cond and Det:'
-# print np.linalg.cond(U)
+print np.linalg.cond(U)
 # print np.linalg.det(U.T.dot(U))
 # print 'Results:'
 # print np.allclose(a, id_domain.a)
