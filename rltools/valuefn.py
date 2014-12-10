@@ -40,7 +40,7 @@ class linearQValueFn(ValueFn):
             return np.sum(self.theta[phi_t], 1)
         else:
             return phi_t.dot(self.theta)
-        
+
 class KernelBasedValueFn(ValueFn):
     def __init__(self, Qvalues, X, kernel, projector):
         super(KernelBasedValueFn, self).__init__()
@@ -52,7 +52,7 @@ class KernelBasedValueFn(ValueFn):
         phi_t = self.phi(state, action)
         k = self.kernel(self.X, phi_t)
         return k.T.dot(self.Q)
-        
+
 class kernelLinearQValueFn(ValueFn):
     def __init__(self, alpha, projector, X_t, X_tp1, gamma, kernel):
         super(kernelLinearQValueFn, self).__init__()
@@ -67,7 +67,7 @@ class kernelLinearQValueFn(ValueFn):
         k = self.kernel(self.X_t, phi_t) \
                 - self.gamma*self.kernel(self.X_tp1, phi_t)
         return self.alpha.dot(k)
-    
+
 class quadKernelLinearQValueFn(ValueFn):
     def __init__(self, kernel_valuefn):
         self.valuefn = kernel_valuefn
@@ -79,18 +79,18 @@ class quadKernelLinearQValueFn(ValueFn):
         self.A = self.X_t[:,self.kernel.k2.indices]
         self.Ap = self.X_tp1[:,self.kernel.k2.indices]
         self.alpha = self.valuefn.alpha
-        
+
     def __call__(self, state, action = None):
         return self.valuefn(state, action)
-    
+
     def getmaxaction(self, state):
         if state is not None:
             b = self.kernel.k1(self.X_t, state.reshape((1,-1)))[:,0] * self.alpha
             bp = self.kernel.k1(self.X_tp1, state.reshape((1,-1)))[:,0] * self.alpha
-            
+
             A = self.A
             Ap = self.Ap
-            
+
             Coef = (A.T*b).dot(A) - self.gamma*(Ap.T*bp).dot(Ap)
             res = -b.dot(A)*self.kernel.k2.kernel.c \
                         + bp.dot(Ap)*self.kernel.k2.kernel.c*self.gamma
@@ -98,7 +98,7 @@ class quadKernelLinearQValueFn(ValueFn):
             return opt_a
         else:
             return np.zeros(self.A.shape[1])
-    
+
 def LSTDlambda(policy,
            environment,
            gamma,
@@ -156,11 +156,11 @@ def SFLSQ(X_t, r_t, X_tp1, gamma, phi, theta0= None, **args):
 #         index = c_sum > 0.0
 #         data = np.sqrt(c_sum[index])
 #         D = sp.spdiags(1.0/data, 0, data.size, data.size)
-#          
+#
 #         sol = D.dot(sp.linalg.lsmr(A[:,index].dot(D), b, damp=0.01)[0])
 #         theta = np.zeros(A.shape[1])
 #         theta[index] = sol
-        
+
         theta = sp.linalg.lsmr(A, b, damp=0.001)[0]
         if theta0 is not None:
             theta += theta0
@@ -232,7 +232,7 @@ class MLPValueFn(ValueFn):
             else:
                 sa = np.vstack(( self.phi(s,a) for a in self.actions))
                 return self.mlp(sa)
-            
+
 class MLPSparseValueFn(ValueFn):
     def __init__(self, mlp, actions, phi):
         self.mlp = mlp
@@ -250,7 +250,7 @@ class MLPSparseValueFn(ValueFn):
             else:
                 sa = sp.vstack(( self.phi(s,a) for a in self.actions))
                 return self.mlp(sa)
-        
+
 class SklearnValueFn(ValueFn):
     def __init__(self, clf, actions, phi):
         self.clf = clf
@@ -268,7 +268,7 @@ class SklearnValueFn(ValueFn):
             else:
                 sa = np.vstack(( self.phi(s,a) for a in self.actions))
                 return self.clf.predict(sa)
-        
+
 
 class LinearTD(ValueFn):
     def __init__(self,

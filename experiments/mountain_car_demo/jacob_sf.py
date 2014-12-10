@@ -1,5 +1,6 @@
 from rltools.theanotools import Theano_NRBF_Projector,Theano_RBF_Projector
 from rltools.MountainCar import MountainCar, PumpingPolicy
+from rltools.representation import TileCodingDense
 
 from itertools import product
 
@@ -32,8 +33,22 @@ def build_opt(states, rew, phi):
     X = []
     b = []
     for s, r in zip(states, rew):
-        ds = s[1:,:]-s[:-1,:]
-        X.append(phi.getdphids(s[:-1,:], ds))
+        if s.shape[0] > 1:
+            ds = s[1:,:]-s[:-1,:]
+            X.append(phi.getdphids(s[:-1,:], ds))
+        X.append(phi(s[-1]))
+        r = np.array(r)
+        r[-1] *= -1
+        b.append( -r)
+
+    return np.vstack(X), np.hstack(b)
+
+def build_opt_no_joc(states, rew, phi):
+    X = []
+    b = []
+    for s, r in zip(states, rew):
+        if s.shape[0]>1:
+            X.append(phi(s[1:,:]) - phi(s[:-1,:]))
         X.append(phi(s[-1]))
         r = np.array(r)
         r[-1] *= -1
@@ -47,24 +62,62 @@ def build_lsq(states, rew, phi):
     b = []
     for s, r in zip(states, rew):
         X_t.append(s)
-        X_tp1.append(np.vstack((phi(s[1:]), np.zeros((1,phi.size)))))
+        if s.shape[0] > 1:
+            X_tp1.append(np.vstack((phi(s[1:]), np.zeros((1,phi.size)))))
+        else:
+            X_tp1.append(np.zeros((1,phi.size)))
         r = np.array(r)
         b.append(r)
-    X_t = phi(np.vstack(X_t))
+    X_t = np.vstack(X_t)
+    X_t = phi(X_t)
     X_tp1 = np.vstack(X_tp1)
     return X_t.T.dot(X_t - X_tp1), X_t.T.dot(np.hstack(b))
 
-domain = MountainCar(True, 1000)
+domain = MountainCar(False, 1000)
 s_range = domain.state_range
 policy = PumpingPolicy()
 centers = [ [x,y] for x,y in product(np.linspace(s_range[0][0], s_range[1][0], 15, True),
                                      np.linspace(s_range[0][1], s_range[1][1], 15, True))]
+centers *= 2
+centers = np.array(centers)
 widths = (s_range[1]-s_range[0])*0.1
+centers += (np.random.rand(*centers.shape) - 0.5)*widths
 
-phi = Theano_NRBF_Projector(np.array(centers), widths)
+
+
+phi = Theano_RBF_Projector(centers, widths)
+
+phit = TileCodingDense([np.arange(2)],
+                 [10],
+                 [10],
+                 hashing=None,
+                 state_range = s_range,
+                 bias_term=True)
+
+class temp(object):
+    def __init__(self, proj):
+        self.proj = proj
+        self.size = proj.size
+
+    def __call__(self, x):
+        if x.ndim == 1:
+            return phit(x)
+        if x.shape[0] == 1:
+            return phit(x[0,:])
+        if x.shape[0] == 0:
+            return np.zeros(0)
+        else:
+            return  np.vstack((phit(s) for s in x))
+# phi = temp(phit)
 
 print 'generating data...'
-states, rew = generate_data(domain, policy, 100)
+domain.random_start = True
+states, rew = generate_data(domain, policy, 1000)
+
+
+# s2, r2 = generate_data(domain, policy, 2000)
+# states += s2
+# rew += r2
 
 print 'processing and solving...'
 
@@ -72,22 +125,23 @@ rcond = 0.01
 
 # solve SF with jacobian
 X, b = build_opt(states, rew, phi)
-alpha = 0.001
+alpha = 0.0001
 # theta = np.linalg.lstsq(X, b, rcond = rcond)[0]
-# rig = linear_model.RidgeCV(alphas=[0.001, 0.05, 0.01, 0.1])
+# rig = linear_model.RidgeCV(alphas=[0.001, 0.05, 0.01, 0.1, 1], fit_intercept = False)
 rig = linear_model.Ridge(alpha=alpha, fit_intercept = False)
 # rig = linear_model.LinearRegression()
 clf = rig.fit(X, b)
-theta2 = clf.coef_
-theta = linear_model.ridge_regression(X, b, alpha)
+# theta = linear_model.ridge_regression(X, b, alpha)
 # theta = np.linalg.solve((X.T.dot(X) + alpha*np.eye(X.shape[1])), X.T.dot(b))
 
 # solve with LSQ (i.e., LSTD)
 # X,b = build_lsq(states, rew, phi)
+X,b = build_opt_no_joc(states, rew, phi)
 # # theta2 = np.linalg.lstsq(X, b, rcond = rcond)[0]
 # #
-# rig = linear_model.RidgeCV(alphas=[0.001, 0.05, 0.01, 0.1])
-# clf = rig.fit(X, b)
+# rig = linear_model.RidgeCV(alphas=[0.001, 0.05, 0.01, 0.1, 1], fit_intercept = False)
+rig = linear_model.Ridge(alpha=alpha, fit_intercept = False)
+clf2 = rig.fit(X, b)
 # theta2 = clf.coef_
 
 
@@ -97,8 +151,8 @@ xx, yy = meshgrid(np.linspace(s_range[0][0], s_range[1][0], 50, True),
 points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1))))
 
 grid = phi(points)
-val = grid.dot(theta)
-val2 = grid.dot(theta2)
+val = clf.predict(grid) #grid.dot(theta)
+val2 = clf2.predict(grid) #grid.dot(theta2)
 plt.figure()
 plt.contourf(xx, yy, val.reshape((xx.shape[0],-1)))
 for s in (states[:50] if len(states)>50 else states):
@@ -119,11 +173,11 @@ plt.title('LSTD')
 # ax = fig.gca(projection='3d')
 # surf = ax.plot_surface(xx, yy,val.reshape((xx.shape[0],-1)), rstride=1, cstride=1,
 #                        cmap=cm.coolwarm, linewidth=0, antialiased=False)
-# # for s,r in (zip(states[:10], rew[:10]) if len(states)>10 else zip(states,rew)):
-# #     x, y = zip(*s)
-# #     z = -np.cumsum(r)
-# #     z -= z.max()
-# #     plt.plot(x, y, z, 'k', linewidth=2.0, alpha = 0.3)
+# for s,r in (zip(states[:10], rew[:10]) if len(states)>10 else zip(states,rew)):
+#     x, y = zip(*s)
+#     z = -np.cumsum(r)
+#     z -= z.max()
+#     plt.plot(x, y, z, 'k', linewidth=2.0, alpha = 0.3)
 # plt.title('SF')
 #
 # fig = plt.figure()

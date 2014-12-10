@@ -16,7 +16,7 @@ from sklearn import preprocessing
 
 
 class Theano_NRBF_Projector(object):
-    def __init__(self, centers, widths):
+    def __init__(self, centers, widths, bias_term = True):
         self.size = centers.shape[0]
         x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('x')
         centers = centers.T
@@ -34,6 +34,10 @@ class Theano_NRBF_Projector(object):
         dsqr = -(((x - c)/w)**2).sum(axis=1, keepdims=False)
         e_x = T.exp(dsqr - dsqr.min(axis=1, keepdims=True))
         out = e_x / e_x.sum(axis=1, keepdims=True)
+
+        if bias_term:
+            out = T.concatenate((out, T.ones((out.shape[0], 1))), axis=1)
+            self.size += 1
 
         dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dx')
         self.proj = theano.function([x], out)
@@ -57,7 +61,7 @@ class Theano_NRBF_Projector(object):
         return dphids
 
 class Theano_RBF_Projector(object):
-    def __init__(self, centers, widths):
+    def __init__(self, centers, widths, bias_term = True):
         self.size = centers.shape[0]
         x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('x')
         centers = centers.T
@@ -73,11 +77,15 @@ class Theano_RBF_Projector(object):
         c = theano.shared(centers.reshape((1,centers.shape[0], -1)), borrow=False, broadcastable = (True,False, False))
 
         dsqr = -(((x - c)/w)**2).sum(axis=1, keepdims=False)
-        e_x = T.exp(dsqr)
+        out = T.exp(dsqr)
+
+        if bias_term:
+            out = T.concatenate((out, T.ones((out.shape[0], 1))), axis=1)
+            self.size += 1
 
         dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dx')
-        self.proj = theano.function([x], e_x, mode='FAST_RUN')
-        self.doutdx = theano.function([x,dx], T.Rop(e_x, x, dx), mode='FAST_RUN')
+        self.proj = theano.function([x], out)
+        self.doutdx = theano.function([x,dx], T.Rop(out, x, dx))
 
     def __call__(self, state):
         if state.ndim == 1:
@@ -177,13 +185,10 @@ class Theano_Tiling(object):
 
         all_indices = T.concatenate(tilings, axis=1) + index_offset.astype('int')
         if bias_term:
-#             index_offset = np.hstack((index_offset, np.array(self.__size, dtype='uint')))
-#             b = T.TensorConstant(np.array([[self.__size]]))
-#             T.unbroadcast(b, 1)
-            all_indices = T.concatenate((all_indices, np.array([[self.__size]])))
+            all_indices = T.concatenate((all_indices, self.__size*T.ones((out.shape[0], 1))), axis=1)
             self.__size += 1
 
-        self.proj = theano.function([X], all_indices, mode='FAST_RUN')
+        self.proj = theano.function([X], all_indices)
 
     def __call__(self, state):
         if state.ndim == 1:

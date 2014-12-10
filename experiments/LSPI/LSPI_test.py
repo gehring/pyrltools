@@ -65,7 +65,7 @@ class NoAction(object):
             return np.array([self.phi(state)])
         else:
             return self.phi(state)
-gamma = 0.99
+gamma = 1
 
 
 
@@ -131,7 +131,7 @@ agent = LSPI(np.array(actions),
              phi_sa,
              valuefn = blank_valuefn ,
              samples = spsamples,
-             batch_size = 200000,
+             batch_size = 20000,
              iteration_per_batch = 1,
              improve_behaviour = False,
              method = SFLSQ)
