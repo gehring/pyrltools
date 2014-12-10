@@ -17,27 +17,29 @@ from sklearn import preprocessing
 
 class Theano_NRBF_Projector(object):
     def __init__(self, centers, widths):
+        self.size = centers.shape[0]
         x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('x')
         centers = centers.T
         if widths.ndim > 1:
             widths = widths.T
             w = theano.shared(widths.reshape((1,widths.shape[0], -1)),
-                         borrow=False, 
+                         borrow=False,
                          broadcastable = (True,False, False))
         else:
             w = theano.shared(widths.reshape((1,widths.shape[0], -1)),
                          borrow = False,
                          broadcastable = (True,False, True))
         c = theano.shared(centers.reshape((1,centers.shape[0], -1)), borrow=False, broadcastable = (True,False, False))
-        
+
         dsqr = -(((x - c)/w)**2).sum(axis=1, keepdims=False)
         e_x = T.exp(dsqr - dsqr.min(axis=1, keepdims=True))
         out = e_x / e_x.sum(axis=1, keepdims=True)
-        
+
         dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dx')
         self.proj = theano.function([x], out)
         self.doutdx = theano.function([x,dx], T.Rop(out, x, dx))
-        
+
+
     def __call__(self, state):
         if state.ndim == 1:
             state = state.reshape((1,-1))
@@ -45,7 +47,7 @@ class Theano_NRBF_Projector(object):
         else:
             phis = self.proj(state[:,:,None])
         return phis
-     
+
     def getdphids(self, state, ds):
         if ds.ndim == 1:
             ds = ds.reshape((1,-1))
@@ -53,29 +55,30 @@ class Theano_NRBF_Projector(object):
             state = state.reshape((1,-1))
         dphids = self.doutdx(state[:,:,None], ds[:,:,None])
         return dphids
-    
+
 class Theano_RBF_Projector(object):
     def __init__(self, centers, widths):
+        self.size = centers.shape[0]
         x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('x')
         centers = centers.T
         if widths.ndim > 1:
             widths = widths.T
             w = theano.shared(widths.reshape((1,widths.shape[0], -1)),
-                         borrow=False, 
+                         borrow=False,
                          broadcastable = (True,False, False))
         else:
             w = theano.shared(widths.reshape((1,widths.shape[0], -1)),
                          borrow = False,
                          broadcastable = (True,False, True))
         c = theano.shared(centers.reshape((1,centers.shape[0], -1)), borrow=False, broadcastable = (True,False, False))
-        
+
         dsqr = -(((x - c)/w)**2).sum(axis=1, keepdims=False)
         e_x = T.exp(dsqr)
-        
+
         dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dx')
         self.proj = theano.function([x], e_x, mode='FAST_RUN')
         self.doutdx = theano.function([x,dx], T.Rop(e_x, x, dx), mode='FAST_RUN')
-        
+
     def __call__(self, state):
         if state.ndim == 1:
             state = state.reshape((1,-1))
@@ -83,7 +86,7 @@ class Theano_RBF_Projector(object):
         else:
             phis = self.proj(state[:,:,None])
         return phis
-     
+
     def getdphids(self, state, ds):
         if ds.ndim == 1:
             ds = ds.reshape((1,-1))
@@ -91,7 +94,7 @@ class Theano_RBF_Projector(object):
             state = state.reshape((1,-1))
         dphids = self.doutdx(state[:,:,None], ds[:,:,None])
         return dphids
-    
+
 def sym_tiling_index(X,
                      input_index,
                      ntiles,
@@ -101,22 +104,22 @@ def sym_tiling_index(X,
                      hashing = None):
         s_range = [state_range[0][input_index].copy(), state_range[1][input_index].copy()]
         s_range[0] -= (s_range[1]-s_range[0])/(ntiles-1)
-        
+
         if isinstance(ntiles, int):
             ntiles = np.array([ntiles]*len(input_index), dtype='uint')
-        
+
         if offset == None:
             offset = np.empty((ntiles.shape[0], ntilings))
             for i in xrange(ntiles.shape[0]):
                 offset[i,:] = -np.linspace(0, 1.0/ntiles[i], ntilings, False);
         if hashing == None:
             hashing = Theano_IdentityHash(ntiles)
-            
+
         input_index = np.array(input_index, dtype='uint')
         size = ntilings*(hashing.memory)
         index_offset = (hashing.memory * np.arange(ntilings)).astype('int')
-        
-        
+
+
         nX = (X[:,input_index,:] - s_range[0][None,:,None])/(s_range[1]-s_range[0])[None,:,None]
         indices = T.cast(((offset[None,:,:] + nX)*ntiles[None,:,None]), 'int32')
         hashed_index = hashing.getHashedFunction(indices) + index_offset[None,:]
@@ -126,11 +129,11 @@ class Theano_IdentityHash(object):
     def __init__(self, dims):
         self.dims = dims
         self.memory = np.prod(dims)
-        
+
     def getHashedFunction(self, indices):
         dims = np.cumprod(np.hstack(([1],self.dims[:0:-1]))).astype('int')[None,::-1,None]
         return T.sum(indices*dims, axis=1, keepdims = False)
-    
+
 class Theano_UNH(object):
     increment = 470
     def __init__(self, input_size, memory):
@@ -141,7 +144,7 @@ class Theano_UNH(object):
             self.rndseq = self.rndseq << 8 | np.random.random_integers(np.iinfo('int16').min,
                                                                        np.iinfo('int16').max,
                                                                        16384) & 0xff
-                                                                       
+
     def getHashedFunction(self, indices):
         rnd_seq = theano.shared(self.rndseq, borrow=False)
         a = self.increment*np.arange(self.input_size)
@@ -149,7 +152,7 @@ class Theano_UNH(object):
         index = index - (T.cast(index, 'int64')/self.rndseq.size)*self.rndseq.size
         hashed_index = T.cast(T.sum(rnd_seq[index], axis=1, keepdims = False), 'int64')
         return hashed_index - (hashed_index/(int(self.memory)))*int(self.memory)
-        
+
 
 class Theano_Tiling(object):
     def __init__(self,
@@ -165,7 +168,7 @@ class Theano_Tiling(object):
         X.tag.test_value = numpy.random.rand(1, 2,1).astype('float32')
         tilings, sizes = zip(*[sym_tiling_index(X, in_index, nt, t, state_range, hashing = h,)
                    for in_index, nt, t, h in zip(input_indicies, ntiles, ntilings, hashing)])
-        
+
         self.__size = int(sum(sizes))
         index_offset = np.zeros(len(ntilings), dtype = 'int')
         index_offset[1:] = np.cumsum(sizes)
@@ -179,9 +182,9 @@ class Theano_Tiling(object):
 #             T.unbroadcast(b, 1)
             all_indices = T.concatenate((all_indices, np.array([[self.__size]])))
             self.__size += 1
-            
+
         self.proj = theano.function([X], all_indices, mode='FAST_RUN')
-    
+
     def __call__(self, state):
         if state.ndim == 1:
 #             state = state.reshape((1,-1,1))
@@ -189,12 +192,12 @@ class Theano_Tiling(object):
         else:
             phi = self.proj(state[:,:,None])
         return phi
-        
+
     @property
     def size(self):
         return self.__size
-    
-    
+
+
 class HiddenLayer(object):
     def __init__(self, rng, input, n_in, n_out, W=None, b=None,
                  activation=T.tanh):
@@ -258,7 +261,7 @@ class HiddenLayer(object):
 
         self.W = W
         self.b = b
-#         
+#
 #         W.tag.test_value = W.get_value()
 #         b.tag.test_value = b.get_value()
 #         input.tag.test_value = np.random.rand(60, n_in).astype(theano.config.floatX)
@@ -318,7 +321,7 @@ class MLP(object):
                 n_out=n_hidden,
                 activation=T.tanh
             )
-    
+
             # The logistic regression layer gets as input the hidden units
             # of the hidden layer
             self.outputlayer = HiddenLayer(
@@ -335,14 +338,14 @@ class MLP(object):
                 abs(self.hiddenLayer.W).sum()
                 + abs(self.outputlayer.W).sum()
             )
-    
+
             # square of L2 norm ; one regularization option is to enforce
             # square of L2 norm to be small
             self.L2_sqr = (
                 (self.hiddenLayer.W ** 2).sum()
                 + (self.outputlayer.W ** 2).sum()
             )
-    
+
             # the parameters of the model are the parameters of the two layer it is
             # made out of
             self.params = self.hiddenLayer.params + self.outputlayer.params
@@ -377,32 +380,32 @@ class MLP(object):
                 sum([ abs(h.W).sum() for h in self.hiddenLayer])
                 + abs(self.outputlayer.W).sum()
             )
-    
+
             # square of L2 norm ; one regularization option is to enforce
             # square of L2 norm to be small
             self.L2_sqr = (
                 sum([ (h.W ** 2).sum() for h in self.hiddenLayer])
                 + (self.outputlayer.W ** 2).sum()
             )
-    
+
             # the parameters of the model are the parameters of the two layer it is
             # made out of
             self.params = list(chain(*[h.params for h in self.hiddenLayer])) + self.outputlayer.params
-                
-       
-        
+
+
+
         self.output = self.outputlayer.output
-        
+
     def L2cost(self, y):
         err = self.output[:,0] - y
         return T.mean((err*err))
-    
+
     def getf(self, x):
         return theano.function([x], self.output)
 
-def MLPregression(learning_rate, 
-                    mlp, 
-                    l2_coeff, 
+def MLPregression(learning_rate,
+                    mlp,
+                    l2_coeff,
                     l1_coeff,
                     samples,
                     target,
@@ -414,12 +417,12 @@ def MLPregression(learning_rate,
                     patience = 10000,
                     patience_increase = 2,
                     improvement_thresh = 0.995):
-             
-    
-    
+
+
+
     train_samples, test_samples, train_target, test_target = \
-        sklearn.cross_validation.train_test_split(samples, 
-                                              target, 
+        sklearn.cross_validation.train_test_split(samples,
+                                              target,
                                               test_size = validate_ratio,
                                               random_state = rng
                                               )
@@ -427,19 +430,19 @@ def MLPregression(learning_rate,
     test_samples = theano.shared(test_samples.astype(theano.config.floatX),borrow = False)
     train_target = theano.shared(train_target.astype(theano.config.floatX),borrow = False)
     test_target = theano.shared(test_target.astype(theano.config.floatX),borrow = False)
-    
-    
+
+
     n_train_batches = train_samples.get_value(borrow=True).shape[0] / batch_size
     n_test_batches = test_samples.get_value(borrow=True).shape[0] / batch_size
-    
+
     x = mlp.input
     y = T.fvector('y')
 #     y.tag.test_value = numpy.random.rand(batch_size*2).astype(theano.config.floatX)
     index = T.lscalar()
     index.tag.test_value = 0
-    
+
     cost = (mlp.L2cost(y) + mlp.L1*l1_coeff + mlp.L2_sqr*l2_coeff)
-    
+
     test_model = theano.function(
             inputs=[index],
             outputs=mlp.L2cost(y),
@@ -450,10 +453,10 @@ def MLPregression(learning_rate,
         )
 
     gparams = [T.grad(cost, param) for param in mlp.params]
-    
+
     updates = [ (param, param - learning_rate * gparam)
                     for (param, gparam) in zip(mlp.params, gparams)]
-    
+
     train_model = theano.function(
         inputs = [index],
         outputs = cost,
@@ -463,38 +466,38 @@ def MLPregression(learning_rate,
             y: train_target[index * batch_size:(index + 1) * batch_size]
             }
         )
-    
+
     epoch = 0
     count = 0
 
     best_val = numpy.inf
-    
+
     best_params = [ p.get_value(borrow = False) for p in mlp.params]
     done_train = False
-    
+
 #     start_time = time.clock()
     while epoch < n_epochs and (not done_train):
         epoch += 1
         for minibatch_index in xrange(n_train_batches):
             minibatch_cost = train_model(minibatch_index)
-            
+
             if count %validation_freq == 0:
                 val_cost = np.mean([test_model(i) for i in xrange(n_test_batches)])
-                
+
                 if val_cost < best_val:
                     if val_cost < best_val*improvement_thresh:
                         patience = max(patience, count*patience_increase)
                     best_val = val_cost
 #                     print best_val
                     best_params = [ p.get_value(borrow = False) for p in mlp.params]
-                    
-                    
+
+
             # number of minibatches seen
             count += 1
-            
+
             # termination condition
             done_train = patience <= count
-    
+
 #     end_time = time.clock()
 #     print 'Time taken for opt: ' + str(end_time - start_time) + 's'
     for p, best_p in zip(mlp.params, best_params):
@@ -507,9 +510,9 @@ def MLPregression(learning_rate,
     test_target.set_value([])
     return mlp.getf(x)
 
-def MLPSparseRegression(learning_rate, 
-                    mlp, 
-                    l2_coeff, 
+def MLPSparseRegression(learning_rate,
+                    mlp,
+                    l2_coeff,
                     l1_coeff,
                     samples,
                     target,
@@ -521,13 +524,13 @@ def MLPSparseRegression(learning_rate,
                     patience = 10000,
                     patience_increase = 2,
                     improvement_thresh = 0.995):
-             
+
     scaler = preprocessing.StandardScaler.fit(samples)
     samples = scaler.transform(samples)
-    
+
     train_samples, test_samples, train_target, test_target = \
-        sklearn.cross_validation.train_test_split(samples, 
-                                              target, 
+        sklearn.cross_validation.train_test_split(samples,
+                                              target,
                                               test_size = validate_ratio,
                                               random_state = rng
                                               )
@@ -535,19 +538,19 @@ def MLPSparseRegression(learning_rate,
     test_samples = theano.sparse.shared(test_samples.astype(theano.config.floatX),borrow = False)
     train_target = theano.shared(train_target.astype(theano.config.floatX),borrow = False)
     test_target = theano.shared(test_target.astype(theano.config.floatX),borrow = False)
-    
-    
+
+
     n_train_batches = train_samples.get_value(borrow=True).shape[0] / batch_size
     n_test_batches = test_samples.get_value(borrow=True).shape[0] / batch_size
-    
+
     x = mlp.input
     y = T.fvector('y')
 #     y.tag.test_value = numpy.random.rand(batch_size*2).astype(theano.config.floatX)
     index = T.lscalar()
     index.tag.test_value = 0
-    
+
     cost = (mlp.L2cost(y) + mlp.L1*l1_coeff + mlp.L2_sqr*l2_coeff)
-    
+
     test_model = theano.function(
             inputs=[index],
             outputs=mlp.L2cost(y),
@@ -558,10 +561,10 @@ def MLPSparseRegression(learning_rate,
         )
 
     gparams = [T.grad(cost, param) for param in mlp.params]
-    
+
     updates = [ (param, param - learning_rate * gparam)
                     for (param, gparam) in zip(mlp.params, gparams)]
-    
+
     train_model = theano.function(
         inputs = [index],
         outputs = cost,
@@ -571,38 +574,38 @@ def MLPSparseRegression(learning_rate,
             y: train_target[index * batch_size:(index + 1) * batch_size]
             }
         )
-    
+
     epoch = 0
     count = 0
 
     best_val = numpy.inf
-    
+
     best_params = [ p.get_value(borrow = False) for p in mlp.params]
     done_train = False
-    
+
 #     start_time = time.clock()
     while epoch < n_epochs and (not done_train):
         epoch += 1
         for minibatch_index in xrange(n_train_batches):
             minibatch_cost = train_model(minibatch_index)
-            
+
             if count %validation_freq == 0:
                 val_cost = np.mean([test_model(i) for i in xrange(n_test_batches)])
-                
+
                 if val_cost < best_val:
                     if val_cost < best_val*improvement_thresh:
                         patience = max(patience, count*patience_increase)
                     best_val = val_cost
 #                     print best_val
                     best_params = [ p.get_value(borrow = False) for p in mlp.params]
-                    
-                    
+
+
             # number of minibatches seen
             count += 1
-            
+
             # termination condition
             done_train = patience <= count
-    
+
 #     end_time = time.clock()
 #     print 'Time taken for opt: ' + str(end_time - start_time) + 's'
     for p, best_p in zip(mlp.params, best_params):
@@ -616,10 +619,10 @@ def MLPSparseRegression(learning_rate,
     return lambda x: mlp.getf(scaler.transform(x))
 
 
-def MLPfit(learning_rate, 
+def MLPfit(learning_rate,
             n_hidden,
-            rng, 
-            l2_coeff, 
+            rng,
+            l2_coeff,
             l1_coeff,
             samples,
             target,
@@ -632,30 +635,30 @@ def MLPfit(learning_rate,
             improvement_thresh = 0.995):
     x = T.matrix('x')
 #     x.tag.test_value =  numpy.random.rand(batch_size*2,samples.shape[1]).astype(theano.config.floatX)
-    mlp = MLP(rng, 
+    mlp = MLP(rng,
               x,
-              samples.shape[1], 
-              n_hidden, 
+              samples.shape[1],
+              n_hidden,
               1)
-    return MLPregression(learning_rate, 
-                         mlp, 
-                         l2_coeff, 
-                         l1_coeff, 
-                         samples, 
-                         target, 
-                         batch_size, 
-                         validate_ratio, 
-                         rng, 
-                         n_epochs, 
-                         validation_freq, 
-                         patience, 
-                         patience_increase, 
+    return MLPregression(learning_rate,
+                         mlp,
+                         l2_coeff,
+                         l1_coeff,
+                         samples,
+                         target,
+                         batch_size,
+                         validate_ratio,
+                         rng,
+                         n_epochs,
+                         validation_freq,
+                         patience,
+                         patience_increase,
                          improvement_thresh)
-    
-def MLPSparsefit(learning_rate, 
+
+def MLPSparsefit(learning_rate,
             n_hidden,
-            rng, 
-            l2_coeff, 
+            rng,
+            l2_coeff,
             l1_coeff,
             samples,
             target,
@@ -668,27 +671,26 @@ def MLPSparsefit(learning_rate,
             improvement_thresh = 0.995):
     x = theano.sparse.matrix('x')
 #     x.tag.test_value =  numpy.random.rand(batch_size*2,samples.shape[1]).astype(theano.config.floatX)
-    mlp = MLP(rng, 
+    mlp = MLP(rng,
               x,
-              samples.shape[1], 
-              n_hidden, 
+              samples.shape[1],
+              n_hidden,
               1)
-    return MLPregression(learning_rate, 
-                         mlp, 
-                         l2_coeff, 
-                         l1_coeff, 
-                         samples, 
-                         target, 
-                         batch_size, 
-                         validate_ratio, 
-                         rng, 
-                         n_epochs, 
-                         validation_freq, 
-                         patience, 
-                         patience_increase, 
+    return MLPregression(learning_rate,
+                         mlp,
+                         l2_coeff,
+                         l1_coeff,
+                         samples,
+                         target,
+                         batch_size,
+                         validate_ratio,
+                         rng,
+                         n_epochs,
+                         validation_freq,
+                         patience,
+                         patience_increase,
                          improvement_thresh)
 
 
 
-                
-    
+

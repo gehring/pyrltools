@@ -135,7 +135,7 @@ class Acrobot(object):
         U = -self.m1*self.g*self.lc1*c - self.m2*self.g*(self.l1*c +
                                                          self.lc2*np.cos(q[0] + q[1]))
         return 0.5* q[2:].dot(H.dot(q[2:])) + U
-    
+
     def get_dG(self, q):
         g = self.g
         m1 = self.m1
@@ -177,7 +177,7 @@ class Acrobot(object):
     @property
     def action_dim(self):
         return len(self.action_range[0])
-    
+
 def angle_range_check( a, b, x):
     a = np.mod(a, 2*np.pi)
     b = np.mod(b, 2*np.pi)
@@ -185,8 +185,8 @@ def angle_range_check( a, b, x):
     return np.mod(x-a, 2*np.pi)<=theta_bar
 
 def compute_acrobot_from_data(q,
-                              qdot, 
-                              qdotdot, 
+                              qdot,
+                              qdotdot,
                               y,
                               random_start = False,
                               max_episode = 1000,
@@ -195,24 +195,24 @@ def compute_acrobot_from_data(q,
     # we must use sin
     c = np.cos(q)
     c12 = np.sin(np.sum(q, axis=1))
-     
+
     c1 = np.sin(q[:,0])
     c2 = c[:,1]
     s2 = np.sin(q[:,1])
-    
+
 #     c = np.cos(q)
 #     c12 = np.cos(np.sum(q, axis=1))
-#     
+#
 #     c1 = c[:,0]
 #     c2 = c[:,1]
 #     s2 = np.sin(q[:,1])
-    
-    
+
+
     qd1 = qdot[:,0]
     qd2 = qdot[:,1]
     qdd1 = qdotdot[:,0]
     qdd2 = qdotdot[:,1]
-    
+
     u = np.empty((q.shape[0], 7))
     u[:,0] = qdd1
     u[:,1] = 3*c2*qdd1 + s2*qd1**2 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
@@ -220,15 +220,15 @@ def compute_acrobot_from_data(q,
     u[:,3] = c1
     u[:,4] = c12*2
     u[:,5:] = qdot
-    
+
     a = np.linalg.lstsq(u, y)[0]
     return Acobot_from_data(a,
                             random_start,
                             max_episode,
                             start_sampler)
-    
-    
-    
+
+
+
 
 class Acobot_from_data(Acrobot):
     def __init__(self,
@@ -242,47 +242,47 @@ class Acobot_from_data(Acrobot):
                                                start_sampler = start_sampler,
                                                **argk)
         self.a = a
-        
+
     def get_manipulator(self, q):
         # changed cos to sin since theta1 = 0 is not a the same place
         c1 = np.sin(q[0])
         c12 = np.sin(q[0]+q[1])
-        
+
         c2 = np.cos(q[1])
         s2 = np.sin(q[1])
-        
+
         a = self.a
-        
+
         aa = a[0] + a[1]*2*c2
         b = a[1]*c2 + a[2]
         d = a[2]
         H= np.array(((aa, b),
                      (b, d)))
-        
+
 #         C= np.array(((-2*a[1]*s2*q[3], -a[1]*q[3]),
 #                      (2*a[1]*s2*q[3], 0))
 #                     )
-        
+
         C= np.array(((a[5]-2*a[1]*s2*q[3], -a[1]*s2*q[3]),
                      (a[1]*s2*q[2], a[6]))
                     )
-        
+
         G = np.array((a[3]*c1 + a[4]*c12, a[4]*c12))
-    
+
         B = np.array((0, 1))
         return (H, C, G, B)
-    
+
     def get_E(self, q):
         H, C, G, B = self.get_manipulator(q)
         c = np.cos(q[0])
         U = -self.a[3]*c - self.a[4]*np.cos(np.sum(q[:2]))
         return 0.5* q[2:].dot(H.dot(q[2:])) + U
-    
+
     def get_dG(self, q):
         dG = np.array([(-self.a[3] - self.a[4], -self.a[4]),
                        (-self.a[4], -self.a[4])])
         return dG
-    
+
 
 class Acrobot_energyshaping(object):
     desired_pos = np.array([np.pi,0,0,0])
@@ -304,7 +304,7 @@ class Acrobot_energyshaping(object):
 #         a2 = -(H[0,1]*detinv)
 #         e_tilde = (self.acrobot.get_E(q) - self.Ed)
 #         q2wrapped = np.remainder(q[1]+np.pi, np.pi*2) - np.pi
-# 
+#
 #         y=-self.k1*q2wrapped - self.k2*q[3]
 #         u = y/a3 + a2*C[0]/a3 + C[1] - self.k3*e_tilde*q[3]
         Ed = self.Ed
@@ -326,7 +326,7 @@ class Acrobot_PD(object):
         self.k1 = k1
         self.k2 =k2
         self.alpha = alpha
-        
+
     def __call__(self, q):
         q2d = 2*self.alpha/np.pi * np.arctan(q[2])
         u = self.k1*(q2d - q[1]) - self.k2*q[1]
@@ -383,8 +383,8 @@ class Acrobot_LQR(object):
 class Acrobot_LQR_enerygyshaping(object):
     def __init__(self,
                  acrobot,
-                 k1=1.14, 
-                 k2=3.2, 
+                 k1=1.14,
+                 k2=3.2,
                  k3=1.1,
                  Q = None,
                  R = None,
@@ -405,49 +405,49 @@ class Acrobot_LQR_enerygyshaping(object):
             return self.lqr(q)
         else:
             return self.energyshaping(q)
-        
+
 def get_trajectories(acrobot,
                      number = 1,
                      length = 100,
                      controller = None):
     if controller is None:
         controller = acrobot.get_swingup_policy()
-    
-    
+
+
     traj = []
     for i in xrange(number):
         acrobot.reset()
-        
+
         u = controller(acrobot.state)
         steps = [(acrobot.state, u)]
-        
+
         for j in xrange(length):
-            
+
             acrobot.step(u)
             u = np.clip(controller(acrobot.state), *acrobot.action_range)
-            
+
             steps.append((acrobot.state, u))
-            
+
         traj.append(steps)
-        
+
     states = [np.vstack(zip(*t)[0]) for t in traj]
     torques = [np.hstack(zip(*t)[1]) for t in traj]
     return (states, torques) if number > 1 else (states[0], torques[0])
 
 def get_qs_from_traj(states, torques, dt):
     if isinstance(states, list):
-        qdd = np.vstack([ (s[1:,2:] - s[:-1,2:])/dt for s in states])
-        qd = np.vstack([ s[1:,2:] for s in states])
-        q = np.vstack([ s[1:,:2] for s in states])
-        y = np.hstack([ t[1:] for t in torques])
+        qdd = np.vstack([ (s[2:,2:] - s[:-2,2:])/(2*dt) for s in states])
+        qd = np.vstack([ s[1:-1,2:] for s in states])
+        q = np.vstack([ s[1:-1,:2] for s in states])
+        y = np.hstack([ t[1:-1] for t in torques])
     else:
-        qdd = (states[1:,2:] - states[:-1,2:])/dt
-        qd = states[1:,2:]
-        q = states[1:,:2]
-        y = torques[1:]
-        
+        qdd = (states[2:,2:] - states[:-2,2:])/(2*dt)
+        qd = states[1:-1,2:]
+        q = states[1:-1,:2]
+        y = torques[1:-1]
+
     return q, qd, qdd, y
-    
+
 
 
 
