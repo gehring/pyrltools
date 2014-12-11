@@ -85,7 +85,7 @@ centers += (np.random.rand(*centers.shape) - 0.5)*widths
 
 
 
-phi = Theano_RBF_Projector(centers, widths)
+phi = Theano_NRBF_Projector(centers, widths)
 
 phit = TileCodingDense([np.arange(2)],
                  [10],
@@ -111,13 +111,13 @@ class temp(object):
 # phi = temp(phit)
 
 print 'generating data...'
+domain.random_start = False
+states, rew = generate_data(domain, policy, 1)
+
 domain.random_start = True
-states, rew = generate_data(domain, policy, 1000)
-
-
-# s2, r2 = generate_data(domain, policy, 2000)
-# states += s2
-# rew += r2
+s2, r2 = generate_data(domain, policy, 3)
+states += s2
+rew += r2
 
 print 'processing and solving...'
 
@@ -135,8 +135,8 @@ clf = rig.fit(X, b)
 # theta = np.linalg.solve((X.T.dot(X) + alpha*np.eye(X.shape[1])), X.T.dot(b))
 
 # solve with LSQ (i.e., LSTD)
-# X,b = build_lsq(states, rew, phi)
-X,b = build_opt_no_joc(states, rew, phi)
+X,b = build_lsq(states, rew, phi)
+# X,b = build_opt_no_joc(states, rew, phi)
 # # theta2 = np.linalg.lstsq(X, b, rcond = rcond)[0]
 # #
 # rig = linear_model.RidgeCV(alphas=[0.001, 0.05, 0.01, 0.1, 1], fit_intercept = False)

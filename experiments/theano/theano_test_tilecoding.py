@@ -9,7 +9,7 @@ from rltools.representation import TileCoding, UNH
 import numpy as np
 import timeit
 
-dim = 100
+dim = 4
 k = 1000
 
 indices = [np.arange(dim)]
@@ -21,8 +21,8 @@ tunh = Theano_UNH(dim, 1000)
 unh = UNH(1000)
 unh.rndseq = tunh.rndseq.copy()
 
-phi1 =Theano_Tiling(indices, ntiles, ntilings, [tunh], s_range, False)
-phi2 = TileCoding(indices, ntiles, ntilings, [unh], s_range, False)
+phi1 =Theano_Tiling(indices, ntiles, ntilings, None, s_range, True)
+phi2 = TileCoding(indices, ntiles, ntilings, None, s_range, True)
 
 x = np.random.rand(dim).astype('float32')
 X = np.random.rand(k,dim).astype('float32')

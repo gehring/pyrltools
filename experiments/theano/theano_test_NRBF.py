@@ -1,5 +1,5 @@
 import theano
-from rltools.theanotools import Theano_NRBF_Projector
+from rltools.theanotools import Theano_RBF_Projector
 from rltools.representation import NRBFCoding
 import numpy as np
 
@@ -7,21 +7,23 @@ import timeit
 
 dim = 20
 n_rbf = 1000
-k = 10000
+k = 100
 
 c = np.random.rand(n_rbf,dim).astype('float32')
 w = (np.random.rand(n_rbf,dim)+ 0.1).astype('float32')
 
-rbf= Theano_NRBF_Projector(c, w)
+rbf= Theano_RBF_Projector(c, w, normalized = True)
 phi = NRBFCoding(w,c)
 
 
 
 testd1 = np.random.rand(k, dim).astype(theano.config.floatX)
 testd2 = np.random.rand(k, dim).astype(theano.config.floatX)
-# r1, r2 = rbf( testd), phi(testd)
-# print np.allclose(r1, r2)
-# print (r1-r2)[(np.abs(r1-r2) > 0.00001).nonzero()]
+
+p1= phi(testd1)
+r1, r2 = rbf( testd1), np.hstack((p1, np.ones((p1.shape[0],1))))
+print np.allclose(r1, r2)
+print (r1-r2)[(np.abs(r1-r2) > 0.00001).nonzero()]
 
 
 def test1():

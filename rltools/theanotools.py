@@ -15,10 +15,8 @@ import sklearn.cross_validation
 from sklearn import preprocessing
 
 
-class Theano_NRBF_Projector(object):
-    def __init__(self, centers, widths, bias_term = True):
-        self.size = centers.shape[0]
-        x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('x')
+def sym_NRBF(x, wrt, dx, centers, widths, bias_term):
+        size = centers.shape[0]
         centers = centers.T
         if widths.ndim > 1:
             widths = widths.T
@@ -37,33 +35,11 @@ class Theano_NRBF_Projector(object):
 
         if bias_term:
             out = T.concatenate((out, T.ones((out.shape[0], 1))), axis=1)
-            self.size += 1
-
-        dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dx')
-        self.proj = theano.function([x], out)
-        self.doutdx = theano.function([x,dx], T.Rop(out, x, dx))
-
-
-    def __call__(self, state):
-        if state.ndim == 1:
-            state = state.reshape((1,-1))
-            phis = self.proj(state[:,:,None])[0,:]
-        else:
-            phis = self.proj(state[:,:,None])
-        return phis
-
-    def getdphids(self, state, ds):
-        if ds.ndim == 1:
-            ds = ds.reshape((1,-1))
-        if state.ndim == 1:
-            state = state.reshape((1,-1))
-        dphids = self.doutdx(state[:,:,None], ds[:,:,None])
-        return dphids
-
-class Theano_RBF_Projector(object):
-    def __init__(self, centers, widths, bias_term = True):
-        self.size = centers.shape[0]
-        x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('x')
+            size += 1
+        return out, T.Rop(out, wrt, dx), size
+    
+def sym_RBF(x, wrt, dx, centers, widths, bias_term):
+        size = centers.shape[0]
         centers = centers.T
         if widths.ndim > 1:
             widths = widths.T
@@ -81,16 +57,63 @@ class Theano_RBF_Projector(object):
 
         if bias_term:
             out = T.concatenate((out, T.ones((out.shape[0], 1))), axis=1)
-            self.size += 1
+            size += 1
+        return out, T.Rop(out, wrt, dx), size
+    
+class Theano_RBF_stateaction(object):
+    def __init__(self, centers, widths, bias_term = True, normalized = False):
+        S = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('S')
+        A = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('A')
+        X = T.concatenate((S,A), axis=1)
+        dS = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dS')
+        
+        if normalized:
+            out, dout, self.size = sym_NRBF(X, S, dS, centers, widths, bias_term)
+        else:
+            out, dout, self.size = sym_RBF(X, S, dS, centers, widths, bias_term)
+            
+        self.proj = theano.function([S, A], out, allow_input_downcast=True)
+        self.doutdx = theano.function([S, A, dS], dout, allow_input_downcast=True)
 
+
+    def __call__(self, S, A):
+        if S.ndim == 1:
+            S = S.reshape((1,-1))
+            if A.ndim == 1:
+                A = A.reshape((1,-1))
+            else:
+                S = np.repeat(S, A.shape[0], axis=0)
+        phis = self.proj(S[:,:,None], A[:,:,None])
+        return phis
+
+    def getdphids(self, S, A, dS):
+        if dS.ndim == 1:
+            dS = dS.reshape((1,-1))
+        if S.ndim == 1:
+            S = S.reshape((1,-1))
+            if A.ndim == 1:
+                A = A.reshape((1,-1))
+            else:
+                S = np.repeat(S, A.shape[0], axis=0)
+        dphids = self.doutdx(S[:,:,None], A[:,:,None], dS[:,:,None])
+        return dphids
+    
+class Theano_RBF_Projector(object):
+    def __init__(self, centers, widths, bias_term = True, normalized = False):
+        x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('x')
         dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dx')
-        self.proj = theano.function([x], out)
-        self.doutdx = theano.function([x,dx], T.Rop(out, x, dx))
+        
+        if normalized:
+            out, dout, self.size = sym_NRBF(x, x, dx, centers, widths, bias_term)
+        else:
+            out, dout, self.size = sym_RBF(x, x, dx, centers, widths, bias_term)
+        self.proj = theano.function([x], out, allow_input_downcast=True)
+        self.doutdx = theano.function([x,dx], dout, allow_input_downcast=True)
+
 
     def __call__(self, state):
         if state.ndim == 1:
-            state = state.reshape((1,-1))
-            phis = self.proj(state[:,:,None])[0,:]
+            phis = self.proj(state[None,:,None])[0,:]
         else:
             phis = self.proj(state[:,:,None])
         return phis
@@ -185,7 +208,7 @@ class Theano_Tiling(object):
 
         all_indices = T.concatenate(tilings, axis=1) + index_offset.astype('int')
         if bias_term:
-            all_indices = T.concatenate((all_indices, self.__size*T.ones((out.shape[0], 1))), axis=1)
+            all_indices = T.concatenate((all_indices, self.__size*T.ones((all_indices.shape[0], 1))), axis=1)
             self.__size += 1
 
         self.proj = theano.function([X], all_indices)
@@ -201,6 +224,8 @@ class Theano_Tiling(object):
     @property
     def size(self):
         return self.__size
+
+
 
 
 class HiddenLayer(object):
