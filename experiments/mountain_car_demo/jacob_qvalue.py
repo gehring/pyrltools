@@ -130,7 +130,7 @@ print 'optimizing...'
 theta = linear_model.ridge_regression(X, b, alpha)
 
 
-for i in range(100):
+for i in range(200):
     fn = Valuefn(actions, theta, phi)
     X,b = build_opt(*data, phi=phi, fn=fn, t=0.1)
 #     X,b = build_opt_filter(*data, phi=phi, valuefn=fn)

@@ -36,11 +36,15 @@ class GridWorld(object):
             next_state = self.state.copy()
         self.step_count += 1
 
-        return self.reward(prev_state, action), next_state
+        return self.reward(prev_state, action, next_state), next_state
 
     def reset(self):
         if self.random_start:
             self.state = np.array([np.random.randint(self.start_range[0][0], self.start_range[1][0]),
+                             np.random.randint(self.start_range[0][1], self.start_range[1][1])],
+                                  dtype= 'int32')
+            while not self.islegal(self.state):
+                self.state = np.array([np.random.randint(self.start_range[0][0], self.start_range[1][0]),
                              np.random.randint(self.start_range[0][1], self.start_range[1][1])],
                                   dtype= 'int32')
         else:
@@ -79,5 +83,6 @@ class obstacle_condition(object):
         self.obstacle = obstacle
 
     def __call__(self, state):
-        return not state in self.obstacle
+        state = tuple(state.astype('int'))
+        return not (state in self.obstacle)
 
