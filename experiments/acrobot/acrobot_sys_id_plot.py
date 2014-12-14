@@ -18,12 +18,12 @@ domain.action_range = [np.array([-10]), np.array([10])]
 
 print 'generating trajectories...'
 controller = lambda q: np.random.rand()*20-10
-states, torques = get_trajectories(domain, 1, 20000, controller = controller)
+states, torques = get_trajectories(domain, 1, 1000, controller = controller)
 q, qd, qdd, y = get_qs_from_traj(states, torques, domain.dt[-1])
 # qdd = np.vstack((domain.state_dot(np.hstack((q[i,:], qd[i,:])), 0, y[i])[2:] for i in xrange(q.shape[0])))
 a_list = []
 
-indices = range(4000,20001,2000)
+indices = range(100,1001,100)
 for i in indices:
     id_domain = compute_acrobot_from_data(q[:i,:], qd[:i,:], qdd[:i,:], y[:i], random_start = False)
     a_list.append(id_domain.a)

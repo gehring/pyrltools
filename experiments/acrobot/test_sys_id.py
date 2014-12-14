@@ -12,24 +12,45 @@ def get_U_matrix(q,
                   y):
     c = np.cos(q)
     c12 = np.sin(np.sum(q, axis=1))
-     
+
     c1 = np.sin(q[:,0])
     c2 = c[:,1]
     s2 = np.sin(q[:,1])
-    
-    
+
+#     c = np.cos(q)
+#     c12 = np.cos(np.sum(q, axis=1))
+#
+#     c1 = c[:,0]
+#     c2 = c[:,1]
+#     s2 = np.sin(q[:,1])
+
+
     qd1 = qdot[:,0]
     qd2 = qdot[:,1]
     qdd1 = qdotdot[:,0]
     qdd2 = qdotdot[:,1]
+
+#     u = np.empty((q.shape[0], 7))
+#     u[:,0] = qdd1
+#     u[:,1] = 3*c2*qdd1 + s2*qd1**2 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
+#     u[:,2] = 2*qdd2 + qdd1
+#     u[:,3] = c1
+#     u[:,4] = c12*2
+#     u[:,5:] = qdot
+
+    n= q.shape[0]
+    u = np.zeros((n*2, 7))
+    u[:n,0] = qdd1
+    u[:n,1] = 2*c2*qdd1 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
+    u[:n,2] = qdd2
+    u[:n,3] = c1
+    u[:n,4] = c12
+    u[:n,5] = qd1
     
-    u = np.empty((q.shape[0], 7))
-    u[:,0] = qdd1
-    u[:,1] = 3*c2*qdd1 + s2*qd1**2 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
-    u[:,2] = 2*qdd2 + qdd1
-    u[:,3] = c1
-    u[:,4] = c12*2
-    u[:,5:] = qdot
+    u[n:,1] = c2*qdd1 + s2*qd1**2
+    u[n:,2] = qdd2 + qdd1
+    u[n:,4] = c12
+    u[n:,6] = qd2
     return u
 
 domain = Acrobot(random_start = False, 
@@ -50,9 +71,9 @@ c.energyshaping.k2 = 1.0
 c.energyshaping.k3 = 0.1
 alph =0.0
 controller = lambda q: alph*c(q) + (1-alph)*np.random.rand()*20-10
-states, torques = get_trajectories(domain, 1, 10000, controller = controller)
+states, torques = get_trajectories(domain, 1, 2000, controller = controller)
 q, qd, qdd, y = get_qs_from_traj(states, torques, domain.dt[-1])
-qdd = np.vstack((domain.state_dot(np.hstack((q[i,:], qd[i,:])), 0, y[i])[2:] for i in xrange(q.shape[0])))
+# qdd = np.vstack((domain.state_dot(np.hstack((q[i,:], qd[i,:])), 0, y[i])[2:] for i in xrange(q.shape[0])))
 id_domain = compute_acrobot_from_data(q, qd, qdd, y, random_start = False)
 # q[:,0] = np.remainder(q[:,0] - np.pi/2, 2*np.pi)
 U = get_U_matrix(q, qd, qdd, y)

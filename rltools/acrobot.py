@@ -213,14 +213,30 @@ def compute_acrobot_from_data(q,
     qdd1 = qdotdot[:,0]
     qdd2 = qdotdot[:,1]
 
-    u = np.empty((q.shape[0], 7))
-    u[:,0] = qdd1
-    u[:,1] = 3*c2*qdd1 + s2*qd1**2 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
-    u[:,2] = 2*qdd2 + qdd1
-    u[:,3] = c1
-    u[:,4] = c12*2
-    u[:,5:] = qdot
+#     u = np.empty((q.shape[0], 7))
+#     u[:,0] = qdd1
+#     u[:,1] = 3*c2*qdd1 + s2*qd1**2 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
+#     u[:,2] = 2*qdd2 + qdd1
+#     u[:,3] = c1
+#     u[:,4] = c12*2
+#     u[:,5:] = qdot
 
+    n= q.shape[0]
+    u = np.zeros((n*2, 7))
+    u[:n,0] = qdd1
+    u[:n,1] = 2*c2*qdd1 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
+    u[:n,2] = qdd2
+    u[:n,3] = c1
+    u[:n,4] = c12
+    u[:n,5] = qd1
+    
+    u[n:,1] = c2*qdd1 + s2*qd1**2
+    u[n:,2] = qdd2 + qdd1
+    u[n:,4] = c12
+    u[n:,6] = qd2
+
+    y = np.hstack((np.zeros(n), y))
+    
     a = np.linalg.lstsq(u, y)[0]
     return Acobot_from_data(a,
                             random_start,
