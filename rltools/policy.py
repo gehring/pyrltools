@@ -219,7 +219,6 @@ def PGPE(x0,
         sigma += alpha_sigma * d_sigma
 
         rewards.append(evaluator(policy_generator(x), final_eval_iter))
-    print rewards
     return x, rewards
 
 
