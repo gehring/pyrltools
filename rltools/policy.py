@@ -2,7 +2,6 @@ import numpy as np
 from numpy.random import random_sample
 from rltools.valuefn import LSTDlambda
 
-from scipy.stats import multivariate_normal
 
 class Policy(object):
     def __init__(self):
@@ -180,9 +179,9 @@ def PGPE(x0,
     if not isinstance(sigma0, np.ndarray):
         sigma = np.ones_like(x0) * sigma0
     else:
-        sigma = sigma0
+        sigma = sigma0.copy()
 
-    x = x0
+    x = x0.copy()
 
     baseline = evaluator(policy_generator(x0), final_eval_iter)
 

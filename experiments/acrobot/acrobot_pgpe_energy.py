@@ -17,7 +17,7 @@ def mean_confidence_interval(data, confidence=0.95):
 start_sampler = lambda : np.array([(np.random.rand()-0.5)*np.pi/4, 0, 0, 0])
 
 domain = Acrobot(random_start = True,
-                max_episode = 500,
+                max_episode = 1000,
                 m1 = 1,
                 m2 = 1,
                 l1 = 1,
@@ -28,7 +28,7 @@ domain = Acrobot(random_start = True,
                 start_sampler = start_sampler)
 
 domain.dt[-1] = 0.01
-thres = np.pi/2
+thres = np.pi/4
 domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -thres]),
                   np.array([np.pi + thres, thres, thres, thres]),]
 
@@ -47,13 +47,13 @@ x0 = np.array([10.0,10.0,1.0, 1000.0])
 sigma0 = np.array([0.1, 0.1, 0.1, 10])*10
 
 max_iterations = 30
-evaluation_iter = 1
-final_eval_iter = 1
-alpha_mu = 0.15
-alpha_sigma = 0.1
+evaluation_iter = 10
+final_eval_iter = 10
+alpha_mu = 0.2
+alpha_sigma = 0.05
 alpha_basline = 0.1
 
-num_trials = 4
+num_trials = 10
 
 results = [ PGPE(x0,
                  evaluator,
