@@ -4,6 +4,7 @@ import pickle
 from pyglet import clock
 from pyglet.window import key
 from rltools.acrobot import Acrobot
+from rltools.policy import evaluate_policy
 
 class TrivialPolicy(object):
     def __init__(self, action):
@@ -23,7 +24,7 @@ class IdenStateAction(object):
         self.proj = proj
         self.actions = actions
         self.size = proj.size
-        
+
     def __call__(self, s, a = None):
         if s is None:
             return None
@@ -42,7 +43,12 @@ u = np.zeros(1)
 
 time =0
 
+
+
 controller = acrobot.get_swingup_policy()
+domain = acrobot.copy()
+domain.max_episode = 10000
+print evaluate_policy(domain, controller, 1)
 # name = 'sarsa2'
 # with open('agent-'+name+'.data', 'rb') as f:
 #     (phi, policy, agent) = pickle.load(f)
@@ -157,7 +163,7 @@ def update(dt):
         acrobot.step(agent.proposeAction(acrobot.state))
     else:
         acrobot.step(u)
-    print time
+    print time, acrobot.inGoal()
 
 def on_key_press(symbol, modifiers):
     global u, mode, time
@@ -177,8 +183,8 @@ def on_key_press(symbol, modifiers):
         mode = 1 if mode != 1 else 0
     if symbol == key.S:
         mode = 2 if mode != 2 else 0
-        
-    
+
+
 
     print u
 def on_key_release(symbol, modifiers):

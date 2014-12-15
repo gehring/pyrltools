@@ -7,8 +7,8 @@ from pyglet.window import key
 import numpy as np
 
 def get_U_matrix(q,
-                  qdot, 
-                  qdotdot, 
+                  qdot,
+                  qdotdot,
                   y):
     c = np.cos(q)
     c12 = np.sin(np.sum(q, axis=1))
@@ -46,23 +46,23 @@ def get_U_matrix(q,
     u[:n,3] = c1
     u[:n,4] = c12
     u[:n,5] = qd1
-    
+
     u[n:,1] = c2*qdd1 + s2*qd1**2
     u[n:,2] = qdd2 + qdd1
     u[n:,4] = c12
     u[n:,6] = qd2
     return u
 
-domain = Acrobot(random_start = False, 
-                 m1 = 1, 
-                 m2 = 1, 
-                 l1 = 1, 
-                 l2=2, 
-                 b1=0.1, 
+domain = Acrobot(random_start = False,
+                 m1 = 1,
+                 m2 = 1,
+                 l1 = 1,
+                 l2=2,
+                 b1=0.1,
                  b2=0.1)
 domain.start_state[0] = 0.01
 domain.dt[-1] = 0.01
-domain.action_range = [np.array([-10]), np.array([10])]
+domain.action_range = [np.array([-20]), np.array([20])]
 
 print 'generating trajectories...'
 c = domain.get_swingup_policy()
@@ -81,7 +81,7 @@ print 'solving system id...'
 # print q[:10,:]
 # print qd[:10,:]
 # print qdd[:10,:]
-# 
+#
 # print U[:10, :]
 # print y[:10]
 
@@ -108,7 +108,7 @@ a = np.array([m1*lc1**2 + m2*l1**2 + m2*lc2**2+ I1 + I2,
 # print qdd[0,:]
 # print domain.state_dot(np.hstack((q[0,:], qd[0,:])), 0, y[0])
 # print y[:2]
- 
+
 # print U[:2,:].dot(a)
 # print np.linalg.norm(U.dot(a) - y)
 # print np.linalg.norm(U.dot(id_domain.a) - y)
@@ -255,14 +255,14 @@ def on_key_release(symbol, modifiers):
         u += -f
     if symbol == key.LEFT:
         u += f
-        
+
     if symbol == key.A:
         mode = 1 if mode != 1 else 0
         print 'mode '+str(mode)
-        
+
     if symbol == key.R:
         acrobot.reset()
-        
+
     print u
 
 window.push_handlers(on_key_press)

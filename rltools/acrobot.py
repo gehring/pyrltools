@@ -5,10 +5,10 @@ import copy
 
 class Acrobot(object):
 
-    umax = 10
-    umin = -10
+    umax = 20
+    umin = -20
 
-    dt = np.array([0, 0.1])
+    dt = np.array([0, 0.01])
 
     start_state = np.array([0.0,0.0,0.0,0.0])
     __discrete_actions = [np.array([umin]),
@@ -70,7 +70,7 @@ class Acrobot(object):
 
     def reset(self):
         if self.random_start:
-            if self.start_sampler == None:
+            if self.start_sampler is None:
                 self.state[:] = [np.random.uniform(self.state_range[0][0], self.state_range[1][0]),
                                  np.random.uniform(self.state_range[0][1], self.state_range[1][1]),
                                  np.random.uniform(self.state_range[0][2], self.state_range[1][2]),
@@ -150,8 +150,8 @@ class Acrobot(object):
     def get_pumping_policy(self):
         return Acrobot_energyshaping(self)
 
-    def get_swingup_policy(self):
-        return Acrobot_LQR_enerygyshaping(self)
+    def get_swingup_policy(self, k1=10,k2=10, k3=1, lqr_thres=10000):
+        return Acrobot_LQR_enerygyshaping(self,k1, k2, k3, lqr_thres)
 
     def inGoal(self):
         return np.all(np.hstack((self.state[2:]>self.goal_range[0][2:],
@@ -229,14 +229,14 @@ def compute_acrobot_from_data(q,
     u[:n,3] = c1
     u[:n,4] = c12
     u[:n,5] = qd1
-    
+
     u[n:,1] = c2*qdd1 + s2*qd1**2
     u[n:,2] = qdd2 + qdd1
     u[n:,4] = c12
     u[n:,6] = qd2
 
     y = np.hstack((np.zeros(n), y))
-    
+
     a = np.linalg.lstsq(u, y)[0]
     return Acobot_from_data(a,
                             random_start,
@@ -353,12 +353,12 @@ class Acrobot_LQR(object):
                  Q= None,
                  R= None,
                  desired_pos = None):
-        if desired_pos == None:
+        if desired_pos is not None:
             desired_pos= np.array([np.pi,0,0,0])
         self.desired_pos = desired_pos
-        if Q == None:
+        if Q is not None:
             Q = np.diag([1,1,1,1])
-        if R == None:
+        if R is not None:
             R = np.eye(1)
         self.acrobot = acrobot
         A, B = self.get_linear(desired_pos, np.zeros(1))
@@ -383,9 +383,9 @@ class Acrobot_LQR(object):
         Blin[2:] = Hinv.dot(B)
         return A, Blin
 
-    def naive_test(self, q):
+    def naive_test(self, q, lqr_thres):
         qbar = self.get_qbar(q)
-        return qbar.dot(self.lqr[1].dot(qbar))< 10000
+        return qbar.dot(self.lqr[1].dot(qbar))< lqr_thres
 
     def __call__(self, q):
         return -self.lqr[0].dot(self.get_qbar(q))
@@ -399,9 +399,10 @@ class Acrobot_LQR(object):
 class Acrobot_LQR_enerygyshaping(object):
     def __init__(self,
                  acrobot,
-                 k1=1.14,
-                 k2=3.2,
-                 k3=1.1,
+                 k1=10,
+                 k2=10,
+                 k3=1,
+                 lqr_thres=10000,
                  Q = None,
                  R = None,
                  desired_pos = None):
@@ -409,18 +410,25 @@ class Acrobot_LQR_enerygyshaping(object):
             desired_pos= np.array([np.pi,0,0,0])
         self.desired_pos = desired_pos
 
-        if Q == None:
+        if Q is None:
             Q = np.diag([1,1,1,1])*50
-        if R == None:
+        if R is None:
             R = np.eye(1)
         self.energyshaping = Acrobot_energyshaping(acrobot,k1,k2,k3)
         self.lqr = Acrobot_LQR(acrobot, Q, R, desired_pos)
+        self.lqr_thres = lqr_thres
 
     def __call__(self, q):
-        if self.lqr.naive_test(q):
+        if self.lqr.naive_test(q, self.lqr_thres):
             return self.lqr(q)
         else:
             return self.energyshaping(q)
+
+    def set_param(self, param):
+        self.energyshaping.k1 = param[0]
+        self.energyshaping.k2 = param[1]
+        self.energyshaping.k3 = param[2]
+        self.lqr_thres = param[3]
 
 def get_trajectories(acrobot,
                      number = 1,
@@ -463,7 +471,5 @@ def get_qs_from_traj(states, torques, dt):
         y = torques[1:-1]
 
     return q, qd, qdd, y
-
-
 
 
