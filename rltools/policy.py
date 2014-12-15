@@ -190,7 +190,7 @@ def PGPE(x0,
     rewards = [baseline]
 
     for i in xrange(max_iterations):
-        perturb = np.random.normal(0, np.maximum(sigma, 1e-2))
+        perturb = np.random.normal(0, sigma)
 
         x_plus = x + perturb
         x_minus = x - perturb
@@ -217,6 +217,7 @@ def PGPE(x0,
 
         x += alpha_mu * d_mu
         sigma += alpha_sigma * d_sigma
+        sigma = np.maximum(sigma, 1e-2)
 
         rewards.append(evaluator(policy_generator(x), final_eval_iter))
     return x, rewards

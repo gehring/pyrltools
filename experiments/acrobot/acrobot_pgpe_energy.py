@@ -43,13 +43,13 @@ def generate_policy(param):
     policy.set_param(param)
     return policy
 
-x0 = np.array([10,10,1, 1000])
-sigma0 = np.array([0.1, 0.1, 0.1, 10])
+x0 = np.array([10.0,10.0,1.0, 1000.0])
+sigma0 = np.array([0.1, 0.1, 0.1, 10])*10
 
 max_iterations = 30
-evaluation_iter = 2
-final_eval_iter = 2
-alpha_mu = 0.1
+evaluation_iter = 1
+final_eval_iter = 1
+alpha_mu = 0.15
 alpha_sigma = 0.1
 alpha_basline = 0.1
 
