@@ -34,7 +34,7 @@ def plot_param(indices, means, conf):
 #     matplotlib.rc('font', **font)
 
     lw = 2.0
-    plt.figure()
+    plt.figure(figsize=(30,10))
     for i in xrange(7):
         plt.subplot(2,4,i+1)
         plt.errorbar(indices, means[:,i], conf[:,i], linewidth=lw)
@@ -42,6 +42,12 @@ def plot_param(indices, means, conf):
         plt.gca().set_title('$x_'+str(i)+'$')
         plt.xlabel('Number of samples')
         plt.ylabel('Absolute relative deviation')
+        if i >5:
+            plt.ylim(0, 5)
+        elif i==5:
+            plt.ylim(0,2)
+        else:
+            plt.ylim(0, 1)
 
 domain = Acrobot(random_start = False,
                  m1 = 1,
@@ -66,7 +72,7 @@ power_param = []
 energy_param = []
 dynamic_param = []
 
-num_trials = 10
+num_trials = 20
 
 # compute all fitted parameters
 for i in xrange(num_trials):
@@ -108,21 +114,21 @@ power_param = np.abs(power_param)/a[None,None,:]
 power_mean, power_conf = mean_confidence_interval(power_param, confidence = 0.95)
 
 plot_param(indices, power_mean, power_conf)
-plt.savefig('power.pdf', bbox_inches='tight')
+# plt.savefig('power.pdf', bbox_inches='tight')
 
 energy_param -= a[None,None,:]
 energy_param = np.abs(energy_param)/a[None,None,:]
 energy_mean, energy_conf = mean_confidence_interval(energy_param, confidence = 0.95)
 
 plot_param(indices, energy_mean, energy_conf)
-plt.savefig('energy.pdf', bbox_inches='tight')
+# plt.savefig('energy.pdf', bbox_inches='tight')
 
 dynamic_param -= a[None,None,:]
 dynamic_param = np.abs(dynamic_param)/a[None,None,:]
 dyn_mean, dyn_conf = mean_confidence_interval(dynamic_param, confidence = 0.95)
 
 plot_param(indices, dyn_mean, dyn_conf)
-plt.savefig('dynamics.pdf', bbox_inches='tight')
+# plt.savefig('dynamics.pdf', bbox_inches='tight')
 
 plt.show()
 

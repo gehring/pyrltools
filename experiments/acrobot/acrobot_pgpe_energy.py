@@ -38,7 +38,7 @@ class policy_generator(object):
         return self.policy
     
 def start_sampler():
-    return np.array([(np.random.rand()-0.5)*np.pi/4, 0, 0, 0])
+    return np.array([(np.random.rand()-0.5)*np.pi/6, 0, 0, 0])
 
 def run_trial(p):
     return PGPE(*p)
@@ -118,11 +118,12 @@ bar = pyprind.ProgBar(num_trials)
 for s in results:
     bar.update()
 
+results = list(results)
 try:
-    with open('pgpe_results2.data', 'wb') as f:
+    with open('pgpe_results.data', 'wb') as f:
         pickle.dump(results, f)
 except Exception as e:
-    pass
+    print e
 
 
 print zip(*results)[0]

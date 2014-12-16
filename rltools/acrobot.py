@@ -311,10 +311,10 @@ def get_matrix_energy(q,
     A[:,2] = np.cos(q2b) * (qd1b**2 + qd1b*qd2b)  - np.cos(q2a) * (qd1a**2 + qd1a*qd2a)
     A[:,3] = np.cos(q1b) - np.cos(q1a)
     A[:,4] = np.cos(q1b + q2b) - np.cos(q1a + q2a)
-#     A[:,5] = 0.5 * (qd1b**2 + qd1a**2)
-#     A[:,6] = 0.5 * (qd1b**2 + qd1a**2)
-    A[:,5] = qd1b**2 - qd1a*qd1b + qd1a**2
-    A[:,6] = qd2b**2 - qd2a*qd2b + qd2a**2
+    A[:,5] = 0.5 * (qd1b**2 + qd1a**2)
+    A[:,6] = 0.5 * (qd1b**2 + qd1a**2)
+#     A[:,5] = qd1b**2 - qd1a*qd1b + qd1a**2
+#     A[:,6] = qd2b**2 - qd2a*qd2b + qd2a**2
     
     
     tao = tao[:-1] * (q2b - q2a)
