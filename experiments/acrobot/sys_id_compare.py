@@ -21,7 +21,7 @@ def get_params(method, indices, q, qd, qdd, y):
                                               qd[:i,:],
                                               qdd[:i,:],
                                               y[:i],
-#                                               method = method,
+                                              method = method,
                                               random_start = False)
         a_list.append(id_domain.a)
     return a_list
