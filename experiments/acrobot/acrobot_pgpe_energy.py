@@ -6,6 +6,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
 
+from IPython.parallel import Client
+
+from itertools import repeat, izip
+
+import pyprind
+import pickle
+
 
 def mean_confidence_interval(data, confidence=0.95):
     a = data
@@ -14,7 +21,27 @@ def mean_confidence_interval(data, confidence=0.95):
     h = se * stats.t._ppf((1+confidence)/2., n-1)
     return m, h
 
-start_sampler = lambda : np.array([(np.random.rand()-0.5)*np.pi/4, 0, 0, 0])
+
+class acrobot_evaluator(object):
+    def __init__(self, domain):
+        self.domain=domain
+        
+    def __call__(self, p, k):
+        return evaluate_policy(self.domain, p, k)
+    
+class policy_generator(object):
+    def __init__(self, policy):
+        self.policy = policy
+        
+    def __call__(self, param):
+        self.policy.set_param(param)
+        return self.policy
+    
+def start_sampler():
+    return np.array([(np.random.rand()-0.5)*np.pi/4, 0, 0, 0])
+
+def run_trial(p):
+    return PGPE(*p)
 
 domain = Acrobot(random_start = True,
                 max_episode = 1000,
@@ -34,37 +61,69 @@ domain.goal_range = [np.array([np.pi - thres, -thres, -thres, -thres]),
 
 policy = domain.get_swingup_policy()
 
-evaluator = lambda p, k: evaluate_policy(domain, p, k)
+evaluator = acrobot_evaluator(domain)
 
 
 
 
-def generate_policy(param):
-    policy.set_param(param)
-    return policy
 
-x0 = np.array([10.0,10.0,1.0, 1000.0])
+
+x0 = np.array([10.0,10.0,1.0, 600.0])
 sigma0 = np.array([0.1, 0.1, 0.1, 10])*10
 
-max_iterations = 30
+max_iterations = 100
 evaluation_iter = 10
 final_eval_iter = 10
-alpha_mu = 0.2
-alpha_sigma = 0.05
-alpha_basline = 0.1
+alpha_mu = np.array([0.2, 0.2, 0.2, 0.2])
+alpha_sigma = 0.1
+alpha_baseline = 0.1
 
-num_trials = 10
+num_trials = 36
 
-results = [ PGPE(x0,
-                 evaluator,
-                 generate_policy,
-                 sigma0,
-                 max_iterations,
-                 evaluation_iter,
-                 final_eval_iter,
-                 alpha_mu,
-                 alpha_sigma,
-                 alpha_basline) for _ in xrange(num_trials)]
+client = Client()
+client[:].execute('from rltools.acrobot import Acrobot', block=True)
+client[:].execute('from rltools.policy import PGPE, evaluate_policy', block=True)
+client[:].execute('import numpy as np', block=True)
+    
+client[:]['acrobot_evaluator'] = acrobot_evaluator
+client[:]['policy_generator'] = policy_generator
+client[:]['start_sampler'] = start_sampler
+
+lbview =  client.load_balanced_view()
+lbview.block = False
+lbview.retries = True
+
+# compute total number of runs
+X0 = [ x0.copy() for i in xrange(num_trials)]
+S0 = [ sigma0.copy() for i in xrange(num_trials)]
+domains = [ domain.copy() for i in xrange(num_trials)]
+evals = [ acrobot_evaluator(d) for d in domains]
+generators = [ policy_generator(d.get_swingup_policy()) for d in domains]
+
+results = lbview.map( run_trial, izip(X0, 
+                                               evals,
+                                               generators,
+                                               S0,
+                                               repeat(max_iterations),
+                                               repeat(evaluation_iter),
+                                               repeat(final_eval_iter),
+                                               repeat(alpha_mu),
+                                               repeat(alpha_sigma),
+                                               repeat(alpha_baseline)),
+                     ordered = False,
+                    block = False)
+
+bar = pyprind.ProgBar(num_trials)
+
+for s in results:
+    bar.update()
+
+try:
+    with open('pgpe_results2.data', 'wb') as f:
+        pickle.dump(results, f)
+except Exception as e:
+    pass
+
 
 print zip(*results)[0]
 scores = np.array(zip(*results)[1])

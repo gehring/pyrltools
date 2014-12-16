@@ -66,15 +66,12 @@ domain.action_range = [np.array([-20]), np.array([20])]
 
 print 'generating trajectories...'
 c = domain.get_swingup_policy()
-c.energyshaping.k1 = 2.0
-c.energyshaping.k2 = 1.0
-c.energyshaping.k3 = 0.1
 alph =0.0
 controller = lambda q: alph*c(q) + (1-alph)*np.random.rand()*20-10
-states, torques = get_trajectories(domain, 1, 2000, controller = controller)
+states, torques = get_trajectories(domain, 1, 3000, controller = controller)
 q, qd, qdd, y = get_qs_from_traj(states, torques, domain.dt[-1])
 # qdd = np.vstack((domain.state_dot(np.hstack((q[i,:], qd[i,:])), 0, y[i])[2:] for i in xrange(q.shape[0])))
-id_domain = compute_acrobot_from_data(q, qd, qdd, y, random_start = False)
+id_domain = compute_acrobot_from_data(q, qd, qdd, y, method='power', random_start = False)
 # q[:,0] = np.remainder(q[:,0] - np.pi/2, 2*np.pi)
 U = get_U_matrix(q, qd, qdd, y)
 print 'solving system id...'
@@ -130,7 +127,7 @@ domain.reset()
 acrobot = domain #id_domain
 acrobot.start_state[0] = 0.005
 
-controller = id_domain.get_swingup_policy()
+controller = id_domain.get_swingup_policy(lqr_thres=300)
 # controller = domain.get_swingup_policy()
 
 configTemp = pyglet.gl.Config(sample_buffers=1,

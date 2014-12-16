@@ -172,9 +172,13 @@ def PGPE(x0,
 
     if not isinstance(alpha_mu, np.ndarray):
         alpha_mu = np.ones_like(x0) * alpha_mu
+    else:
+        alpha_mu = alpha_mu.copy()
 
     if not isinstance(alpha_sigma, np.ndarray):
         alpha_sigma = np.ones_like(x0) * alpha_sigma
+    else:
+        alpha_sigma = alpha_sigma.copy()
 
     if not isinstance(sigma0, np.ndarray):
         sigma = np.ones_like(x0) * sigma0

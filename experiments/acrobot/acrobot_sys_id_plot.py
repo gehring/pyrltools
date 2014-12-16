@@ -10,22 +10,22 @@ domain = Acrobot(random_start = False,
                  m2 = 1,
                  l1 = 1,
                  l2=2,
-                 b1=0.1,
-                 b2=0.1)
+                 b1=0.0,
+                 b2=0.0)
 domain.start_state[0] = 0.01
 domain.dt[-1] = 0.01
 domain.action_range = [np.array([-10]), np.array([10])]
 
 print 'generating trajectories...'
 controller = lambda q: np.random.rand()*20-10
-states, torques = get_trajectories(domain, 1, 1000, controller = controller)
+states, torques = get_trajectories(domain, 1, 2000, controller = controller)
 q, qd, qdd, y = get_qs_from_traj(states, torques, domain.dt[-1])
 # qdd = np.vstack((domain.state_dot(np.hstack((q[i,:], qd[i,:])), 0, y[i])[2:] for i in xrange(q.shape[0])))
 a_list = []
 
-indices = range(100,1001,100)
+indices = range(200,2001,200)
 for i in indices:
-    id_domain = compute_acrobot_from_data(q[:i,:], qd[:i,:], qdd[:i,:], y[:i], random_start = False)
+    id_domain = compute_acrobot_from_data(q[:i,:], qd[:i,:], qdd[:i,:], y[:i], method = 'dynamics', random_start = False)
     a_list.append(id_domain.a)
 
 m1 = domain.m1
@@ -63,7 +63,7 @@ for i,(a_values, a_true) in enumerate(zip(zip(*a_list), a)):
     plt.legend(loc=2)
     plt.xlabel('Number of Samples')
     plt.ylabel('Value')
-    plt.savefig('a'+str(i)+'.pdf', bbox_inches='tight')
+#     plt.savefig('a'+str(i)+'.pdf', bbox_inches='tight')
 plt.show()
 
 

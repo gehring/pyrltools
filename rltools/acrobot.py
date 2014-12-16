@@ -3,6 +3,9 @@ from scipy.integrate import odeint
 from control import lqr
 import copy
 
+from sklearn import linear_model
+import scipy.optimize
+
 class Acrobot(object):
 
     umax = 20
@@ -187,12 +190,49 @@ def angle_range_check( a, b, x):
 def compute_acrobot_from_data(q,
                               qdot,
                               qdotdot,
-                              y,
+                              tao,
+                              method = 'dynamics',
                               random_start = False,
                               max_episode = 1000,
                               start_sampler = None):
-    # cos in the paper but since we are using a different coordinate
-    # we must use sin
+    if method == 'dynamics':
+        A, tao = get_matrix_dynamics(q,
+                                      qdot,
+                                      qdotdot,
+                                      tao)
+    if method == 'energy':
+        A, tao = get_matrix_energy(q,
+                                  qdot,
+                                  qdotdot,
+                                  tao)
+    if method == 'power':
+        A, tao = get_matrix_power(q,
+                                  qdot,
+                                  qdotdot,
+                                  tao)
+
+#     a = np.linalg.lstsq(A, tao)[0]
+    a = linear_model.ridge_regression(A, tao, 0.00001)
+#     a = scipy.optimize.nnls(A.T.dot(A) + 0.01 * np.eye(A.shape[1]), A.T.dot(tao))[0]
+    
+    if method != 'dynamics':
+        a = np.array([a[0] + a[1],
+                      a[2],
+                      a[1],
+                      a[3],
+                      a[4],
+                      a[5],
+                      a[6]])
+    
+    return Acobot_from_data(a,
+                            random_start,
+                            max_episode,
+                            start_sampler)
+
+def get_matrix_dynamics(q,
+                      qdot,
+                      qdotdot,
+                      tao):
     c = np.cos(q)
     c12 = np.sin(np.sum(q, axis=1))
 
@@ -200,26 +240,10 @@ def compute_acrobot_from_data(q,
     c2 = c[:,1]
     s2 = np.sin(q[:,1])
 
-#     c = np.cos(q)
-#     c12 = np.cos(np.sum(q, axis=1))
-#
-#     c1 = c[:,0]
-#     c2 = c[:,1]
-#     s2 = np.sin(q[:,1])
-
-
     qd1 = qdot[:,0]
     qd2 = qdot[:,1]
     qdd1 = qdotdot[:,0]
     qdd2 = qdotdot[:,1]
-
-#     u = np.empty((q.shape[0], 7))
-#     u[:,0] = qdd1
-#     u[:,1] = 3*c2*qdd1 + s2*qd1**2 + c2*qdd2 - s2*qd2**2 - 2*s2*qd2*qd1
-#     u[:,2] = 2*qdd2 + qdd1
-#     u[:,3] = c1
-#     u[:,4] = c12*2
-#     u[:,5:] = qdot
 
     n= q.shape[0]
     u = np.zeros((n*2, 7))
@@ -235,16 +259,68 @@ def compute_acrobot_from_data(q,
     u[n:,4] = c12
     u[n:,6] = qd2
 
-    y = np.hstack((np.zeros(n), y))
+    tao = np.hstack((np.zeros(n), tao))
+    return u, tao
 
-    a = np.linalg.lstsq(u, y)[0]
-    return Acobot_from_data(a,
-                            random_start,
-                            max_episode,
-                            start_sampler)
+def get_matrix_power(q,
+                      qdot,
+                      qdotdot,
+                      tao):
+    s = np.sin(q)
+    s1 = s[:,0]
+    s2 = s[:,1]
+    s12 = np.sin(q[:,0] + q[:,1])
+    c2 = np.cos(q[:,1])
+    
+    
+    qd1 = qdot[:,0]
+    qd2 = qdot[:,1]
+    qdd1 = qdotdot[:,0]
+    qdd2 = qdotdot[:,1]
+    
+    A = np.zeros((q.shape[0], 7))
+    A[:,0] = qd1*qdd1
+    A[:,1] = A[:,0] + qd2*qdd2 + qd1*qdd2 + qdd1*qd2
+    A[:,2] = c2*(2*A[:,0] + qd1*qdd2 + qdd1*qd2) - s2*qd2*(qd1**2 + qd1*qd2)
+    A[:,3] = s1*qd1
+    A[:,4] = s12 * (qd1 + qd2)
+    A[:,5] = qd1**2
+    A[:,6] = qd2**2
+    
+    tao = tao*qd2
+    
+    return A, tao
 
-
-
+def get_matrix_energy(q,
+                      qdot,
+                      qdotdot,
+                      tao):
+    q1a = q[:-1,0]
+    q1b = q[1:,0]
+    q2a = q[:-1,1]
+    q2b = q[1:,1]
+    
+    qd1a = qdot[:-1,0]
+    qd1b = qdot[:-1,0]
+    qd2a = qdot[:-1,1]
+    qd2b = qdot[:-1,1]
+    
+    A = np.zeros((q.shape[0]-1, 7))
+    A[:,0] = 0.5*(qd1b**2 - qd1a**2)
+    A[:,1] = 0.5*(qd1b**2 - qd1a**2 + qd2b**2 - qd2a**2) + qd1b*qd2b - qd1a*qd2a
+    A[:,2] = np.cos(q2b) * (qd1b**2 + qd1b*qd2b)  - np.cos(q2a) * (qd1a**2 + qd1a*qd2a)
+    A[:,3] = np.cos(q1b) - np.cos(q1a)
+    A[:,4] = np.cos(q1b + q2b) - np.cos(q1a + q2a)
+#     A[:,5] = 0.5 * (qd1b**2 + qd1a**2)
+#     A[:,6] = 0.5 * (qd1b**2 + qd1a**2)
+    A[:,5] = qd1b**2 - qd1a*qd1b + qd1a**2
+    A[:,6] = qd2b**2 - qd2a*qd2b + qd2a**2
+    
+    
+    tao = tao[:-1] * (q2b - q2a)
+    
+    return A, tao
+    
 
 class Acobot_from_data(Acrobot):
     def __init__(self,
@@ -260,7 +336,6 @@ class Acobot_from_data(Acrobot):
         self.a = a
 
     def get_manipulator(self, q):
-        # changed cos to sin since theta1 = 0 is not a the same place
         c1 = np.sin(q[0])
         c12 = np.sin(q[0]+q[1])
 
@@ -274,10 +349,6 @@ class Acobot_from_data(Acrobot):
         d = a[2]
         H= np.array(((aa, b),
                      (b, d)))
-
-#         C= np.array(((-2*a[1]*s2*q[3], -a[1]*q[3]),
-#                      (2*a[1]*s2*q[3], 0))
-#                     )
 
         C= np.array(((a[5]-2*a[1]*s2*q[3], -a[1]*s2*q[3]),
                      (a[1]*s2*q[2], a[6]))
@@ -357,7 +428,7 @@ class Acrobot_LQR(object):
             desired_pos= np.array([np.pi,0,0,0])
         self.desired_pos = desired_pos
         if Q is not None:
-            Q = np.diag([1,1,1,1])
+            Q = np.diag([1,1,10,10])
         if R is not None:
             R = np.eye(1)
         self.acrobot = acrobot
@@ -411,7 +482,7 @@ class Acrobot_LQR_enerygyshaping(object):
         self.desired_pos = desired_pos
 
         if Q is None:
-            Q = np.diag([1,1,1,1])*50
+            Q = np.diag([1,1,15,15])*50
         if R is None:
             R = np.eye(1)
         self.energyshaping = Acrobot_energyshaping(acrobot,k1,k2,k3)
