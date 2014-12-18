@@ -206,12 +206,12 @@ class Theano_Tiling(object):
         index_offset = np.hstack( [np.array([off]*t, dtype='int')
                                             for off, t in zip(index_offset, ntilings)])
 
-        all_indices = T.concatenate(tilings, axis=1) + index_offset.astype('int')
+        all_indices = T.cast(T.concatenate(tilings, axis=1), 'int32') + index_offset.astype('int')
         if bias_term:
-            all_indices = T.concatenate((all_indices, self.__size*T.ones((all_indices.shape[0], 1))), axis=1)
+            all_indices = T.cast(T.concatenate((all_indices, self.__size*T.ones((all_indices.shape[0], 1))), axis=1), 'int32')
             self.__size += 1
 
-        self.proj = theano.function([X], all_indices)
+        self.proj = theano.function([X], all_indices, allow_input_downcast=True)
 
     def __call__(self, state):
         if state.ndim == 1:

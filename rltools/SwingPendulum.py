@@ -62,7 +62,7 @@ class SwingPendulum(object):
     def update(self, action):
         torque = np.clip(action, *self.action_range)
         theta_acc = self.timestep * (- self.state[1]*self.damping
-                        + self.mass * self.G * self.length * math.sin(self.state[0])
+                        + self.mass * self.G * self.length * np.sin(self.state[0])
                         + torque)
         self.state[1] = np.clip(self.state[1] + theta_acc, self.state_range[0][1], self.state_range[1][1])
         self.state[0] += self.state[1] * self.timestep

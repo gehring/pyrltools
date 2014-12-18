@@ -77,7 +77,19 @@ domain = GridWorld(reward_fn,
                    max_episode = 1000)
 
 phi = IdenProj((10,10))
-policy = lambda s: np.random.choice(4)
+
+def choose_action(s):
+    if s[0] >= 5 and s[1] >= 5:
+        p = [0.4,0.1,0.4,0.1]
+    if s[0] >= 5 and s[1] < 5:
+        p = [0.1,0.1,0.7,0.1]
+    if s[0] < 5 and s[1] >= 5:
+        p = [0.7,0.1,0.1,0.1]
+    if s[0] < 5 and s[1] < 5:
+        p = [0.7,0.1,0.1,0.1]
+    return np.random.choice(4, p=p)
+        
+policy = choose_action #lambda s: np.random.choice(4)#, p= [0.4,0.2,0.2,0.2])
 
 print 'generating data...'
 states, rew = generate_data(domain, policy, 100)
@@ -86,20 +98,49 @@ print 'solving...'
 X_t, X_tp1, r = generate_matrices(states, rew)
 
 A = X_t.T.dot(X_t-X_tp1)
-b = X_t.T.dot([1 if s.nonzero()[0] == np.ravel_multi_index((7,3), (10,10)) else 0 for s in X_t])
+# b = X_t.T.dot([1 if s.nonzero()[0] == np.ravel_multi_index((7,3), (10,10)) else 0 for s in X_t])
 # b = X_t.T.dot(r)
+b = X_t.T.dot(X_t)
 
-alpha = 0.001
-theta = linear_model.ridge_regression(A,b, alpha)
+alpha = 0.0
+# theta = linear_model.ridge_regression(A,b, alpha)
+theta = np.linalg.lstsq(A, b)[0]
 
 print 'evaluating and plotting...'
 xx, yy = np.meshgrid(np.arange(10), np.arange(10))
 points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1))))
 grid = phi(points)
 
-val = grid.dot(theta)
+
+
+U, s, V = np.linalg.svd(theta)
+
 plt.figure()
-plt.imshow(val.reshape((10,-1)), interpolation = 'none')
+plt.plot(s)
+
+plt.figure()
+for i in xrange(5):
+    plt.title('Us')
+    plt.subplot(1,5,i+1)
+    val = grid.dot(U[:,i])
+    plt.imshow(val.reshape((10,-1)), interpolation = 'none')
+
+plt.figure()
+for i in xrange(5):
+    plt.title('Vs')
+    plt.subplot(1,5,i+1)
+    val = grid.dot(V[i,:])
+    plt.imshow(val.reshape((10,-1)), interpolation = 'none')
+
+
+# R = np.zeros(theta.shape[0])
+# R[11] = 1
+# R[88] = 1
+# val = grid.dot(theta.dot(R))
+# # val = grid.dot(theta)
+# plt.figure()
+# plt.imshow(val.reshape((10,-1)), interpolation = 'none')
+
 plt.show()
 
 
