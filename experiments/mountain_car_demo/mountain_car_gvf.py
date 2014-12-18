@@ -59,11 +59,13 @@ s_range = domain.state_range
 a_range = domain.action_range
 
 phi = Theano_Tiling(input_indicies = [np.arange(2)],
-                    ntiles = [15],
-                    ntilings = [1], 
+                    ntiles = [10],
+                    ntilings = [20], 
                     hashing = None, 
                     state_range = s_range, 
                     bias_term = True)
+
+print phi.size
 
 pump_policy = PumpingPolicy()
 def choose_action(s):
@@ -75,7 +77,7 @@ def choose_action(s):
 policy = choose_action #lambda s: np.random.choice(4)#, p= [0.4,0.2,0.2,0.2])
 
 print 'generating data...'
-states, rew = generate_data(domain, policy, 20)
+states, rew = generate_data(domain, policy, 100)
 
 print 'solving...'
 X_t, X_tp1, r = generate_matrices(states, rew, phi)
@@ -84,9 +86,19 @@ A = X_t.T.dot(X_t-X_tp1)
 b = X_t.T.dot(X_t)
 
 
+U, s, V = sp.linalg.svds(A, k=800)
+Ainv = V.T.dot((1.0/s)[:,None]*U.T)
+print Ainv.shape, b.todense().shape
+theta = np.array(np.dot(Ainv, b.todense()))
+print theta.shape
 
-theta = np.array([sp.linalg.lsmr(A, np.array(bs.todense()).reshape(-1))[0] for bs in b.T]).T
-U, s, V = np.linalg.svd(theta)
+if sp.issparse(theta):
+    print 'sparse'
+    U, s, V = sp.linalg.svds(theta, k=80)
+else:
+    U, s, V = np.linalg.svd(theta)
+# theta = np.array([sp.linalg.lsmr(A, np.array(bs.todense()).reshape(-1))[0] for bs in b.T]).T
+# U, s, V = np.linalg.svd(theta)
 
 
 
@@ -95,10 +107,11 @@ num = 40
 xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], num), 
                      np.linspace(s_range[0][1], s_range[1][1], num))
 points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1))))
-print points.shape
 grid = convert_to_sparse(phi(points), (points.shape[0], phi.size))
 
-
+print U.shape, V.shape, V[1,:].shape
+print type(V[1,:])
+print grid.shape
 plt.figure()
 plt.plot(s)
 
@@ -116,7 +129,7 @@ plt.figure()
 for i in xrange(n_vec):
     plt.subplot(n_row,n_vec/n_row + 0 if n_vec % n_row == 0 else 1,i+1)
     plt.title('V' + str(i))
-    val = grid.dot(V[i,:])
+    val = grid.dot(V[i,:].T)
     plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), val.reshape((num,-1)))
 
 plt.figure()
@@ -124,7 +137,7 @@ plt.subplot(1,2,1)
 plt.title('Full Value Fn')
 val = grid.dot(theta.dot(-np.ones(theta.shape[1])))
 plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), val.reshape((num,-1)))
-
+ 
 plt.subplot(1,2,2)
 plt.title('Approx Value Fn')
 val = grid.dot(U[:,:n_vec].dot(np.diag(s[:n_vec]).dot(V[:n_vec,:])).dot(-np.ones(theta.shape[1])))
