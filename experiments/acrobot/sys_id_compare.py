@@ -43,11 +43,11 @@ def plot_param(indices, means, conf):
         plt.xlabel('Number of samples')
         plt.ylabel('Absolute relative deviation')
         if i >5:
-            plt.ylim(0, 5)
+            plt.ylim(0, 6)
         elif i==5:
-            plt.ylim(0,2)
+            plt.ylim(0,3)
         else:
-            plt.ylim(0, 1)
+            plt.ylim(0, 2)
 
 domain = Acrobot(random_start = False,
                  m1 = 1,
@@ -74,17 +74,6 @@ dynamic_param = []
 
 num_trials = 20
 
-# compute all fitted parameters
-for i in xrange(num_trials):
-    print 'Running trial #'+ str(i+1)+'...'
-    states, torques = get_trajectories(domain, 1, num_samples, controller = controller)
-    q, qd, qdd, y = get_qs_from_traj(states, torques, domain.dt[-1])
-
-    power_param.append(get_params('power', indices, q, qd, qdd, y))
-    energy_param.append(get_params('energy', indices, q, qd, qdd, y))
-    dynamic_param.append(get_params('dynamics', indices, q, qd, qdd, y))
-
-
 m1 = domain.m1
 m2 = domain.m2
 I1 = domain.Ic1
@@ -104,6 +93,21 @@ a = np.array([m1*lc1**2 + m2*l1**2 + m2*lc2**2+ I1 + I2,
               m2*lc2*g,
               b1,
               b2])
+print a
+
+# compute all fitted parameters
+for i in xrange(num_trials):
+    print 'Running trial #'+ str(i+1)+'...'
+    states, torques = get_trajectories(domain, 1, num_samples, controller = controller)
+    states += np.random.normal(0, 0.05, size = states.shape)
+    q, qd, qdd, y = get_qs_from_traj(states, torques, domain.dt[-1])
+
+    power_param.append(get_params('power', indices, q, qd, qdd, y))
+    energy_param.append(get_params('energy', indices, q, qd, qdd, y))
+    dynamic_param.append(get_params('dynamics', indices, q, qd, qdd, y))
+
+
+
 
 power_param = np.array(power_param)
 energy_param = np.array(energy_param)
@@ -114,21 +118,21 @@ power_param = np.abs(power_param)/a[None,None,:]
 power_mean, power_conf = mean_confidence_interval(power_param, confidence = 0.95)
 
 plot_param(indices, power_mean, power_conf)
-# plt.savefig('power.pdf', bbox_inches='tight')
+plt.savefig('power-noise.pdf', bbox_inches='tight')
 
 energy_param -= a[None,None,:]
 energy_param = np.abs(energy_param)/a[None,None,:]
 energy_mean, energy_conf = mean_confidence_interval(energy_param, confidence = 0.95)
 
 plot_param(indices, energy_mean, energy_conf)
-# plt.savefig('energy.pdf', bbox_inches='tight')
+plt.savefig('energy-noise.pdf', bbox_inches='tight')
 
 dynamic_param -= a[None,None,:]
 dynamic_param = np.abs(dynamic_param)/a[None,None,:]
 dyn_mean, dyn_conf = mean_confidence_interval(dynamic_param, confidence = 0.95)
 
 plot_param(indices, dyn_mean, dyn_conf)
-# plt.savefig('dynamics.pdf', bbox_inches='tight')
+plt.savefig('dynamics-noise.pdf', bbox_inches='tight')
 
 plt.show()
 

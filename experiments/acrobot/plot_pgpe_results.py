@@ -13,7 +13,7 @@ def mean_confidence_interval(data, confidence=0.95):
 
 
 
-fname = 'pgpe_results2.data'
+fname = 'pgpe_results.data'
 
 with open(fname, 'rb') as f:
     results = pickle.load(f)
@@ -23,5 +23,8 @@ print zip(*results)[0]
 scores = np.array(zip(*results)[1])
 print scores[:,-1]
 y, yerr = mean_confidence_interval(scores, confidence = 0.95)
-plt.errorbar(np.arange(y.shape[0]), y, yerr )
+plt.errorbar(np.arange(y.shape[0])[::2], y[::2], yerr[::2])
+plt.xlabel('Number of steps')
+plt.ylabel('Average reward')
+plt.savefig('pgpe.pdf')
 plt.show()
