@@ -39,7 +39,7 @@ def generate_matrices(states, rew, phi):
     X_t = np.vstack(X_t)
     X_t = convert_to_sparse(phi(X_t), (X_t.shape[0], phi.size))
     X_tp1 = sp.vstack(X_tp1)
-    
+
     return X_t, X_tp1, np.hstack(b)
 
 def convert_to_sparse(X, dim):
@@ -47,17 +47,17 @@ def convert_to_sparse(X, dim):
     k = X.shape[0]
     indices = X.reshape(-1)
     ptr = np.arange(k+1)*n
-    return csr_matrix((np.ones(X.size), 
-                      indices, 
-                      ptr), 
+    return csr_matrix((np.ones(X.size),
+                      indices,
+                      ptr),
                       shape = dim)
-    
+
 def get_theta(states, rew, phi):
     X_t, X_tp1, r = generate_matrices(states, rew, phi)
     A = X_t.T.dot(X_t-X_tp1)
     b = X_t.T.dot(X_t)
-    
-    
+
+
     U, s, V = sp.linalg.svds(A, k = sp.linalg.rank(A)*(7.0/8))
     Ainv = V.T.dot((1.0/s)[:,None]*U.T)
     theta = np.array(np.dot(Ainv, b.todense()))
@@ -68,7 +68,7 @@ class gvf(object):
         self.size = theta.shape[1]
         self.theta = theta
         self.phi = phi
-        
+
     def __call__(self, states):
         X = convert_to_sparse(self.phi(states), _(states.shape[0], self.phi.size))
         return (X.T.dot(theta)).T
@@ -79,9 +79,9 @@ a_range = domain.action_range
 
 phi = Theano_Tiling(input_indicies = [np.arange(2)],
                     ntiles = [10],
-                    ntilings = [20], 
-                    hashing = None, 
-                    state_range = s_range, 
+                    ntilings = [20],
+                    hashing = None,
+                    state_range = s_range,
                     bias_term = True)
 
 print phi.size
@@ -92,7 +92,7 @@ def choose_action(s):
         return pump_policy(s)
     else:
         return np.random.rand()*(a_range[1] - a_range[0]) + a_range[0]
-        
+
 policy = choose_action #lambda s: np.random.choice(4)#, p= [0.4,0.2,0.2,0.2])
 
 print 'generating data...'
@@ -123,7 +123,7 @@ else:
 
 print 'evaluating and plotting...'
 num = 40
-xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], num), 
+xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], num),
                      np.linspace(s_range[0][1], s_range[1][1], num))
 points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1))))
 grid = convert_to_sparse(phi(points), (points.shape[0], phi.size))
@@ -140,7 +140,7 @@ n_row = 4
 plt.figure()
 for i in xrange(n_vec):
     plt.subplot(n_row,n_vec/n_row + 0 if n_vec % n_row == 0 else 1,i+1)
-    plt.title('U' + str(i))    
+    plt.title('U' + str(i))
     val = grid.dot(U[:,i])
     plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), val.reshape((num,-1)))
 
@@ -157,7 +157,7 @@ plt.title('Full Value Fn')
 val = grid.dot(theta.dot(-np.ones(theta.shape[1])))
 true_val = val
 plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), val.reshape((num,-1)))
- 
+
 plt.subplot(1,2,2)
 plt.title('Approx Value Fn')
 val = grid.dot(U[:,:n_vec].dot(np.diag(s[:n_vec]).dot(V[:n_vec,:])).dot(-np.ones(theta.shape[1])))
@@ -180,13 +180,13 @@ for i in indices:
     A = X_t[:i,:].T.dot(X_t[:i,:]-X_tp1[:i,:])
     b = X_t[:i,:].T.dot(r[:i])
     lsq = np.linalg.lstsq(A, b)
-    
+
     lsq_score.append(np.linalg.norm(true_val - grid.dot(lsq)))
-    
+
     thetaA = thetaX_t[:i,:].T.dot(thetaX_t[:i,:]-thetaX_tp1[:i,:])
     thetab = thetaX_t[:i,:].T.dot(r[:i])
     thetalsq = np.linalg.lstsq(thetaA, thetab)
-    
+
     theta_score.append(np.linalg.norm(true_val - grid.dot(thetalsq)))
 
 
