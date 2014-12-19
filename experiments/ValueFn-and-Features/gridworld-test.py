@@ -79,20 +79,21 @@ domain = GridWorld(reward_fn,
 phi = IdenProj((10,10))
 
 def choose_action(s):
-    if s[0] >= 5 and s[1] >= 5:
-        p = [0.4,0.1,0.4,0.1]
-    if s[0] >= 5 and s[1] < 5:
-        p = [0.1,0.1,0.7,0.1]
-    if s[0] < 5 and s[1] >= 5:
-        p = [0.7,0.1,0.1,0.1]
-    if s[0] < 5 and s[1] < 5:
-        p = [0.7,0.1,0.1,0.1]
+#     if s[0] >= 5 and s[1] >= 5:
+#         p = [0.4,0.1,0.4,0.1]
+#     if s[0] >= 5 and s[1] < 5:
+#         p = [0.1,0.1,0.7,0.1]
+#     if s[0] < 5 and s[1] >= 5:
+#         p = [0.7,0.1,0.1,0.1]
+#     if s[0] < 5 and s[1] < 5:
+#         p = [0.4,0.1,0.4,0.1]
+    p = np.ones(4)/4.0
     return np.random.choice(4, p=p)
         
 policy = choose_action #lambda s: np.random.choice(4)#, p= [0.4,0.2,0.2,0.2])
 
 print 'generating data...'
-states, rew = generate_data(domain, policy, 100)
+states, rew = generate_data(domain, policy, 500)
 
 print 'solving...'
 X_t, X_tp1, r = generate_matrices(states, rew)

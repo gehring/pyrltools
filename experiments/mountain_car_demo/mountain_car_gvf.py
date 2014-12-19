@@ -23,7 +23,7 @@ def generate_data(domain, policy, n_episodes):
     states, rew = zip(*data)
     return states, rew
 
-def generate_matrices(states, rew, phi):
+def generate_matrices_sparse(states, rew, phi):
     X_t = []
     X_tp1 = []
     b = []
@@ -42,6 +42,24 @@ def generate_matrices(states, rew, phi):
 
     return X_t, X_tp1, np.hstack(b)
 
+def generate_matrices(states, rew, phi):
+    X_t = []
+    X_tp1 = []
+    b = []
+    for s, r in zip(states, rew):
+        X_t.append(s)
+        if s.shape[0] > 1:
+            X_tp1.append(np.vstack((phi(s[1:]), np.zeros((1, phi.size)))))
+        else:
+            X_tp1.append(np.zeros((1, phi.size)))
+        r = np.array(r)
+        b.append(r)
+    X_t = np.vstack(X_t)
+    X_t = phi(X_t)
+    X_tp1 = np.vstack(X_tp1)
+
+    return X_t, X_tp1, np.hstack(b)
+
 def convert_to_sparse(X, dim):
     n = X.shape[1]
     k = X.shape[0]
@@ -53,7 +71,7 @@ def convert_to_sparse(X, dim):
                       shape = dim)
 
 def get_theta(states, rew, phi):
-    X_t, X_tp1, r = generate_matrices(states, rew, phi)
+    X_t, X_tp1, r = generate_matrices_sparse(states, rew, phi)
     A = X_t.T.dot(X_t-X_tp1)
     b = X_t.T.dot(X_t)
 
@@ -70,8 +88,8 @@ class gvf(object):
         self.phi = phi
 
     def __call__(self, states):
-        X = convert_to_sparse(self.phi(states), _(states.shape[0], self.phi.size))
-        return (X.T.dot(theta)).T
+        X = convert_to_sparse(self.phi(states), (states.shape[0], self.phi.size))
+        return (X.dot(self.theta))
 
 domain = MountainCar(random_start=True, max_episode=3000)
 s_range = domain.state_range
@@ -79,7 +97,7 @@ a_range = domain.action_range
 
 phi = Theano_Tiling(input_indicies = [np.arange(2)],
                     ntiles = [10],
-                    ntilings = [20],
+                    ntilings = [10],
                     hashing = None,
                     state_range = s_range,
                     bias_term = True)
@@ -96,13 +114,15 @@ def choose_action(s):
 policy = choose_action #lambda s: np.random.choice(4)#, p= [0.4,0.2,0.2,0.2])
 
 print 'generating data...'
-states, rew = generate_data(domain, policy, 100)
+states, rew = generate_data(domain, policy, 4000)
 
 print 'solving...'
-X_t, X_tp1, r = generate_matrices(states, rew, phi)
+X_t, X_tp1, r = generate_matrices_sparse(states, rew, phi)
 
 A = X_t.T.dot(X_t-X_tp1)
 b = X_t.T.dot(X_t)
+
+br = X_t.T.dot(r)
 
 
 U, s, V = sp.linalg.svds(A, k=800)
@@ -116,6 +136,7 @@ if sp.issparse(theta):
     U, s, V = sp.linalg.svds(theta, k=80)
 else:
     U, s, V = np.linalg.svd(theta)
+theta_v = sp.linalg.lsmr(A,br)[0]
 # theta = np.array([sp.linalg.lsmr(A, np.array(bs.todense()).reshape(-1))[0] for bs in b.T]).T
 # U, s, V = np.linalg.svd(theta)
 
@@ -154,7 +175,7 @@ for i in xrange(n_vec):
 plt.figure()
 plt.subplot(1,2,1)
 plt.title('Full Value Fn')
-val = grid.dot(theta.dot(-np.ones(theta.shape[1])))
+val = grid.dot(theta_v)
 true_val = val
 plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), val.reshape((num,-1)))
 
@@ -164,40 +185,58 @@ val = grid.dot(U[:,:n_vec].dot(np.diag(s[:n_vec]).dot(V[:n_vec,:])).dot(-np.ones
 plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), val.reshape((num,-1)))
 
 print 'generating data...'
-states, rew = generate_data(domain, policy, 100)
+states, rew = generate_data(domain, policy, 500)
 
 print 'solving...'
-X_t, X_tp1, r = generate_matrices(states, rew, phi)
+X_t, X_tp1, r = generate_matrices_sparse(states, rew, phi)
 
-thetaphi = gvf(V[:n_vec,:].T, phi)
+X_t = X_t.tocsr()
+X_tp1 = X_tp1.tocsr()
+
+# thetaphi = gvf(U[:,:n_vec].dot(np.diag(s[:n_vec]).dot(V[:n_vec,:])), phi)
+thetaphi = gvf(V[:8,:].T, phi)
+# thetaphi = gvf(U[:,:20], phi)
 thetaX_t, thetaX_tp1, r = generate_matrices(states, rew, thetaphi)
+thetagrid = thetaphi(points)
 
+# thetaX_t = thetaX_t.todense()
+# thetaX_tp1 = thetaX_tp1.todense()
 
-indices = range(10,101, 10)
+n = X_t.shape[0]/10
+indices = range(1,n+1, int(n/10))
 lsq_score = []
 theta_score = []
 for i in indices:
     A = X_t[:i,:].T.dot(X_t[:i,:]-X_tp1[:i,:])
     b = X_t[:i,:].T.dot(r[:i])
-    lsq = np.linalg.lstsq(A, b)
+    lsq = sp.linalg.lsmr(A, b)[0]
 
-    lsq_score.append(np.linalg.norm(true_val - grid.dot(lsq)))
+    lsq_score.append(np.linalg.norm(true_val - grid.dot(lsq))/ np.linalg.norm(true_val))
 
     thetaA = thetaX_t[:i,:].T.dot(thetaX_t[:i,:]-thetaX_tp1[:i,:])
     thetab = thetaX_t[:i,:].T.dot(r[:i])
-    thetalsq = np.linalg.lstsq(thetaA, thetab)
-
-    theta_score.append(np.linalg.norm(true_val - grid.dot(thetalsq)))
+    thetalsq = np.linalg.lstsq(thetaA, thetab)[0]
+    
+    theta_score.append(np.linalg.norm(true_val - thetagrid.dot(thetalsq))/ np.linalg.norm(true_val))
 
 
 plt.figure()
-plt.subplot(1,2,1)
+plt.subplot(2,2,1)
 plt.title('lstd')
 plt.plot(indices, lsq_score)
+plt.ylim(0.0, 0.8)
 
-plt.subplot(1,2,2)
+plt.subplot(2,2,2)
 plt.title('gvf lstd')
 plt.plot(indices, theta_score)
+plt.ylim(0.0, 0.8)
+
+plt.subplot(2,2,3)
+plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), grid.dot(lsq).reshape((num,-1)))
+
+plt.subplot(2,2,4)
+plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), thetagrid.dot(thetalsq).reshape((num,-1)))
+
 
 plt.show()
 
