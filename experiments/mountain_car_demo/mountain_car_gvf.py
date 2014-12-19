@@ -52,7 +52,26 @@ def convert_to_sparse(X, dim):
                       ptr), 
                       shape = dim)
     
+def get_theta(states, rew, phi):
+    X_t, X_tp1, r = generate_matrices(states, rew, phi)
+    A = X_t.T.dot(X_t-X_tp1)
+    b = X_t.T.dot(X_t)
     
+    
+    U, s, V = sp.linalg.svds(A, k = sp.linalg.rank(A)*(7.0/8))
+    Ainv = V.T.dot((1.0/s)[:,None]*U.T)
+    theta = np.array(np.dot(Ainv, b.todense()))
+    return theta
+
+class gvf(object):
+    def __init__(self, theta, phi):
+        self.size = theta.shape[1]
+        self.theta = theta
+        self.phi = phi
+        
+    def __call__(self, states):
+        X = convert_to_sparse(self.phi(states), _(states.shape[0], self.phi.size))
+        return (X.T.dot(theta)).T
 
 domain = MountainCar(random_start=True, max_episode=3000)
 s_range = domain.state_range
@@ -136,12 +155,49 @@ plt.figure()
 plt.subplot(1,2,1)
 plt.title('Full Value Fn')
 val = grid.dot(theta.dot(-np.ones(theta.shape[1])))
+true_val = val
 plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), val.reshape((num,-1)))
  
 plt.subplot(1,2,2)
 plt.title('Approx Value Fn')
 val = grid.dot(U[:,:n_vec].dot(np.diag(s[:n_vec]).dot(V[:n_vec,:])).dot(-np.ones(theta.shape[1])))
 plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), val.reshape((num,-1)))
+
+print 'generating data...'
+states, rew = generate_data(domain, policy, 100)
+
+print 'solving...'
+X_t, X_tp1, r = generate_matrices(states, rew, phi)
+
+thetaphi = gvf(V[:n_vec,:].T, phi)
+thetaX_t, thetaX_tp1, r = generate_matrices(states, rew, thetaphi)
+
+
+indices = range(10,101, 10)
+lsq_score = []
+theta_score = []
+for i in indices:
+    A = X_t[:i,:].T.dot(X_t[:i,:]-X_tp1[:i,:])
+    b = X_t[:i,:].T.dot(r[:i])
+    lsq = np.linalg.lstsq(A, b)
+    
+    lsq_score.append(np.linalg.norm(true_val - grid.dot(lsq)))
+    
+    thetaA = thetaX_t[:i,:].T.dot(thetaX_t[:i,:]-thetaX_tp1[:i,:])
+    thetab = thetaX_t[:i,:].T.dot(r[:i])
+    thetalsq = np.linalg.lstsq(thetaA, thetab)
+    
+    theta_score.append(np.linalg.norm(true_val - grid.dot(thetalsq)))
+
+
+plt.figure()
+plt.subplot(1,2,1)
+plt.title('lstd')
+plt.plot(indices, lsq_score)
+
+plt.subplot(1,2,2)
+plt.title('gvf lstd')
+plt.plot(indices, theta_score)
 
 plt.show()
 
