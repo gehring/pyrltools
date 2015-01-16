@@ -18,6 +18,13 @@ from sklearn import preprocessing
 def sym_NRBF(x, wrt, dx, centers, widths, bias_term):
         size = centers.shape[0]
         centers = centers.T
+        
+        dx0 = dx
+        
+        x = x.dimshuffle((0,1,'x'))
+        dx = dx.dimshuffle((0,1,'x'))
+        x = T.patternbroadcast(x, (False,False,True))
+        dx = T.patternbroadcast(dx, (False,False,True))
         if widths.ndim > 1:
             widths = widths.T
             w = theano.shared(widths.reshape((1,widths.shape[0], -1)),
@@ -36,11 +43,18 @@ def sym_NRBF(x, wrt, dx, centers, widths, bias_term):
         if bias_term:
             out = T.concatenate((out, T.ones((out.shape[0], 1))), axis=1)
             size += 1
-        return out, T.Rop(out, wrt, dx), size
+        return out, T.Rop(out, wrt, dx0), size
     
 def sym_RBF(x, wrt, dx, centers, widths, bias_term):
         size = centers.shape[0]
         centers = centers.T
+        
+        dx0 = dx
+        
+        x = x.dimshuffle((0,1,'x'))
+        dx = dx.dimshuffle((0,1,'x'))
+        x = T.patternbroadcast(x, (False,False,True))
+        dx = T.patternbroadcast(dx, (False,False,True))
         if widths.ndim > 1:
             widths = widths.T
             w = theano.shared(widths.reshape((1,widths.shape[0], -1)),
@@ -58,14 +72,161 @@ def sym_RBF(x, wrt, dx, centers, widths, bias_term):
         if bias_term:
             out = T.concatenate((out, T.ones((out.shape[0], 1))), axis=1)
             size += 1
-        return out, T.Rop(out, wrt, dx), size
+        return out, T.Rop(out, wrt, dx0), size
     
+def sym_NeuroSFTD(x, wrt, dx, n_in, n_out, layers, activations, rng, W = None, b = None):
+    
+    # build all layers
+    
+    #if no initial value given, set to none
+    if W is None:
+        w0 = None
+    else:
+        w0 = W[0]
+        
+    if b is None:
+        b0 = None
+    else:
+        b0 = b[0]
+    
+    # first layer
+    hidden_layer = [HiddenLayer(rng, x, n_in, n_out, w0, b0, activations[0])]
+    
+    # remaining layers
+    n_outputs = layers[1:] + [n_out]
+    for i,l in enumerate(layers[1:]):
+        if W is None:
+            w0 = None
+        else:
+            w0 = W[i+1]
+            
+        if b is None:
+            b0 = None
+        else:
+            b0 = b[i+1]
+            
+        hidden_layer.append(HiddenLayer(rng, x, layers[i], n_outputs[i+1], w0, b0, activations[i+1]))
+        
+    out_layer = hidden_layer[-1]
+    # return ouput and directional derivative (jacobian times a vector)
+    return out_layer.output, T.Rop(out_layer.output, wrt, dx), list(chain(*[l.params for l in hidden_layer]))
+#     return out_layer.output, out_layer.output, list(chain(*[l.params for l in hidden_layer]))
+
+class NeuroSFTD(object):
+    def __init__(self, 
+                 x, 
+                 n_input, 
+                 layers,
+                 rng, 
+                 alpha,
+                 alpha_mu, 
+                 eta, 
+                 beta_1, 
+                 beta_2,
+                 activations = None, 
+                 W = None, 
+                 b= None):
+#         dx = T.matrix(name = 'dx', dtype = theano.config.floatX)
+#         y = T.vector(name = 'y', dtype = theano.config.floatX)
+#         y = T.vector(name = 'y', dtype = theano.config.floatX)
+        dx = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,False))('dx')
+        y = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,))('y')
+        r = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,))('r')
+        if activations is None:
+            activations = [T.tanh]*len(layers)
+            
+        self.out, self.dout, self.params = sym_NeuroSFTD(x, x, dx, n_input, 1, layers, activations, rng, W, b)
+        
+        
+        
+        self._alpha = theano.shared(np.array( alpha, dtype=theano.config.floatX), 'alpha', allow_downcast = True, borrow=False)
+        self._eta = theano.shared(np.array( eta, dtype=theano.config.floatX), 'eta', allow_downcast = True, borrow=False)
+        self._beta_1 = theano.shared(np.array( beta_1, dtype=theano.config.floatX), 'beta_1', allow_downcast = True, borrow=False)
+        self._beta_2 = theano.shared(np.array( beta_2, dtype=theano.config.floatX), 'beta_2', allow_downcast = True, borrow=False)
+        
+        self.alpha_mu = alpha_mu
+        self.mu = None
+        
+        L2_reg = sum([ (p**2).sum() for p in self.params[::2]])
+        L1_reg = sum([ abs(p).sum() for p in self.params[::2]])
+        
+        cost = ((y-self.out)**2).sum() + self._eta*((self.dout - r)**2).sum() \
+                    + L2_reg*self._beta_2 + L1_reg*self._beta_1
+                    
+        gparams = [T.grad(cost, param) for param in self.params]
+        updates = [ (param, param - self._alpha * gparam)
+                    for (param, gparam) in zip(self.params, gparams)]
+
+        self.__update_function = theano.function(
+            inputs = [x, dx, y, r],
+            outputs = cost,
+            updates = updates,
+            allow_input_downcast=True
+            )
+        
+        self.__evaluate = theano.function([x], self.out, allow_input_downcast= True)
+        
+    def __call__(self, state):
+        if state is None:
+            return 0
+        else:
+            if state.ndim == 1:
+                state = state[None,:]
+            return self.__evaluate(state)
+    
+    def update(self, s_t, r, s_tp1):
+        if s_t is None:
+            return
+        
+        if self.mu is None:
+            self.mu = r
+        
+        y = r - self.mu + self.__call__(s_tp1)
+        ds = s_tp1 - s_t
+        self.__update_function(s_t, ds, y, r-self.mu)
+        self.mu += self.alpha_mu * (r - self.mu)
+        
+        
+    @property
+    def alpha(self):
+        return self._alpha.get_value()
+    
+    @alpha.setter
+    def alpha(self, value):
+        self._alpha.set_value(value)
+        
+    @property
+    def eta(self):
+        return self._eta.get_value()
+    
+    @eta.setter
+    def eta(self, value):
+        self._eta.set_value(value)
+        
+    @property
+    def beta1(self):
+        return self._beta1.get_value()
+    
+    @beta1.setter
+    def beta1(self, value):
+        self._beta1.set_value(value)
+        
+    @property
+    def beta2(self):
+        return self._beta2.get_value()
+    
+    @beta2.setter
+    def beta2(self, value):
+        self._beta2.set_value(value)
+        
+        
+        
 class Theano_RBF_stateaction(object):
     def __init__(self, centers, widths, bias_term = True, normalized = False):
-        S = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('S')
-        A = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('A')
+        S = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False))('S')
+        A = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False))('A')
         X = T.concatenate((S,A), axis=1)
-        dS = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dS')
+        dS = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False))('dS')
         
         if normalized:
             out, dout, self.size = sym_NRBF(X, S, dS, centers, widths, bias_term)
@@ -83,7 +244,7 @@ class Theano_RBF_stateaction(object):
                 A = A.reshape((1,-1))
             else:
                 S = np.repeat(S, A.shape[0], axis=0)
-        phis = self.proj(S[:,:,None], A[:,:,None])
+        phis = self.proj(S, A)
         return phis
 
     def getdphids(self, S, A, dS):
@@ -95,13 +256,13 @@ class Theano_RBF_stateaction(object):
                 A = A.reshape((1,-1))
             else:
                 S = np.repeat(S, A.shape[0], axis=0)
-        dphids = self.doutdx(S[:,:,None], A[:,:,None], dS[:,:,None])
+        dphids = self.doutdx(S, A, dS)
         return dphids
     
 class Theano_RBF_Projector(object):
     def __init__(self, centers, widths, bias_term = True, normalized = False):
-        x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('x')
-        dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False, True))('dx')
+        x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False))('x')
+        dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False))('dx')
         
         if normalized:
             out, dout, self.size = sym_NRBF(x, x, dx, centers, widths, bias_term)
@@ -109,13 +270,12 @@ class Theano_RBF_Projector(object):
             out, dout, self.size = sym_RBF(x, x, dx, centers, widths, bias_term)
         self.proj = theano.function([x], out, allow_input_downcast=True)
         self.doutdx = theano.function([x,dx], dout, allow_input_downcast=True)
-
-
+    
     def __call__(self, state):
         if state.ndim == 1:
-            phis = self.proj(state[None,:,None])[0,:]
+            phis = self.proj(state[None,:])[0,:]
         else:
-            phis = self.proj(state[:,:,None])
+            phis = self.proj(state)
         return phis
 
     def getdphids(self, state, ds):
@@ -123,7 +283,7 @@ class Theano_RBF_Projector(object):
             ds = ds.reshape((1,-1))
         if state.ndim == 1:
             state = state.reshape((1,-1))
-        dphids = self.doutdx(state[:,:,None], ds[:,:,None])
+        dphids = self.doutdx(state, ds)
         return dphids
 
 def sym_tiling_index(X,
@@ -155,6 +315,8 @@ def sym_tiling_index(X,
         indices = T.cast(((offset[None,:,:] + nX)*ntiles[None,:,None]), 'int32')
         hashed_index = hashing.getHashedFunction(indices) + index_offset[None,:]
         return hashed_index, size
+    
+
 
 class Theano_IdentityHash(object):
     def __init__(self, dims):
@@ -361,7 +523,7 @@ class MLP(object):
                 n_out=n_out,
                 activation=None
             )
-             # end-snippet-2 start-snippet-3
+            # end-snippet-2 start-snippet-3
             # L1 norm ; one regularization option is to enforce L1 norm to
             # be small
             self.L1 = (
