@@ -90,11 +90,12 @@ def sym_NeuroSFTD(x, wrt, dx, n_in, n_out, layers, activations, rng, W = None, b
         b0 = b[0]
     
     # first layer
-    hidden_layer = [HiddenLayer(rng, x, n_in, n_out, w0, b0, activations[0])]
+    layers += [n_out]
+#     n_outputs = layers[1:] + [n_out]
+    hidden_layer = [HiddenLayer(rng, x, n_in, layers[0], w0, b0, activations[0])]
     
     # remaining layers
-    n_outputs = layers[1:] + [n_out]
-    for i,l in enumerate(layers[1:]):
+    for i,l in enumerate(layers[:-1]):
         if W is None:
             w0 = None
         else:
@@ -104,8 +105,7 @@ def sym_NeuroSFTD(x, wrt, dx, n_in, n_out, layers, activations, rng, W = None, b
             b0 = None
         else:
             b0 = b[i+1]
-            
-        hidden_layer.append(HiddenLayer(rng, x, layers[i], n_outputs[i+1], w0, b0, activations[i+1]))
+        hidden_layer.append(HiddenLayer(rng, hidden_layer[-1].output, layers[i], layers[i+1], w0, b0, activations[i+1]))
         
     out_layer = hidden_layer[-1]
     # return ouput and directional derivative (jacobian times a vector)
@@ -114,7 +114,9 @@ def sym_NeuroSFTD(x, wrt, dx, n_in, n_out, layers, activations, rng, W = None, b
 
 class NeuroSFTD(object):
     def __init__(self, 
-                 x, 
+                 x,
+                 s,
+                 ds, 
                  n_input, 
                  layers,
                  rng, 
@@ -129,13 +131,16 @@ class NeuroSFTD(object):
 #         dx = T.matrix(name = 'dx', dtype = theano.config.floatX)
 #         y = T.vector(name = 'y', dtype = theano.config.floatX)
 #         y = T.vector(name = 'y', dtype = theano.config.floatX)
-        dx = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,False))('dx')
-        y = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,))('y')
+#         dx = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,False))('dx')
+#         dx.tag.test_value = numpy.random.rand(5, 2).astype('float32')
+        y = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,True))('y')
+        y.tag.test_value = numpy.random.rand(5).astype('float32')[:,None]
         r = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,))('r')
+        r.tag.test_value = numpy.random.rand(5).astype('float32')
         if activations is None:
-            activations = [T.tanh]*len(layers)
+            activations = [T.tanh]*len(layers) + [None]
             
-        self.out, self.dout, self.params = sym_NeuroSFTD(x, x, dx, n_input, 1, layers, activations, rng, W, b)
+        self.out, self.dout, self.params = sym_NeuroSFTD(x, s, ds, n_input, 1, layers, activations, rng, W, b)
         
         
         
@@ -150,7 +155,7 @@ class NeuroSFTD(object):
         L2_reg = sum([ (p**2).sum() for p in self.params[::2]])
         L1_reg = sum([ abs(p).sum() for p in self.params[::2]])
         
-        cost = ((y-self.out)**2).sum() + self._eta*((self.dout - r)**2).sum() \
+        cost = ((y-self.out)**2).sum() + self._eta*(((self.dout - r)**2).sum()) \
                     + L2_reg*self._beta_2 + L1_reg*self._beta_1
                     
         gparams = [T.grad(cost, param) for param in self.params]
@@ -158,13 +163,13 @@ class NeuroSFTD(object):
                     for (param, gparam) in zip(self.params, gparams)]
 
         self.__update_function = theano.function(
-            inputs = [x, dx, y, r],
+            inputs = [s, ds, y, r],
             outputs = cost,
             updates = updates,
             allow_input_downcast=True
             )
         
-        self.__evaluate = theano.function([x], self.out, allow_input_downcast= True)
+        self.__evaluate = theano.function([s], self.out, allow_input_downcast= True)
         
     def __call__(self, state):
         if state is None:
@@ -183,7 +188,7 @@ class NeuroSFTD(object):
         
         y = r - self.mu + self.__call__(s_tp1)
         ds = s_tp1 - s_t
-        self.__update_function(s_t, ds, y, r-self.mu)
+        self.__update_function(s_t[None,:], ds[None,:], y[0,None], np.array([r-self.mu]))
         self.mu += self.alpha_mu * (r - self.mu)
         
         
@@ -204,20 +209,20 @@ class NeuroSFTD(object):
         self._eta.set_value(value)
         
     @property
-    def beta1(self):
-        return self._beta1.get_value()
+    def beta_1(self):
+        return self._beta_1.get_value()
     
-    @beta1.setter
-    def beta1(self, value):
-        self._beta1.set_value(value)
+    @beta_1.setter
+    def beta_1(self, value):
+        self._beta_1.set_value(value)
         
     @property
-    def beta2(self):
-        return self._beta2.get_value()
+    def beta_2(self):
+        return self._beta_2.get_value()
     
-    @beta2.setter
-    def beta2(self, value):
-        self._beta2.set_value(value)
+    @beta_2.setter
+    def beta_2(self, value):
+        self._beta_2.set_value(value)
         
         
         

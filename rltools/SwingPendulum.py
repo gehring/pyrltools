@@ -137,7 +137,6 @@ class Swing_stabilize(object):
         q_bar = self.get_qbar(state)
         if q_bar.dot(self.S.dot(q_bar)) < 50:
             torque = -self.K.dot(q_bar)
-            print torque
         else:
             torque = self.pump(state)
         return torque        
