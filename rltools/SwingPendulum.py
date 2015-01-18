@@ -48,7 +48,7 @@ class SwingPendulum(object):
         else:
             next_state = self.state.copy()
 
-        return np.cos(self.state[0]), next_state
+        return -np.cos(self.state[0]), next_state
 
     def reset(self):
         if self.random_start:
@@ -58,7 +58,7 @@ class SwingPendulum(object):
             self.state[:] = [self.pos_start, self.vel_start]
 
         self.uptime = 0
-        return np.cos(self.state[0]), self.state.copy()
+        return -np.cos(self.state[0]), self.state.copy()
 
     def update(self, action):
         torque = np.clip(action, *self.action_range)
@@ -135,7 +135,7 @@ class Swing_stabilize(object):
     
     def __call__(self, state):
         q_bar = self.get_qbar(state)
-        if q_bar.dot(self.S.dot(q_bar)) < 50:
+        if q_bar.dot(self.S.dot(q_bar)) < 30:
             torque = -self.K.dot(q_bar)
         else:
             torque = self.pump(state)

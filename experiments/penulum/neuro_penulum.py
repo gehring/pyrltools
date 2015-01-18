@@ -1,4 +1,4 @@
-from rltools.theanotools import NeuroSFTD, sym_RBF
+from rltools.theanotools import NeuroSFTD, sym_RBF, sym_NRBF
 from rltools.SwingPendulum import SwingPendulum, Swing_stabilize
 
 from itertools import izip
@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-theano.config.compute_test_value = 'ignore'
+# theano.config.compute_test_value = 'warn'
 # theano.config.exception_verbosity = 'high'
 
 def generate_traj(domain, policy, max_length):
@@ -27,6 +27,7 @@ def generate_traj(domain, policy, max_length):
         next_states.append(s)
         if s is None:
             break
+    next_states[-1] = None
     return states, rewards, next_states
 
 def generate_data(domain, policy, num, max_length):
@@ -35,14 +36,9 @@ def generate_data(domain, policy, num, max_length):
         
 
 domain = SwingPendulum(random_start=True)
+domain.control_rate = 0.1
 policy = Swing_stabilize(domain)
 s_range = domain.state_range
-
-ds = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,False))('ds')
-s = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,False))('s')
-
-s.tag.test_value = np.random.rand(5, 2).astype('float32')
-ds.tag.test_value = np.random.rand(5, 2).astype('float32')
 
 
 xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], 10),
@@ -50,25 +46,23 @@ xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], 10),
 
 centers = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1)))).astype(theano.config.floatX)
 
-widths = (s_range[1]-s_range[0]).astype(theano.config.floatX)*0.2
+widths = (s_range[1]-s_range[0]).astype(theano.config.floatX)*0.085
 
-x,_,size = sym_RBF(s, s, ds, centers, widths, bias_term=True)
-neurosftd = NeuroSFTD(x,
-                      s,
-                      ds, 
-                      size, 
-                      [], 
-                      np.random.RandomState(1), 
-                      alpha=0.05, 
+input_layer = lambda s, ds:sym_RBF(s, s, ds, centers, widths, bias_term=False)
+neurosftd = NeuroSFTD(2, 
+                      [200], 
+                      np.random.RandomState(1),
+                      input_layer = input_layer, 
+                      alpha=0.001, 
                       alpha_mu=0.01, 
-                      eta=0.0, 
-                      beta_1=0.01, 
-                      beta_2=0.05,
-                      activations = [ None])
+                      eta=0.8, 
+                      beta_1=0.0, 
+                      beta_2=0.0,
+                      activations = None)
 
 print 'learning...'
 num_episode = 100
-max_length = 10000
+max_length = 1000
 for states, rewards, next_states in generate_data(domain, policy, num_episode, max_length):
     for s_t, r_t, s_tp1 in izip(states, rewards, next_states):
         neurosftd.update(s_t, r_t, s_tp1)

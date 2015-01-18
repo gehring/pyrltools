@@ -9,6 +9,7 @@ from rltools.policy import evaluate_policy
 
 
 pendulum = SwingPendulum(random_start=False)
+pendulum.control_rate = 0.1
 time =0
 
 controller = Swing_stabilize(pendulum, k= 20.0)
