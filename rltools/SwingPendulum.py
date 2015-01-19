@@ -12,7 +12,7 @@ class SwingPendulum(object):
     integ_rate = 0.01
     control_rate = 0.05
     
-    required_up_time = 2.0
+    required_up_time = 1.0
     up_range = np.pi/8.0
     max_speed = np.pi*3
 
@@ -42,13 +42,13 @@ class SwingPendulum(object):
 
 
     def step(self, action):
-        self.update(action)
+        r = self.update(action)
         if self.inGoal():
             next_state = None
         else:
             next_state = self.state.copy()
 
-        return -np.cos(self.state[0]), next_state
+        return r, next_state
 
     def reset(self):
         if self.random_start:
@@ -58,11 +58,12 @@ class SwingPendulum(object):
             self.state[:] = [self.pos_start, self.vel_start]
 
         self.uptime = 0
-        return -np.cos(self.state[0]), self.state.copy()
+        return 0, self.state.copy()
 
     def update(self, action):
         torque = np.clip(action, *self.action_range)
         moment = self.mass*self.length**2
+        r = 0
         for i in xrange(int(np.ceil(self.control_rate/self.integ_rate))):
             theta_acc = (torque - self.damping * self.state[1] \
                         - self.mass*self.G *self.length*np.sin(self.state[0]))/moment
@@ -71,7 +72,8 @@ class SwingPendulum(object):
             self.state[1] = np.clip(self.state[1] + theta_delta_acc, self.state_range[0][1], self.state_range[1][1])
             self.state[0] += self.state[1] * self.integ_rate
             self.adjustTheta()
-            self.uptime = 0 if np.abs(self.state[0]) > self.up_range else self.uptime + self.integ_rate
+            self.uptime = self.uptime + self.integ_rate if angle_range_check(np.pi -self.up_range, np.pi + self.up_range, self.state[0]) else 0
+            r += -np.cos(self.state[0])*self.integ_rate/0.01
 
     def get_energy(self, state = None):
         if state is None:
@@ -107,6 +109,11 @@ class SwingPendulum(object):
     def action_dim(self):
         return len(self.action_range[0])
     
+def angle_range_check( a, b, x):
+    a = np.mod(a, 2*np.pi)
+    b = np.mod(b, 2*np.pi)
+    theta_bar = np.mod(b-a, 2*np.pi)
+    return np.mod(x-a, 2*np.pi)<=theta_bar
 
 class Energy_pumping(object):
     def __init__(self, pendulum, k=20.0):
