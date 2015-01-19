@@ -1,5 +1,6 @@
 import numpy as np
 from control.statefbk import lqr
+import copy
 
 class SwingPendulum(object):
     min_pos = -np.pi
@@ -94,8 +95,7 @@ class SwingPendulum(object):
         return self.uptime >= self.required_up_time
 
     def copy(self):
-        newpendulum = SwingPendulum(random_start = self.random_start)
-        newpendulum.state[:] = self.state
+        newpendulum = copy.deepcopy(self)
         return newpendulum
 
     @property

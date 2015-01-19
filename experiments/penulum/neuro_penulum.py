@@ -1,7 +1,7 @@
 from rltools.theanotools import NeuroSFTD, sym_RBF, sym_NRBF
 from rltools.SwingPendulum import SwingPendulum, Swing_stabilize
 
-from itertools import izip, product
+from itertools import izip, product, chain, repeat
 
 import theano
 import theano.tensor as T
@@ -11,12 +11,34 @@ import numpy as np
 import matplotlib.pyplot as plt
 from IPython.parallel import Client
 import pickle
+import os
+import sys
 
 # theano.config.compute_test_value = 'warn'
 # theano.config.exception_verbosity = 'high'
 
+def sample_true_value(p):
+    domain, policy, max_length, start_points = p
+    rew = []
+    for start in start_points:
+        domain.reset()
+        domain.state[:] = start
+        r = 0
+        s = start
+        while s is not None:
+            r_t, s = domain.step(policy(s))
+            r += r_t
+        rew.append(r)
+    return domain.control_rate, np.array(rew)
+
+def approx_avg_rew(p):
+    domain, policy, num_episodes, max_length = p
+    rewards = []
+    for _, rew, _  in generate_data(domain, policy, num_episodes, max_length):
+        rewards.append( rew)
+    return domain.control_rate, np.mean(np.hstack(rewards))
+
 def generate_traj(domain, policy, max_length):
-    domain = domain.copy()
     r, s = domain.reset()
     states = []
     rewards = []
@@ -45,7 +67,7 @@ class rbf_input_layer(object):
     def __call__(self, s, ds):
         return sym_RBF(s, s, ds, self.centers, self.widths, bias_term=self.bias_term)
 def run_exp(p):
-    control_rate, alpha, alpha_mu, eta, num_episode, max_length, layers = p
+    control_rate, alpha, alpha_mu, eta, num_episode, max_length, layers, points = p
     domain = SwingPendulum(random_start=True)
     domain.control_rate = control_rate
     policy = Swing_stabilize(domain)
@@ -75,21 +97,45 @@ def run_exp(p):
         for s_t, r_t, s_tp1 in izip(states, rewards, next_states):
             neurosftd.update(s_t, r_t, s_tp1)
              
-    nsamples = 40        
-    xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], nsamples),
-                         np.linspace(s_range[0][0], s_range[1][0], nsamples))
-    points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1)))).astype(theano.config.floatX)
+    
      
     values = neurosftd(points)
-    return values, (control_rate, alpha, alpha_mu, eta, num_episodes, max_length, layers)
+    return values, {'rate':control_rate, 
+                    'alpha':alpha, 
+                    'alpha_mu':alpha_mu, 
+                    'eta':eta, 
+                    'num_episode':num_episode, 
+                    'max_length':max_length, 
+                    'layers':layers}
         
-control_rate = [0.1, 0.05]#[0.2, 0.1, 0.05, 0.01]
-alphas = [0.01]#[0.05, 0.01, 0.005]
-alpha_mus = [0.01]#[0.01, 0.001]
-etas = [0.3]#[0.0, 0.3, 0.6, 0.9]
+control_rate = [0.2, 0.1, 0.05, 0.01]
+alphas = [0.05, 0.01, 0.005]
+alpha_mus = [0.01, 0.001]
+etas = [0.0, 0.3, 0.6, 0.9]
 num_episodes = 100
 max_length = 100
 layers = []
+
+domain = SwingPendulum(random_start=True)
+s_range = domain.state_range
+nsamples = 40        
+xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], nsamples),
+                     np.linspace(s_range[0][0], s_range[1][0], nsamples))
+points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1)))).astype(theano.config.floatX)
+
+
+# avg_rew={}
+# true_val = {}
+# for cr in control_rate:
+#     domain = SwingPendulum(random_start=True)
+#     domain.control_rate = cr
+#     policy = Swing_stabilize(domain)
+#     avg_rew[cr] = approx_avg_rew(domain, policy, 100, int(max_length/cr))
+#     true_val[cr] = sample_true_value(domain, policy,  int(max_length/cr), points)
+# 
+# sys.exit()
+
+
 
 
 client = Client()
@@ -102,19 +148,42 @@ client[:].execute('import numpy as np', block=True)
 
 client[:]['generate_traj'] = generate_traj
 client[:]['generate_data'] = generate_data
+client[:]['sample_true_value'] = sample_true_value
+client[:]['approx_avg_rew'] = approx_avg_rew
 client[:]['rbf_input_layer'] = rbf_input_layer
 
 lbview =  client.load_balanced_view()
 lbview.block = False
 lbview.retries = True
 
-map(run_exp, product(control_rate,
-                                        alphas,
-                                        alpha_mus,
-                                        etas,
-                                        [num_episodes],
-                                        [max_length],
-                                        [layers]))
+compare_domains = []
+max_lengths = []
+for cr in control_rate:
+    domain = SwingPendulum(random_start=True)
+    domain.control_rate = cr
+    policy = Swing_stabilize(domain)
+    compare_domains.append(domain)
+    max_lengths.append(int(max_length/cr))
+    
+num_of_samples = 100
+print 'Computing average rewards...'
+avg_rew = lbview.map(approx_avg_rew, izip(compare_domains,
+                                          repeat(policy),
+                                          repeat(num_of_samples),
+                                          max_lengths),
+                     ordered = True,
+                     block = True)
+
+print 'Computing True Value functions...'
+true_val = lbview.map(sample_true_value, izip(compare_domains,
+                                          repeat(policy),
+                                          max_lengths,
+                                          repeat(points)),
+                     ordered = True,
+                     block = True)
+avg_rew = dict(avg_rew)
+true_val = dict(true_val)
+print 'Empirical Truth computed!'
 
 results = lbview.map( run_exp, product(control_rate,
                                         alphas,
@@ -122,23 +191,26 @@ results = lbview.map( run_exp, product(control_rate,
                                         etas,
                                         [num_episodes],
                                         [max_length],
-                                        [layers]),
+                                        [layers],
+                                        [points]),
                      ordered = False,
                      block = False)
 
 completed = []
 
-print 'Starting!'
+print 'Starting...'
 print 'Just completed:'
 for s in results:
     completed.append(s)
     print s[1]
     with open('partial-data.data', 'wb') as f:
-        pickle.dump(completed, f)
+        pickle.dump((completed, avg_rew, true_val), f)
     
-with open('complete-data.data', 'wb') as f:
-        pickle.dump(completed)
-
+try:
+    os.rename('partial-data.data', 'complete-data.data')
+except Exception as e:
+    print e
+print 'Done!'
         
     
     
