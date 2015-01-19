@@ -74,6 +74,7 @@ class SwingPendulum(object):
             self.adjustTheta()
             self.uptime = self.uptime + self.integ_rate if angle_range_check(np.pi -self.up_range, np.pi + self.up_range, self.state[0]) else 0
             r += -np.cos(self.state[0])*self.integ_rate/0.01
+        return r
 
     def get_energy(self, state = None):
         if state is None:
