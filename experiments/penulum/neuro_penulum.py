@@ -26,7 +26,7 @@ def sample_true_value(p):
         r = 0
         s = start
         while s is not None:
-            r_t, s = domain.step(policy(s))
+            r_t, s = domain.step(policy(s), policy)
             r += r_t
         rew.append(r)
     return domain.control_rate, np.array(rew)
@@ -45,7 +45,7 @@ def generate_traj(domain, policy, max_length):
     next_states = []
     for i in xrange(max_length):
         states.append(s)
-        r, s = domain.step(policy(s))
+        r, s = domain.step(policy(s), policy)
         rewards.append(r)
         next_states.append(s)
         if s is None:
@@ -108,13 +108,17 @@ def run_exp(p):
                     'max_length':max_length, 
                     'layers':layers}
         
-control_rate = [0.2, 0.1, 0.05, 0.01]
-alphas = [0.05, 0.01, 0.005]
-alpha_mus = [0.01, 0.001]
+control_rate = [ 0.1, 0.06, 0.04, 0.02, 0.01]
+alphas = [0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001]
+alpha_mus = [0.01, 0.05, 0.001, 0.0005]
 etas = [0.0, 0.3, 0.6, 0.9]
 num_episodes = 100
 max_length = 100
-layers = []
+layers = [200]
+
+filename = '/media/cgehri/data/experiment_data/pendulum/test4-'
+
+params = (control_rate, alphas, alpha_mus, etas)
 
 domain = SwingPendulum(random_start=True)
 s_range = domain.state_range
@@ -165,7 +169,7 @@ for cr in control_rate:
     compare_domains.append(domain)
     max_lengths.append(int(max_length/cr))
     
-num_of_samples = 100
+num_of_samples = 1000
 print 'Computing average rewards...'
 avg_rew = lbview.map(approx_avg_rew, izip(compare_domains,
                                           repeat(policy),
@@ -203,11 +207,11 @@ print 'Just completed:'
 for s in results:
     completed.append(s)
     print s[1]
-    with open('partial-data.data', 'wb') as f:
-        pickle.dump((completed, avg_rew, true_val), f)
+    with open(filename + 'partial-data.data', 'wb') as f:
+        pickle.dump((completed, avg_rew, true_val, params), f)
     
 try:
-    os.rename('partial-data.data', 'complete-data.data')
+    os.rename(filename + 'partial-data.data', filename + 'complete-data.data')
 except Exception as e:
     print e
 print 'Done!'

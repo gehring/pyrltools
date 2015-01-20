@@ -42,8 +42,8 @@ class SwingPendulum(object):
         self.reset()
 
 
-    def step(self, action):
-        r = self.update(action)
+    def step(self, action, policy = None):
+        r = self.update(action, policy)
         if self.inGoal():
             next_state = None
         else:
@@ -61,11 +61,14 @@ class SwingPendulum(object):
         self.uptime = 0
         return 0, self.state.copy()
 
-    def update(self, action):
+    def update(self, action, policy=None):
         torque = np.clip(action, *self.action_range)
         moment = self.mass*self.length**2
         r = 0
         for i in xrange(int(np.ceil(self.control_rate/self.integ_rate))):
+            if policy is not None:
+                torque = np.clip(policy(self.state), *self.action_range)
+                
             theta_acc = (torque - self.damping * self.state[1] \
                         - self.mass*self.G *self.length*np.sin(self.state[0]))/moment
             
