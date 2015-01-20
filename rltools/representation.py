@@ -77,7 +77,7 @@ class TabularActionProjector(object):
                 x = np.vstack(( x + self.phi.size*i for i in xrange(self.nactions)))
                 assert(issubclass(x.dtype.type, np.uint))
             else:
-                x = np.diag(x[None,:], self.nactions)
+                x = np.kron(x, np.eye(self.nactions))#np.diag(x[None,:], self.nactions)
         else:
             a = action
             if not isinstance(action, int):
@@ -90,7 +90,7 @@ class TabularActionProjector(object):
                            (a*self.phi.size,
                             self.phi.size*(self.nactions-a-1)),
                             mode = 'constant')
-        return x
+        return x.T
     
 class StateActionProjection(object):
     def __init__(self, actions, size = None, phi = None):
@@ -206,8 +206,14 @@ class TileCodingDense(TileCoding):
         super(TileCodingDense, self).__init__(*args, **kargs)
 
     def __call__(self, state):
-        phi = np.zeros(self.size)
-        phi[super(TileCodingDense, self).__call__(state)] = 1
+        print state.shape
+        if state.ndim>1:
+            phi= np.zeros((state.shape[0],self.size))
+            for i,s in enumerate(state):
+                phi[i,super(TileCodingDense, self).__call__(state)] = 1
+        else:
+            phi = np.zeros(self.size)
+            phi[super(TileCodingDense, self).__call__(state)] = 1
         return phi
 
 

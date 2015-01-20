@@ -21,7 +21,7 @@ class Egreedy(Policy):
 
     def getprob(self, state):
         values = self.valuefn(state)
-
+        
         # argmax with random tie breaking
         m = np.random.choice(np.argwhere(values == np.amax(values)).flatten(),1)[0]
 

@@ -94,7 +94,7 @@ class iSVD(object):
 
         C, Sp, Dt = np.linalg.svd(K, full_matrices = False)
         D = Dt.T
-
+        Rot = D
         if np.abs(Sp[-1]) < self.thres or Sp.shape[0] > rank:
             U = U.dot(C[:-1, :-1])
             V = V.dot(D[:-1, :-1])
@@ -122,6 +122,7 @@ class iSVD(object):
         S = tS
 
         self.matrices = (U, Up, S, Vp, V)
+        return Rot
 
     def get_decomp(self):
         if self.matrices is not None:

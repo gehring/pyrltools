@@ -68,7 +68,7 @@ def update_svd(isvd, s_t, r_t, s_tp1, phi, alpha, gamma):
     else:
         td = p_t - V.T.dot(np.diag(S).dot(U.T.dot(p_t)))
 
-    isvd.update(p_t, alpha*td)
+    return isvd.update(p_t, alpha*td)
 
 def update_td(theta, s_t, r_t, s_tp1, phi, alpha, gamma):
     p_t = phi(s_t)
@@ -81,15 +81,20 @@ def update_td(theta, s_t, r_t, s_tp1, phi, alpha, gamma):
 
     theta += alpha*td*p_t
 
-def update_r_td(U, S, V, R, s_t, r_t, s_tp1, phi, alpha, gamma):
+def update_r_td(U, S, V, Rot, R, s_t, r_t, s_tp1, phi, alpha, gamma):
     p_t = phi(s_t)
-
-    if s_tp1 is not None:
-        td = r_t + gamma* R.dot(V.T.dot(np.diag(S).dot(U.T.dot(phi(s_tp1))))) \
-                        - R.dot(V.T.dot(np.diag(S).dot(U.T.dot(p_t))))
+    if U.shape[1] > R.shape[0]:
+        R = np.hstack((R,0))
     else:
-        td = r_t - R.dot(V.T.dot(np.diag(S).dot(U.T.dot(p_t))))
-    R += alpha*td*p_t
+        Rot = Rot[:-1,:-1]
+    R = Rot.T.dot(R)
+    if s_tp1 is not None:
+        td = r_t + gamma* R.dot((np.diag(S).dot(U.T.dot(phi(s_tp1))))) \
+                        - R.dot((np.diag(S).dot(U.T.dot(p_t))))
+    else:
+        td = r_t - R.dot((np.diag(S).dot(U.T.dot(p_t))))
+    R += alpha*td*np.diag(S).dot(U.T.dot(p_t))
+    return R
 
 def update_r_regression(R, s_t, r_t, s_tp1, phi, alpha):
     p_t = phi(s_t)
@@ -110,9 +115,9 @@ s_range = domain.state_range
 xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], 10, True),
                      np.linspace(s_range[0][1], s_range[1][1], 10, True))
 centers = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1))))
-widths = (s_range[1]-s_range[0])*0.2
-phi = Theano_RBF_Projector(centers, widths, bias_term=True, normalized = True)
-phi = TileCodingDense([np.arange(2)], [5], [11], None, s_range, True)
+widths = (s_range[1]-s_range[0])*0.1
+phi = Theano_RBF_Projector(centers, widths, bias_term=True, normalized = False)
+# phi = TileCodingDense([np.arange(2)], [5], [11], None, s_range, True)
 
 num = 3000
 print 'Generating data...'
@@ -120,10 +125,10 @@ allstates, rew = generate_data(domain, policy, n_episodes= num)
 
 isvd = iSVD(max_rank=100, shape=(phi.size, phi.size), init = False)
 R_reg = np.zeros(phi.size)
-R_td = np.zeros_like(R_reg)
+R_td = np.zeros(1)
 theta_td = np.zeros_like(R_reg)
 
-alpha = 0.1
+alpha = 0.01
 gamma = 0.99
 
 # empirical truth
@@ -145,18 +150,19 @@ grid = phi(points)
 
 V_true = grid.dot(theta_true)
 
-run_for = min(50, num)
+run_for = min(30, num)
 print 'Running all incremental algorithms:'
 for i, (states, rewards) in enumerate(zip(allstates, rew)[:run_for]):
     for s_t, r_t, s_tp1 in generate_transition(states, rewards):
-        update_svd(isvd, s_t, r_t, s_tp1, phi, alpha, gamma)
+        Rot = update_svd(isvd, s_t, r_t, s_tp1, phi, alpha, gamma)
         update_r_regression(R_reg, s_t, r_t, s_tp1, phi, alpha)
         U, S, V = isvd.get_decomp()
-        update_r_td(U, S, V, R_td, s_t, r_t, s_tp1, phi, alpha, gamma)
+        if Rot is not None:
+            R_td = update_r_td(U, S, V, Rot, R_td, s_t, r_t, s_tp1, phi, alpha*10, gamma)
         update_td(theta_td, s_t, r_t, s_tp1, phi, alpha, gamma)
     if i % (run_for/10) == 0:
         print i
-        V_td = U.dot(np.diag(S).dot(V.dot(R_td)))
+        V_td = U.dot(np.diag(S).dot((R_td)))
         V_reg =  U.dot(np.diag(S).dot(V.dot(R_reg)))
 #         V_reg =  U.dot(np.diag(S).dot(V.dot(-np.ones(phi.size)/3.0)))
         r_reg_score.append(np.linalg.norm(grid.dot(V_reg) - V_true))
@@ -167,6 +173,7 @@ print 'Plotting...'
 plt.Figure()
 plt.plot(range(1,len(r_reg_score)+1), r_reg_score, label='R reg')
 plt.plot(range(1,len(r_reg_score)+1), td_score, label='td')
+plt.plot(range(1,len(r_reg_score)+1), r_td_score, label='R td')
 plt.legend()
 
 # plt.subplot(3,1,1)
@@ -201,11 +208,15 @@ plt.legend()
 plt.figure()
 plt.subplot(2,2,1)
 plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), grid.dot(V_reg).reshape((40,40)))
+plt.colorbar()
 plt.subplot(2,2,2)
 plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), grid.dot(V_td).reshape((40,40)))
+plt.colorbar()
 plt.subplot(2,2,3)
 plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), grid.dot(theta_td).reshape((40,40)))
+plt.colorbar()
 plt.subplot(2,2,4)
 plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), V_true.reshape((40,40)))
+plt.colorbar()
 
 plt.show()

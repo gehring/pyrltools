@@ -2,7 +2,7 @@ import numpy as np
 from policy import weighted_values
 from rltools.policy import Egreedy
 from itertools import izip, chain
-from rltools.valuefn import LSQ, SFLSQ, QAKLSQ
+# from rltools.valuefn import LSQ, SFLSQ, QAKLSQ
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
 from sklearn import preprocessing

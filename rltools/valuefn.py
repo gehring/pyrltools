@@ -169,52 +169,6 @@ def SFLSQ(X_t, r_t, X_tp1, gamma, phi, theta0= None, **args):
     print 'Solved in '+str(time.clock() - start_time) + ' seconds'
     return linearQValueFn(theta, phi)
 
-def KernelRegression(X_1, X_2, y, gamma, kernel, lamb=0):
-    A = kernel(X_1) + gamma**2*kernel(X_2) - gamma*kernel(X_1,X_2) \
-                    - gamma*kernel(X_2,X_1) \
-                    + lamb*sp.eye(X_1.shape[0], X_1.shape[0])
-    alpha = sp.linalg.lsqr(A, y)[0]
-    return alpha
-
-def KSFLSQ(X_t, r_t, X_tp1, gamma, phi, kernel, lamb = 0.01, **args):
-    alpha = KernelRegression(X_t, X_tp1, r_t, gamma, kernel, lamb)
-    return kernelLinearQValueFn(alpha, phi, X_t, X_tp1, gamma, kernel)
-
-
-def QAKLSQ(X_t, r_t, X_tp1, gamma, phi, kernel, lamb=0.1, **args):
-    valuefn = KSFLSQ(X_t, r_t, X_tp1, gamma, phi, kernel, lamb)
-    return quadKernelLinearQValueFn(valuefn)
-
-# def BatchLSTDlambda(policy,
-#            environment,
-#            gamma,
-#            feature,
-#            projector,
-#            lamb = 0.0,
-#            batch
-#            **args):
-#     phi = projector
-#     A = np.zeros((projector.size, projector.size))
-#     b = np.zeros(projector.size)
-#
-#     for data in batch:
-#         x_t = environment.reset()[1]
-#         p_t = phi(x_t)
-#         z = p_t
-#         t=0
-#         while not environment.isterminal() and t<max_episode_length:
-#             x_tp1 = environment.step(policy(x_t))(1)
-#             p_tp1 = phi(x_tp1)
-#             A += np.outer(z, p_t - gamma*p_tp1)
-#             b += z * feature(x_t)
-#             z = gamma*lamb * z + p_tp1
-#             x_t = x_tp1
-#             p_t = p_tp1
-#             t += 1
-#
-#     theta = np.linalg.solve(A, b)
-#     return linearValueFn(theta, phi)
-
 class MLPValueFn(ValueFn):
     def __init__(self, mlp, actions, phi):
         self.mlp = mlp
@@ -325,6 +279,149 @@ class LinearTD(ValueFn):
         self.theta += self.alpha*delta*self.e
 
 
+class TDSR(object):
+    def __init__(self, 
+                 projector, 
+                 alpha,
+                 alpha_R, 
+                 lamb, 
+                 gamma,
+                 rank = None,
+                 threshold = 1e-12,  
+                 replacing_trace=True,
+                 use_U_only = False):
+        self.gamma = gamma
+        self.alpha = alpha
+        self.alpha_R = alpha_R
+        self.lamb = lamb
+        self.phi = projector
+        
+        if rank is None:
+            self.rank = max(min(50, projector.size/2), np.log(projector.size))
+        else:
+            self.rank = rank
+        self.matrices = (np.zeros((self.phi.size, 1)),
+                         np.zeros(1),
+                         np.zeros((self.phi.size, 1)))
+        self.initialized = False
+        self.threshold = threshold
+        
+        self.e = np.zeros(self.phi.size)
+        self.replacing_trace = replacing_trace
+        
+        self.use_U_only = use_U_only
+        if use_U_only:
+            self.R = np.zeros(1)
+        else:
+            self.R = np.zeros(projector.size)
+        
+    def __call__(self, state, action = None):
+        phi_sa = self.phi(state, action)
+        U,S,V = self.matrices
+        Uphi = phi_sa.T.dot(U)
+        if self.use_U_only:
+            v = self.R.dot(np.diag(S).dot(Uphi.T))
+        else:
+            v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T)))
+        return v
+        
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if s_t == None:
+            self.e[:] = 0.0
+            return
+        
+        phi_t = self.phi(s_t, a_t)
+        
+        self.e *= self.gamma*self.lamb
+        if phi_t.ndim > 1:
+            e = self.e[:,None]
+        else:
+            e = self.e
+        self.e = np.squeeze(np.array(e + phi_t))
+        
+        if self.replacing_trace:
+            self.e = np.clip(self.e, 0, 1)
+        
+        U,S,V = self.matrices
+        Uphi_t = phi_t.T.dot(U)
+        if s_tp1 is not None:
+            phi_tp1 = self.phi(s_tp1, a_tp1)
+            Uphi_tp1 = phi_tp1.T.dot(U)
+            delta = phi_t + self.gamma*V.dot(np.diag(S).dot(Uphi_tp1.T)) \
+                        - V.dot(np.diag(S).dot(Uphi_t.T))
+        else:
+            delta = phi_t - V.dot(np.diag(S).dot(Uphi_t.T))
+            
+        delta = np.squeeze(np.array(delta))
+        # update svd of the successor state representation
+        ealpha = self.e * self.alpha
+        if not self.initialized:
+            self.matrices = ((ealpha/np.linalg.norm(ealpha)).reshape((-1,1)),
+                             np.array([np.linalg.norm(ealpha) * np.linalg.norm(delta)]),
+                             (delta/np.linalg.norm(delta)).reshape((-1,1)))
+            self.initialized = True
+            
+        else:
+            m = U.T.dot(ealpha)
+            p = ealpha - U.dot(m)
+            ra = np.linalg.norm(p)
+            
+            n = V.T.dot(delta)
+            q = delta - V.dot(n)
+            rb = np.linalg.norm(q)
+            
+            K = np.hstack((m, ra))[:,None] * np.hstack((n, rb))[None,:] \
+                        + np.diag(np.hstack((S, 0)))
+        
+            C, Sp, Dt = np.linalg.svd(K, full_matrices = False)
+            D = Dt.T
+            if np.abs(Sp[-1]) < self.threshold or Sp.shape[0] > self.rank:
+                U = U.dot(C[:-1, :-1])
+                V = V.dot(D[:-1, :-1])
+                S = Sp[:-1]
+                if self.use_U_only:
+                    self.R = self.R.dot(D[:-1, :-1])
+               
+            else:
+                Pm = p/ra
+                Qm = q/rb
+                U = np.hstack((U, Pm.reshape((-1,1)))).dot(C)
+                V = np.hstack((V, Qm.reshape((-1,1)))).dot(D)
+                S = Sp
+                if self.use_U_only:
+                    self.R = np.hstack((self.R, 0)).dot(D)
+                    
+            self.matrices = (U,S,V)
+        Uphi_t = phi_t.T.dot(U)
+        if self.use_U_only:
+            if s_tp1 is not None:
+                Uphi_tp1 = phi_tp1.T.dot(U)
+                delta = r + self.gamma*self.R.dot(np.diag(S).dot(Uphi_tp1.T)) \
+                        - self.R.dot(np.diag(S).dot(Uphi_t.T))
+            else:
+                delta = r - self.R.dot(np.diag(S).dot(Uphi_t.T))
+            delta = np.squeeze(delta)
+            M = (np.diag(S).dot(Uphi_t.T)).squeeze()
+            self.R += self.alpha_R*delta*M
+        else:
+            if phi_t.ndim > 1:
+                R = self.R[:,None]
+            else:
+                R = self.R
+            self.R = R +  self.alpha_R * (r - np.squeeze(phi_t.T.dot(self.R))) * phi_t
+            self.R = np.squeeze(np.array(self.R))
+        
+                
+    def correct_orthogonality(self):
+        U, S, V = self.matrices
+        Vq, Vr = np.linalg.qr(V)
+        Uq, Ur = np.linalg.qr(U)
+        tU, tS, tV = np.linalg.svd(Ur.dot(np.diag(S)).dot(Vr.T), full_matrices = False)
+        V = Vq.dot(tV)
+        U = Uq.dot(tU)
+        S = tS
+        self.matrices = (U,S,V)
+
 class LinearTDPolicyMixture(ValueFn):
     def __init__(self,
                  num_actions,
@@ -372,126 +469,6 @@ class LinearTDPolicyMixture(ValueFn):
             self.e += rho[:,None]*phi_t
         delta = r + self.gamma*self(s_tp1)- self(s_t)
         self.theta += self.alpha*delta[:,None]*self.e
-
-
-
-class RBFValueFn(incrementalValueFn):
-    def __init__(self,
-                 alpha,
-                 c,
-                 w,
-                 projector,
-                 gamma,
-                 sigma,
-                 eta,
-                 **kargs):
-        super(RBFValueFn, self).__init__()
-        self.alpha = alpha
-        self.projector = projector
-        self.gamma = gamma
-        self.width = sigma **-2
-        self.eta =  eta
-        self.c = np.array(c)
-        self.w = np.array(w)
-
-
-    def __call__(self, state, action):
-        projected = self.projector(state, action)
-        return self.w.dot(self.computeRBFs(projected, self.c))
-
-    def computeRBFs(self, x, c):
-        s =  np.sum( (x-c)**2, axis=1)
-        s *= (-self.width)
-        rbfs = np.exp(s)
-        rbfs /= np.sum(rbfs)
-        return rbfs
-
-    def update(self, s_t, a_t, r, s_tp1, a_tp1):
-        if s_t == None:
-            return
-
-        phi_t = self.projector(s_t)
-        rbfs = self.computeRBFs(phi_t, self.c)
-        if s_tp1 == None:
-            v_tp1 = 0
-            drbfs = np.zeros_like(rbfs)
-        else:
-            phi_tp1 = self.projector(s_tp1, a_tp1)
-            rbfs_tp1 = self.computeRBFs(phi_tp1, self.c)
-            v_tp1 = self.w.dot(rbfs_tp1)
-            drbfs = rbfs_tp1 - rbfs
-
-        v_t =  self.w.dot(rbfs)
-
-
-        delta = r + self.gamma * v_tp1 - v_t
-        self.w -= (self.eta * self.alpha * delta * drbfs)
-        self.w += ((1-self.eta) * self.alpha * delta * rbfs)
-        # no change to c for now!
-
-class TabularRBFValueFn(incrementalValueFn):
-    def __init__(self,
-                 alpha,
-                 c,
-                 w,
-                 projector,
-                 gamma,
-                 sigma,
-                 eta,
-                 actions,
-                 **kargs):
-        super(TabularRBFValueFn, self).__init__()
-        self.alpha = alpha
-        self.projector = projector
-        self.gamma = gamma
-        self.width = sigma **-2
-        self.eta =  eta
-
-        self.actions = actions
-
-        self.c = [ np.array(c) for i in xrange(len(actions))]
-        self.w = [ np.array(w) for i in xrange(len(actions))]
-
-
-    def __call__(self, state, action):
-        projected = self.projector(state)
-        index = self.getactionindex(action)
-        return self.w[index].dot(self.computeRBFs(projected, self.c[index]))
-
-    def getactionindex(self, action):
-        return np.argmax(np.all(self.actions == action, axis = 1))
-
-    def computeRBFs(self, x, c):
-        s =  np.sum( (x-c)**2, axis=1)
-        s *= (-self.width)
-        rbfs = np.exp(s)
-        rbfs /= np.sum(rbfs)
-        return rbfs
-
-    def update(self, s_t, a_t, r, s_tp1, a_tp1):
-        if s_t == None:
-            return
-
-        index_t = self.getactionindex(a_t)
-        phi_t = self.projector(s_t)
-        rbfs = self.computeRBFs(phi_t, self.c[index_t])
-        if s_tp1 == None:
-            v_tp1 = 0
-            drbfs = np.zeros_like(rbfs)
-        else:
-            index_tp1 = self.getactionindex(a_tp1)
-            phi_tp1 = self.projector(s_tp1)
-            rbfs_tp1 = self.computeRBFs(phi_tp1, self.c[index_tp1])
-            v_tp1 = self.w[index_tp1].dot(rbfs_tp1)
-            drbfs = rbfs_tp1 - rbfs
-
-        v_t =  self.w[index_t].dot(rbfs)
-
-
-        delta = r + self.gamma * v_tp1 - v_t
-        self.w[index_t] -= (self.eta * self.alpha * delta * drbfs)
-        self.w[index_t] += ((1-self.eta) * self.alpha * delta * rbfs)
-        # no change to c for now!
 
 
 

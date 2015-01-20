@@ -114,9 +114,9 @@ alpha_mus = [0.01, 0.05, 0.001, 0.0005]
 etas = [0.0, 0.3, 0.6, 0.9]
 num_episodes = 100
 max_length = 100
-layers = [200]
+layers = [40]
 
-filename = '/media/cgehri/data/experiment_data/pendulum/test4-'
+filename = '/media/cgehri/data/experiment_data/pendulum/test-40-'
 
 params = (control_rate, alphas, alpha_mus, etas)
 
