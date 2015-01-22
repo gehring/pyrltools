@@ -155,6 +155,12 @@ print grid.shape
 plt.figure()
 plt.plot(s)
 
+
+X_t, X_tp1, r = generate_matrices_sparse(states, rew, phi)
+
+X_t = X_t.tocsr()
+X_tp1 = X_tp1.tocsr()
+
 n_vec = 12
 n_row = 4
 
@@ -169,7 +175,13 @@ plt.figure()
 for i in xrange(n_vec):
     plt.subplot(n_row,n_vec/n_row + 0 if n_vec % n_row == 0 else 1,i+1)
     plt.title('V' + str(i))
+#     
+#     A = X_t.T.dot(X_t-X_tp1)
+#     b = X_t.T.dot(X_t.dot(V[i,:].T))
+#     lsq = sp.linalg.lsmr(A, b)[0]
+#     
     val = grid.dot(V[i,:].T)
+#     val = grid.dot(lsq)
     plt.pcolormesh(xx.reshape((num,-1)), yy.reshape((num,-1)), val.reshape((num,-1)))
 
 plt.figure()
@@ -188,13 +200,9 @@ print 'generating data...'
 states, rew = generate_data(domain, policy, 500)
 
 print 'solving...'
-X_t, X_tp1, r = generate_matrices_sparse(states, rew, phi)
 
-X_t = X_t.tocsr()
-X_tp1 = X_tp1.tocsr()
-
-# thetaphi = gvf(U[:,:n_vec].dot(np.diag(s[:n_vec]).dot(V[:n_vec,:])), phi)
-thetaphi = gvf(V[:8,:].T, phi)
+thetaphi = gvf(U[:,:n_vec].dot(np.diag(s[:n_vec]).dot(V[:n_vec,:])), phi)
+# thetaphi = gvf(V[:8,:].T, phi)
 # thetaphi = gvf(U[:,:20], phi)
 thetaX_t, thetaX_tp1, r = generate_matrices(states, rew, thetaphi)
 thetagrid = thetaphi(points)

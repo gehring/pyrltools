@@ -2,6 +2,7 @@ from rltools.MountainCar import MountainCar, PumpingPolicy
 from rltools.theanotools import Theano_RBF_Projector, Theano_Tiling
 from rltools.mathtools import iSVD
 from rltools.representation import TileCodingDense
+from rltools.valuefn import TDSR
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -100,6 +101,13 @@ def update_r_regression(R, s_t, r_t, s_tp1, phi, alpha):
     p_t = phi(s_t)
     R += alpha*(r_t - R.dot(p_t)) * p_t
 
+
+def evaluate_valuefn(valuefn, points):
+    values = np.empty(points.shape[0])
+    for i, p in enumerate(points):
+        values[i] = valuefn.call_no_act(p)
+    return values
+    
 def generate_transition(states, rewards):
     for i in xrange(states.shape[0]):
         if i < states.shape[0]-1:
@@ -119,6 +127,12 @@ widths = (s_range[1]-s_range[0])*0.1
 phi = Theano_RBF_Projector(centers, widths, bias_term=True, normalized = False)
 # phi = TileCodingDense([np.arange(2)], [5], [11], None, s_range, True)
 
+
+valuefn = TDSR(phi, 0.02, 0.05, 0.9, 0.99, 100, replacing_trace=False, use_U_only=False)
+
+
+
+
 num = 3000
 print 'Generating data...'
 allstates, rew = generate_data(domain, policy, n_episodes= num)
@@ -128,7 +142,7 @@ R_reg = np.zeros(phi.size)
 R_td = np.zeros(1)
 theta_td = np.zeros_like(R_reg)
 
-alpha = 0.01
+alpha = 0.05
 gamma = 0.99
 
 # empirical truth
@@ -141,6 +155,7 @@ theta_true = np.linalg.lstsq(A, b)[0]
 r_reg_score = []
 r_td_score = []
 td_score = []
+tdsr_score = []
 
 
 xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], 40, True),
@@ -158,8 +173,9 @@ for i, (states, rewards) in enumerate(zip(allstates, rew)[:run_for]):
         update_r_regression(R_reg, s_t, r_t, s_tp1, phi, alpha)
         U, S, V = isvd.get_decomp()
         if Rot is not None:
-            R_td = update_r_td(U, S, V, Rot, R_td, s_t, r_t, s_tp1, phi, alpha*10, gamma)
+            R_td = update_r_td(U, S, V, Rot, R_td, s_t, r_t, s_tp1, phi, alpha*5, gamma)
         update_td(theta_td, s_t, r_t, s_tp1, phi, alpha, gamma)
+        valuefn.update_no_act(s_t, r_t, s_tp1)
     if i % (run_for/10) == 0:
         print i
         V_td = U.dot(np.diag(S).dot((R_td)))
@@ -168,12 +184,14 @@ for i, (states, rewards) in enumerate(zip(allstates, rew)[:run_for]):
         r_reg_score.append(np.linalg.norm(grid.dot(V_reg) - V_true))
         r_td_score.append(np.linalg.norm(grid.dot(V_td) - V_true))
         td_score.append(np.linalg.norm(grid.dot(theta_td) - V_true))
+        tdsr_score.append(np.linalg.norm(evaluate_valuefn(valuefn, points) - V_true))
 
 print 'Plotting...'
 plt.Figure()
 plt.plot(range(1,len(r_reg_score)+1), r_reg_score, label='R reg')
 plt.plot(range(1,len(r_reg_score)+1), td_score, label='td')
-plt.plot(range(1,len(r_reg_score)+1), r_td_score, label='R td')
+# plt.plot(range(1,len(r_reg_score)+1), r_td_score, label='R td')
+plt.plot(range(1,len(r_reg_score)+1), tdsr_score, label='TDSR')
 plt.legend()
 
 # plt.subplot(3,1,1)
@@ -210,7 +228,8 @@ plt.subplot(2,2,1)
 plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), grid.dot(V_reg).reshape((40,40)))
 plt.colorbar()
 plt.subplot(2,2,2)
-plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), grid.dot(V_td).reshape((40,40)))
+# plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), grid.dot(V_td).reshape((40,40)))
+plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), evaluate_valuefn(valuefn, points).reshape((40,40)))
 plt.colorbar()
 plt.subplot(2,2,3)
 plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), grid.dot(theta_td).reshape((40,40)))

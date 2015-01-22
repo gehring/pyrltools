@@ -43,6 +43,7 @@ def sym_NRBF(x, wrt, dx, centers, widths, bias_term):
         if bias_term:
             out = T.concatenate((out, T.ones((out.shape[0], 1))), axis=1)
             size += 1
+            
         return out, T.Rop(out, wrt, dx0), size
     
 def sym_RBF(x, wrt, dx, centers, widths, bias_term):
@@ -159,7 +160,7 @@ class NeuroSFTD(object):
         self.out, self.dout, self.params = sym_NeuroSFTD(x, s, ds, n_input, 1, layers, activations, rng, W, b)
         self.outp, self.doutp, _ = sym_NeuroSFTD(xp, sp, ds, n_input, 1, layers, activations, rng, self.params[::2], self.params[1::2])
         
-        next_val = T.switch(isterminal, T.zeros_like(self.outp), self.out)
+        next_val = T.switch(isterminal, T.zeros_like(self.outp), self.outp)
         
         self._alpha = theano.shared(np.array( alpha, dtype=theano.config.floatX), 'alpha', allow_downcast = True, borrow=False)
         self._eta = theano.shared(np.array( eta, dtype=theano.config.floatX), 'eta', allow_downcast = True, borrow=False)
@@ -297,7 +298,10 @@ class Theano_RBF_stateaction(object):
 class Theano_RBF_Projector(object):
     def __init__(self, centers, widths, bias_term = True, normalized = False):
         x = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False))('x')
+        x.tag.test_value = np.random.rand(10,2).astype(theano.config.floatX)
+        
         dx = T.TensorType(dtype = theano.config.floatX, broadcastable = (False, False))('dx')
+        dx.tag.test_value = np.random.rand(10,2).astype(theano.config.floatX)
         
         if normalized:
             out, dout, self.size = sym_NRBF(x, x, dx, centers, widths, bias_term)

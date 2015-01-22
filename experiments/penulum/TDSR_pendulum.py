@@ -4,6 +4,7 @@ from rltools.agent import TabularActionSarsa
 from rltools.policy import Egreedy
 from rltools.valuefn import TDSR, LinearTD
 from rltools.representation import TabularActionProjector
+from rltools.MountainCar import MountainCar
 
 from scipy.sparse import csc_matrix
 
@@ -41,8 +42,9 @@ def evaluate_valuefn(valuefn, points):
     return values
     
     
-domain = SwingPendulum(random_start=True)
-domain.control_rate = 0.01
+# domain = SwingPendulum(random_start=True)
+# domain.control_rate = 0.01
+domain = MountainCar(random_start=False, max_episode=110000)
 s_range = domain.state_range
 
 tiling = Theano_Tiling(input_indicies = [np.arange(2)], 
@@ -55,26 +57,32 @@ tiling = Theano_Tiling(input_indicies = [np.arange(2)],
 phi_sa = sparse_tilecoding(tiling, 3)
 
 xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], 10),
-                         np.linspace(s_range[0][0], s_range[1][0], 10))
+                         np.linspace(s_range[0][1], s_range[1][1], 10))
        
 centers = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1)))).astype(theano.config.floatX)
    
 widths = (s_range[1]-s_range[0]).astype(theano.config.floatX)*0.085
+
+
 phi_sa = TabularActionProjector(domain.discrete_actions, 
                                 Theano_RBF_Projector(centers=centers, 
                                                      widths=widths, 
                                                      bias_term=True, 
                                                      normalized=False))
+
+
+
+
 phi = Theano_RBF_Projector(centers=centers, 
                                                      widths=widths, 
                                                      bias_term=True, 
                                                      normalized=False)
 
-alpha = 0.03
-alpha_R = 0.05
-lamb = 0.6
+alpha = 0.1
+alpha_R = 0.01
+lamb = 0.9
 gamma = 0.99
-rank = 100
+rank = 101
 
 
 valuefn = TDSR(phi_sa, 
@@ -82,13 +90,13 @@ valuefn = TDSR(phi_sa,
                alpha_R = alpha_R, 
                lamb = lamb, 
                gamma = gamma, 
-               rank = rank, 
+               rank = rank,
                replacing_trace = False,
                use_U_only=False)
 
-valuefn = LinearTD(3, phi, alpha, lamb, gamma, replacing_trace=False)
+# valuefn = LinearTD(3, phi, alpha, lamb, gamma, replacing_trace=False)
 
-policy = Egreedy(np.arange(3), valuefn, epsilon = 0.01)
+policy = Egreedy(np.arange(3), valuefn, epsilon = 0.05)
 # policy = Swing_stabilize(domain)
 
 agent = TabularActionSarsa(actions=domain.discrete_actions, 
@@ -99,27 +107,39 @@ agent = TabularActionSarsa(actions=domain.discrete_actions,
 #                            policy=lambda s: 0, 
 #                            valuefn=valuefn)
 
-nsamples = 40        
+nsamples = 100        
 xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], nsamples),
-                     np.linspace(s_range[0][0], s_range[1][0], nsamples))
+                     np.linspace(s_range[0][1], s_range[1][1], nsamples))
 points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1))))
 values = []
 
-num_ep = 2000
-max_length = 1000
+
+
+num_ep = 20
+max_length = 100000
 print 'starting learning...'
+count = 0
 for i in xrange(num_ep):
     r, s = domain.reset()
     rewards = []
+#     n1 = np.linalg.norm(valuefn.R)
     for j in xrange(max_length):
         r, s = domain.step(agent.step(r, s))
 #         r, s = domain.step(policy)
 #         agent.step(r, s)
         rewards.append(r)
+#         if (count%1000) == 0:
+#             valuefn.rank = min(50, valuefn.rank + 1)
+        count +=1 
+       
         if s is None:
             a = agent.step(r, s)
+#             if (count%1000) == 0:
+#                 valuefn.rank = min(50, valuefn.rank + 1)
+            count += 1
             break
 #     valuefn.correct_orthogonality()
+#     print 'n', n1, np.linalg.norm(valuefn.R)
     if i % (num_ep/20) == 0:
         print 'episode ' + str(i) + ' is done ', np.sum(rewards)
         values.append(evaluate_valuefn(valuefn, points))

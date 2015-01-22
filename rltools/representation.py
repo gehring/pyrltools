@@ -77,7 +77,7 @@ class TabularActionProjector(object):
                 x = np.vstack(( x + self.phi.size*i for i in xrange(self.nactions)))
                 assert(issubclass(x.dtype.type, np.uint))
             else:
-                x = np.kron(x, np.eye(self.nactions))#np.diag(x[None,:], self.nactions)
+                x = np.kron(np.eye(self.nactions), x)#np.diag(x[None,:], self.nactions)
         else:
             a = action
             if not isinstance(action, int):
@@ -90,6 +90,7 @@ class TabularActionProjector(object):
                            (a*self.phi.size,
                             self.phi.size*(self.nactions-a-1)),
                             mode = 'constant')
+                
         return x.T
     
 class StateActionProjection(object):
@@ -283,6 +284,7 @@ class NRBFCoding(Projector):
     def __init__(self, stddev, c, **params):
         super(NRBFCoding, self).__init__()
 #         self.RBFs = RBFCoding(stddev, c, **params)
+        self.__size = c.shape[0]
         self.c = c.T[None,:,:]
         if stddev.ndim == 1:
             self.w = stddev[None,:,None]
@@ -302,7 +304,7 @@ class NRBFCoding(Projector):
 
     @property
     def size(self):
-        return self.RBFs.size
+        return self.__size
 
 
 class StateActionProjector(object):

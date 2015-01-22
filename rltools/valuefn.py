@@ -244,9 +244,9 @@ class LinearTD(ValueFn):
         self.num_actions = num_actions
 
     def __call__(self, state, action= None):
-        if state == None:
+        if state is None:
             return 0
-        elif action == None:
+        elif action is None:
             phi_t = self.phi(state)
             if issubclass(phi_t.dtype.type, np.uint):
                 return np.sum(self.theta[:,phi_t], axis=1)
@@ -317,6 +317,19 @@ class TDSR(object):
         
     def __call__(self, state, action = None):
         phi_sa = self.phi(state, action)
+        
+        U,S,V = self.matrices
+        Uphi = phi_sa.T.dot(U)
+        if self.use_U_only:
+#             v = self.R.dot(np.diag(S).dot(Uphi.T))
+            v = self.R.dot((Uphi.T))
+        else:
+            v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T)))
+        return v
+        
+        
+    def call_no_act(self, state):
+        phi_sa = self.phi(state)
         U,S,V = self.matrices
         Uphi = phi_sa.T.dot(U)
         if self.use_U_only:
@@ -394,6 +407,102 @@ class TDSR(object):
             self.matrices = (U,S,V)
         Uphi_t = phi_t.T.dot(U)
         if self.use_U_only:
+#             if s_tp1 is not None:
+#                 Uphi_tp1 = phi_tp1.T.dot(U)
+#                 delta = r + self.gamma*self.R.dot(np.diag(S).dot(Uphi_tp1.T)) \
+#                         - self.R.dot(np.diag(S).dot(Uphi_t.T))
+#             else:
+#                 print self.R.dot(np.diag(S).dot(Uphi_t.T)), np.linalg.norm(np.diag(S).dot(Uphi_t.T))
+#                 delta = r - self.R.dot(np.diag(S).dot(Uphi_t.T))
+#             delta = np.squeeze(delta)
+#             M = (np.diag(S).dot(Uphi_t.T)).squeeze()
+#             self.R += self.alpha_R*delta*M
+            if s_tp1 is not None:
+                Uphi_tp1 = phi_tp1.T.dot(U)
+                delta = r + self.gamma*self.R.dot((Uphi_tp1.T)) \
+                        - self.R.dot((Uphi_t.T))
+            else:
+                delta = r - self.R.dot((Uphi_t.T))
+            delta = np.squeeze(delta)
+            M = ((Uphi_t.T)).squeeze()
+            self.R += self.alpha_R*delta*M
+        else:
+            if phi_t.ndim > 1:
+                R = self.R[:,None]
+            else:
+                R = self.R
+            self.R = R +  self.alpha_R * (r - np.squeeze(phi_t.T.dot(self.R))) * phi_t
+            self.R = np.squeeze(np.array(self.R))
+            
+    def update_no_act(self, s_t, r, s_tp1):
+        if s_t == None:
+            self.e[:] = 0.0
+            return
+        
+        phi_t = self.phi(s_t)
+        
+        self.e *= self.gamma*self.lamb
+        if phi_t.ndim > 1:
+            e = self.e[:,None]
+        else:
+            e = self.e
+        self.e = np.squeeze(np.array(e + phi_t))
+        
+        if self.replacing_trace:
+            self.e = np.clip(self.e, 0, 1)
+        
+        U,S,V = self.matrices
+        Uphi_t = phi_t.T.dot(U)
+        if s_tp1 is not None:
+            phi_tp1 = self.phi(s_tp1)
+            Uphi_tp1 = phi_tp1.T.dot(U)
+            delta = phi_t + self.gamma*V.dot(np.diag(S).dot(Uphi_tp1.T)) \
+                        - V.dot(np.diag(S).dot(Uphi_t.T))
+        else:
+            delta = phi_t - V.dot(np.diag(S).dot(Uphi_t.T))
+            
+        delta = np.squeeze(np.array(delta))
+        # update svd of the successor state representation
+        ealpha = self.e * self.alpha
+        if not self.initialized:
+            self.matrices = ((ealpha/np.linalg.norm(ealpha)).reshape((-1,1)),
+                             np.array([np.linalg.norm(ealpha) * np.linalg.norm(delta)]),
+                             (delta/np.linalg.norm(delta)).reshape((-1,1)))
+            self.initialized = True
+            
+        else:
+            m = U.T.dot(ealpha)
+            p = ealpha - U.dot(m)
+            ra = np.linalg.norm(p)
+            
+            n = V.T.dot(delta)
+            q = delta - V.dot(n)
+            rb = np.linalg.norm(q)
+            
+            K = np.hstack((m, ra))[:,None] * np.hstack((n, rb))[None,:] \
+                        + np.diag(np.hstack((S, 0)))
+        
+            C, Sp, Dt = np.linalg.svd(K, full_matrices = False)
+            D = Dt.T
+            if np.abs(Sp[-1]) < self.threshold or Sp.shape[0] > self.rank:
+                U = U.dot(C[:-1, :-1])
+                V = V.dot(D[:-1, :-1])
+                S = Sp[:-1]
+                if self.use_U_only:
+                    self.R = self.R.dot(D[:-1, :-1])
+               
+            else:
+                Pm = p/ra
+                Qm = q/rb
+                U = np.hstack((U, Pm.reshape((-1,1)))).dot(C)
+                V = np.hstack((V, Qm.reshape((-1,1)))).dot(D)
+                S = Sp
+                if self.use_U_only:
+                    self.R = np.hstack((self.R, 0)).dot(D)
+                    
+            self.matrices = (U,S,V)
+        Uphi_t = phi_t.T.dot(U)
+        if self.use_U_only:
             if s_tp1 is not None:
                 Uphi_tp1 = phi_tp1.T.dot(U)
                 delta = r + self.gamma*self.R.dot(np.diag(S).dot(Uphi_tp1.T)) \
@@ -421,6 +530,8 @@ class TDSR(object):
         U = Uq.dot(tU)
         S = tS
         self.matrices = (U,S,V)
+#         if self.use_U_only:
+#             self.R = self.R.dot(tV)
 
 class LinearTDPolicyMixture(ValueFn):
     def __init__(self,
