@@ -128,7 +128,7 @@ phi = Theano_RBF_Projector(centers, widths, bias_term=True, normalized = False)
 # phi = TileCodingDense([np.arange(2)], [5], [11], None, s_range, True)
 
 
-valuefn = TDSR(phi, 0.02, 0.05, 0.9, 0.99, 100, replacing_trace=False, use_U_only=False)
+valuefn = TDSR(phi, 0.02, 0.05, 0.9, 0.99, 100, replacing_trace=False, use_U_only=True)
 
 
 
@@ -209,19 +209,20 @@ plt.legend()
 # plt.ylim(0,1200)
 # plt.title('TD')
 
-# plt.figure()
-# A, B = build_Theta(allstates, rew, phi, gamma)
-# Ut, St, Vt =np.linalg.svd(A)
-# THETA = Vt.T.dot(np.diag(1.0/St).dot(Ut.T)).dot(B)
-# Ut, St, Vt =np.linalg.svd(THETA)
-# for i in xrange(12):
-#     plt.subplot(3,4,i+1)
-#     plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), (grid.dot(Ut[:,i])).reshape((40,40)))
+plt.figure()
+A, B = build_Theta(allstates, rew, phi, gamma)
+Ut, St, Vt =np.linalg.svd(A)
+THETA = Vt.T.dot(np.diag(1.0/St).dot(Ut.T)).dot(B)
+Ut, St, Vt =np.linalg.svd(THETA)
+for i in xrange(12):
+    plt.subplot(3,4,i+1)
+    plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), (grid.dot(Ut[:,i])).reshape((40,40)))
 #
-# plt.figure()
-# for i in xrange(12):
-#     plt.subplot(3,4,i+1)
-#     plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), (grid.dot(U[:,i])).reshape((40,40)))
+plt.figure()
+U = valuefn.matrices[0]
+for i in xrange(12):
+    plt.subplot(3,4,i+1)
+    plt.pcolormesh(xx.reshape((40,40)), yy.reshape((40,40)), (grid.dot(U[:,i])).reshape((40,40)))
 
 plt.figure()
 plt.subplot(2,2,1)

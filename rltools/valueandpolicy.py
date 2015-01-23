@@ -97,9 +97,9 @@ class NeuroValPol(object):
         r = r_in.dimshuffle(('x'))
         
         # terminal state flag
-        isterminal = T.scalar('isterminal', dtype = 'int8')
+        isterminal = T.printing.Print('term')(T.scalar('isterminal', dtype = 'int8'))
         isterminal.tag.test_value = np.random.rand(1).astype('int8')[0]
-        broadcast_isterminal = isterminal.dimshuffle(('x'))
+#         broadcast_isterminal = isterminal.dimshuffle(('x'))
         
         # build the network (symbolically). Allocates parameters if needed
         self.out, self.params = build_net(inputs, 
@@ -130,7 +130,7 @@ class NeuroValPol(object):
         L1_reg = sum([ abs(p).sum() for p in self.params[::2]])
         
         # define the cost function
-        next_val = T.switch(broadcast_isterminal, T.zeros_like(self.outp), self.outp)
+        next_val = T.switch(isterminal, T.zeros_like(self.outp), self.outp)
         
         cost = ((rho.dimshuffle((0,'x'))*(r + gamma*next_val-self.out))**2).sum()  \
                     + L2_reg*self._beta_2 + L1_reg*self._beta_1
@@ -143,7 +143,7 @@ class NeuroValPol(object):
                     for param in self.params]
         
         # define the update rule
-        updates = [ (param, param - self._alpha * gparam)
+        updates = [ (param, param -self._alpha * gparam)
                     for (param, gparam) in zip(self.params, gparams)]           
         
         # compile the update function
@@ -179,9 +179,10 @@ class NeuroValPol(object):
         if policy_param.ndim < 2:
             policy_param = policy_param[None,:]
             rho = np.array([rho])
+        term = np.int8(s_tp1 is None)
         if s_tp1 is None:
             s_tp1 = np.empty_like(s_t)
-        return self.__update_function(s_t, r_t, s_tp1, policy_param, rho, np.int8(s_tp1 is None))
+        return self.__update_function(s_t, r_t, s_tp1, policy_param, rho, term)
         
         
     @property
