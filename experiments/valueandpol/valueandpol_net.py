@@ -51,12 +51,12 @@ widths = (s_range[1]-s_range[0]).astype(theano.config.floatX)*0.085
 
 phi = Theano_RBF_Projector(centers, widths, bias_term=False, normalized=True)
 # NRBFCoding(widths, centers) #
-alpha = 0.001
+alpha = 0.0001
 alpha_pi = 0.01
 gamma = 0.99
 beta_1 = 0.0
 beta_2 = 0.0
-layers= [1000, 300,100]
+layers= [300]
 
 input_layer = rbf_input_layer(centers, widths, False)
 
@@ -67,7 +67,8 @@ valpol = NeuroValPol(2,
                      alpha, 
                      gamma, 
                      beta_1,
-                     beta_2)
+                     beta_2,
+                     input_layer)
 
 linpol = LinearPolicy(phi.size, 1, phi)
 bparam = np.hstack((-np.ones(phi.size/4)*0.001,
@@ -77,12 +78,14 @@ bparam = np.hstack((-np.ones(phi.size/4)*0.001,
                     0))  #np.zeros((1, phi.size+1))
 
 # 
-params = np.vstack((bparam, 
-                    np.ones((1, phi.size+1))*0.001, 
-                    -np.ones((1, phi.size+1))*0.001))
-#                     (np.random.rand(5,phi.size+1) - 0.5)*0.002))
+# params = np.vstack((bparam, 
+#                     np.ones((1, phi.size+1))*0.001, 
+#                     -np.ones((1, phi.size+1))*0.001))
 
-params = bparam.reshape((1,-1))
+params = np.vstack((bparam, 
+                    bparam[None,:]  + (np.random.rand(40,phi.size+1) - 0.5)*0.002)) 
+
+# params = bparam.reshape((1,-1))
 
 sigma = (domain.action_range[1]- domain.action_range[0])*0.1
 print sigma
@@ -118,20 +121,21 @@ for i in xrange(num_episodes):
         valpol.update(s_t, r, s_tp1, params, rho)
         
         v, grad = valpol.evluate_with_gradient(s_t, params[0,:])
-        params[0,:] += grad[0,:]*0.0
+        params[0,:] += grad[0,:]*0.000001
+        params[1:,:] = (params[0,:])[None,:] + (np.random.rand(40,phi.size+1) - 0.5)*0.002
         
         if s_tp1 is None:
             break
         
         s_t = s_tp1
     print np.sum(rewards)
-    if (i%50) == 0:
+    if (i%10) == 0:
         plt.figure()
         plt.subplot(1,2,1)
         plt.pcolormesh(xx, yy, evaluate_valuefn(valpol, params[0,:], points).reshape((nsamples, -1)))
         plt.colorbar()
         plt.subplot(1,2,2)
-        plt.pcolormesh(xx, yy, grid.dot(params[0,:-1]).reshape((nsamples, -1)) + params[0,-1])
+        plt.pcolormesh(xx, yy, np.clip(grid.dot(params[0,:-1]).reshape((nsamples, -1)) + params[0,-1], -0.001, 0.001))
 #         plt.pcolormesh(xx, yy, grid.dot(theta).reshape((nsamples, -1)))
         plt.colorbar()
         plt.show()

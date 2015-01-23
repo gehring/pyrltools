@@ -116,7 +116,7 @@ num_episodes = 100
 max_length = 100
 layers = [100]
 
-filename = '/media/cgehri/data/experiment_data/pendulum/test-100-'
+filename = '/media/cgehri/data/experiment_data/pendulum/test-0-'
 
 params = (control_rate, alphas, alpha_mus, etas)
 
