@@ -69,6 +69,7 @@ class rbf_input_layer(object):
 def run_exp(p):
     control_rate, alpha, alpha_mu, eta, num_episode, max_length, layers, points = p
     domain = SwingPendulum(random_start=True)
+    domain.integ_rate = 0.002
     domain.control_rate = control_rate
     policy = Swing_stabilize(domain)
     s_range = domain.state_range
@@ -108,7 +109,7 @@ def run_exp(p):
                     'max_length':max_length, 
                     'layers':layers}
         
-control_rate = [ 0.1, 0.06, 0.04, 0.02, 0.01]
+control_rate = [0.04, 0.02, 0.01, 0.006, 0.002]
 alphas = [0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001]
 alpha_mus = [0.01, 0.05, 0.001, 0.0005]
 etas = [0.0, 0.3, 0.6, 0.9]
@@ -116,7 +117,7 @@ num_episodes = 100
 max_length = 100
 layers = [100]
 
-filename = '/media/cgehri/data/experiment_data/pendulum/test-0-'
+filename = '/media/cgehri/data/experiment_data/pendulum/test-100-integ-002--'
 
 params = (control_rate, alphas, alpha_mus, etas)
 

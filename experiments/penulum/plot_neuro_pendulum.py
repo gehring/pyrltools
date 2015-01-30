@@ -26,7 +26,7 @@ def filter_dict(score, test):
             new_score[k] = score[k]
     return new_score
 
-filename = '/media/cgehri/data/experiment_data/pendulum/test-0-complete-data.data'
+filename = '/media/cgehri/data/experiment_data/pendulum/test-100-integ-002--complete-data.data'
 with open(filename, 'rb') as f:
     results, avg_rew, true_val, params = pickle.load(f)
     rates, alphas, alpha_mus, etas = params
@@ -39,9 +39,9 @@ n /= np.linalg.norm(n)
 for p, param in results:
     cr = param['rate']
     a = true_val[cr]
-#     r = (a - p) - ((a-p).dot(n)) * n
-    x = np.mean(p-a)
-    r = a-p+x
+    r = (a - p) - ((a-p).dot(n)) * n
+#     x = np.mean(p-a)
+#     r = a-p+x
     key = (param['rate'], param['alpha'], param['alpha_mu'], param['eta'])
     scores[key] = np.sqrt(np.mean(r**2))
     values[key] = p
@@ -114,6 +114,7 @@ score_rate = filter_dict(scores, lambda k: k[0] == min(rates))
 best_rate, arg_best = find_best(score_rate, 3)
 for i, e in enumerate(etas):
     k = arg_best[e]
+    print k
     plt.subplot(row,col,i+1)
     plt.pcolormesh(xx, yy, values[k].reshape(xx.shape))
     plt.title(str(e))
