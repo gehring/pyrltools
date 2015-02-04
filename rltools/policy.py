@@ -23,10 +23,12 @@ class Egreedy(Policy):
         values = self.valuefn(state).squeeze()
         
         # argmax with random tie breaking
-        m = np.random.choice(np.argwhere(values == np.amax(values)).flatten(),1)[0]
-
-        values[:] = self.epsilon/len(self.actions)
-        values[m] += 1.-self.epsilon
+        if np.any(np.isnan(values)):
+            values[:] = 1.0/len(self.actions)
+        else:
+            m = np.random.choice(np.argwhere(values == np.amax(values)).flatten(),1)[0]
+            values[:] = self.epsilon/len(self.actions)
+            values[m] += 1.-self.epsilon
         return values
 
 

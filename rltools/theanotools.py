@@ -430,7 +430,7 @@ class QNeuroSFTD(object):
             
         
         if self.mu is None:
-            self.mu = r
+            self.mu = np.float(r)
         
         
         r = r - self.mu
