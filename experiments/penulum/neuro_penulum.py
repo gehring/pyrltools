@@ -76,7 +76,7 @@ def run_exp(p):
      
      
     xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], 10),
-                         np.linspace(s_range[0][0], s_range[1][0], 10))
+                         np.linspace(s_range[0][1], s_range[1][1], 10))
      
     centers = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1)))).astype(theano.config.floatX)
      
@@ -125,7 +125,7 @@ domain = SwingPendulum(random_start=True)
 s_range = domain.state_range
 nsamples = 40        
 xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], nsamples),
-                     np.linspace(s_range[0][0], s_range[1][0], nsamples))
+                     np.linspace(s_range[0][1], s_range[1][1], nsamples))
 points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1)))).astype(theano.config.floatX)
 
 

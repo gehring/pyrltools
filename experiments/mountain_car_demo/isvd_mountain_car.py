@@ -128,7 +128,7 @@ phi = Theano_RBF_Projector(centers, widths, bias_term=True, normalized = False)
 # phi = TileCodingDense([np.arange(2)], [5], [11], None, s_range, True)
 
 
-valuefn = TDSR(phi, 0.02, 0.05, 0.9, 0.99, 100, replacing_trace=False, use_U_only=True)
+valuefn = TDSR(phi, 0.1, 0.05, 0.0, 0.99, 30, replacing_trace=False, use_U_only=False)
 
 
 
@@ -165,7 +165,7 @@ grid = phi(points)
 
 V_true = grid.dot(theta_true)
 
-run_for = min(30, num)
+run_for = min(150, num)
 print 'Running all incremental algorithms:'
 for i, (states, rewards) in enumerate(zip(allstates, rew)[:run_for]):
     for s_t, r_t, s_tp1 in generate_transition(states, rewards):

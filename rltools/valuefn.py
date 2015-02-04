@@ -461,9 +461,9 @@ class TDSR(object):
         else:
             delta = phi_t - V.dot(np.diag(S).dot(Uphi_t.T))
             
-        delta = np.squeeze(np.array(delta))
+        delta = np.squeeze(np.array(delta))* np.sqrt(self.alpha)
         # update svd of the successor state representation
-        ealpha = self.e * self.alpha
+        ealpha = self.e * np.sqrt(self.alpha)
         if not self.initialized:
             self.matrices = ((ealpha/np.linalg.norm(ealpha)).reshape((-1,1)),
                              np.array([np.linalg.norm(ealpha) * np.linalg.norm(delta)]),
@@ -479,9 +479,13 @@ class TDSR(object):
             q = delta - V.dot(n)
             rb = np.linalg.norm(q)
             
+#             print ra, rb
+#             print p
+#             print q
             K = np.hstack((m, ra))[:,None] * np.hstack((n, rb))[None,:] \
                         + np.diag(np.hstack((S, 0)))
-        
+            if np.any(np.isinf(K)):
+                print 's', ra, rb
             C, Sp, Dt = np.linalg.svd(K, full_matrices = False)
             D = Dt.T
             if np.abs(Sp[-1]) < self.threshold or Sp.shape[0] > self.rank:
@@ -501,16 +505,18 @@ class TDSR(object):
                     self.R = np.hstack((self.R, 0)).dot(D)
                     
             self.matrices = (U,S,V)
+            if np.any(np.isinf(U)) or np.any(np.isinf(S)) or np.any(np.isinf(V)):
+                print ra, rb
         Uphi_t = phi_t.T.dot(U)
         if self.use_U_only:
             if s_tp1 is not None:
                 Uphi_tp1 = phi_tp1.T.dot(U)
-                delta = r + self.gamma*self.R.dot(np.diag(S).dot(Uphi_tp1.T)) \
-                        - self.R.dot(np.diag(S).dot(Uphi_t.T))
+                delta = r + self.gamma*self.R.dot((Uphi_tp1.T)) \
+                        - self.R.dot((Uphi_t.T))
             else:
-                delta = r - self.R.dot(np.diag(S).dot(Uphi_t.T))
+                delta = r - self.R.dot((Uphi_t.T))
             delta = np.squeeze(delta)
-            M = (np.diag(S).dot(Uphi_t.T)).squeeze()
+            M = ((Uphi_t.T)).squeeze()
             self.R += self.alpha_R*delta*M
         else:
             if phi_t.ndim > 1:

@@ -44,7 +44,7 @@ def evaluate_valuefn(valuefn, points):
     
 # domain = SwingPendulum(random_start=True)
 # domain.control_rate = 0.01
-domain = MountainCar(random_start=False, max_episode=110000)
+domain = MountainCar(random_start=True, max_episode=1000)
 s_range = domain.state_range
 
 tiling = Theano_Tiling(input_indicies = [np.arange(2)], 
@@ -80,9 +80,9 @@ phi = Theano_RBF_Projector(centers=centers,
 
 alpha = 0.1
 alpha_R = 0.01
-lamb = 0.9
+lamb = 0.6
 gamma = 0.99
-rank = 101
+rank = 10
 
 
 valuefn = TDSR(phi_sa, 
@@ -94,7 +94,7 @@ valuefn = TDSR(phi_sa,
                replacing_trace = False,
                use_U_only=False)
 
-# valuefn = LinearTD(3, phi, alpha, lamb, gamma, replacing_trace=False)
+valuefn = LinearTD(3, phi, alpha, lamb, gamma, replacing_trace=False)
 
 policy = Egreedy(np.arange(3), valuefn, epsilon = 0.05)
 # policy = Swing_stabilize(domain)

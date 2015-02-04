@@ -26,7 +26,7 @@ def filter_dict(score, test):
             new_score[k] = score[k]
     return new_score
 
-filename = '/media/cgehri/data/experiment_data/pendulum/test-100-integ-002--complete-data.data'
+filename = '/media/cgehri/data/experiment_data/pendulum/test-0-integ-002--complete-data.data'
 with open(filename, 'rb') as f:
     results, avg_rew, true_val, params = pickle.load(f)
     rates, alphas, alpha_mus, etas = params
@@ -94,7 +94,7 @@ domain = SwingPendulum(random_start=True)
 s_range = domain.state_range
 nsamples = 40        
 xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], nsamples),
-                     np.linspace(s_range[0][0], s_range[1][0], nsamples))
+                     np.linspace(s_range[0][1], s_range[1][1], nsamples))
 points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1))))
 num = len(true_val)
 row = int(np.floor(np.sqrt(num)))

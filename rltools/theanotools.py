@@ -131,7 +131,7 @@ def sym_QNeuroSFTD(x, wrt, dx, n_in, n_out, n_NN, layers, activations, rng, W = 
     # first layer
     layers = layers + [n_out]
 #     n_outputs = layers[1:] + [n_out]
-    hidden_layer = [QHiddenLayer(rng, x, n_in, n_NN, layers[0], w0, b0, activations[0])]
+    hidden_layer = [shared_input_QHiddenLayer(rng, x, n_in, layers[0], n_NN, w0, b0, activations[0])]
     
     # remaining layers
     for i,l in enumerate(layers[:-1]):
@@ -144,7 +144,7 @@ def sym_QNeuroSFTD(x, wrt, dx, n_in, n_out, n_NN, layers, activations, rng, W = 
             b0 = None
         else:
             b0 = b[i+1]
-        hidden_layer.append(QHiddenLayer(rng, hidden_layer[-1].output, layers[i], n_NN, layers[i+1], w0, b0, activations[i+1]))
+        hidden_layer.append(QHiddenLayer(rng, hidden_layer[-1].output, layers[i], layers[i+1], n_NN, w0, b0, activations[i+1]))
         
     out_layer = hidden_layer[-1]
     # return ouput and directional derivative (jacobian times a vector)
@@ -211,10 +211,11 @@ class NeuroSFTD(object):
         L2_reg = sum([ (p**2).sum() for p in self.params[::2]])
         L1_reg = sum([ abs(p).sum() for p in self.params[::2]])
 
+        jac_cost = T.switch(isterminal, 0.0, (((self.dout - r)**2).sum()))
 #         cost = (1-self._eta)*(((y-self.out)**2).sum()) + self._eta*(((self.dout - r)**2).sum()) \
 #                     + L2_reg*self._beta_2 + L1_reg*self._beta_1
                     
-        cost = (1-self._eta)*(((r + next_val-self.out)**2).sum()) + self._eta*(((self.dout - r)**2).sum()) \
+        cost = (1-self._eta)*(((r + next_val-self.out)**2).sum()) + self._eta*jac_cost \
                     + L2_reg*self._beta_2 + L1_reg*self._beta_1
                     
         gparams = [T.grad(cost, 
@@ -258,7 +259,7 @@ class NeuroSFTD(object):
         
         r = r - self.mu
         self.__update_function(s_t[None,:], np.array([r]).reshape((1,1)), s_tp1[None,:], ter[:,None])
-        self.mu += self.alpha_mu * (r - self.mu)
+        self.mu += self.alpha_mu * r
         
         
     @property
@@ -322,8 +323,10 @@ class QNeuroSFTD(object):
         
         
         s.tag.test_value = np.random.rand(5, 2).astype('float32')
+        a_t.tag.test_value = np.random.randint(0,3, 5).astype('int32')
 #         ds.tag.test_value = np.random.rand(5, 2).astype('float32')
         sp.tag.test_value = np.random.rand(5, 2).astype('float32')
+        a_tp1.tag.test_value = np.random.randint(0,3, 5).astype('int32')
 
         if input_layer is not None:
             x,_, n_input = input_layer(s,ds)
@@ -332,8 +335,12 @@ class QNeuroSFTD(object):
             x = s
             xp = sp
         
-        x = x.dimshuffle(('x',0,1))
-        xp = xp.dimshuffle(('x',0,1))
+#         x = x.dimshuffle(('x',0,1))
+#         x = T.repeat(x, n_actions, axis=0)
+#         x = T.tile(x, (n_actions, 1,1))
+#         xp = xp.dimshuffle(('x',0,1))
+#         xp = T.tile(xp, (n_actions, 1,1))
+#         xp = T.repeat(xp, n_actions, axis=0)
         
 #         y = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,True))('y')
         r = T.TensorType(dtype = theano.config.floatX, broadcastable=(False,True))('r')
@@ -347,10 +354,10 @@ class QNeuroSFTD(object):
             activations = [T.tanh]*len(layers) + [None]
         
             
-        self.out, self.dout, self.params = sym_QNeuroSFTD(x, s, ds, n_input, n_actions, 1, layers, activations, rng, W, b)
-        self.outp, self.doutp, _ = sym_QNeuroSFTD(xp, sp, ds, n_input, n_actions, 1, layers, activations, rng, self.params[::2], self.params[1::2])
+        self.out, self.dout, self.params = sym_QNeuroSFTD(x, s, ds, n_input, 1, n_actions, layers, activations, rng, W, b)
+        self.outp, self.doutp, _ = sym_QNeuroSFTD(xp, sp, ds, n_input, 1, n_actions, layers, activations, rng, self.params[::2], self.params[1::2])
         
-        next_val = T.switch(isterminal, T.zeros_like(self.outp[a_tp1,:,:]), self.outp[a_tp1,:,:])
+        next_val = T.switch(isterminal, T.zeros((s.shape[0], 1)), self.outp[a_tp1,:,:])
         
         self._alpha = theano.shared(np.array( alpha, dtype=theano.config.floatX), 'alpha', allow_downcast = True, borrow=False)
         self._eta = theano.shared(np.array( eta, dtype=theano.config.floatX), 'eta', allow_downcast = True, borrow=False)
@@ -366,7 +373,7 @@ class QNeuroSFTD(object):
 #         cost = (1-self._eta)*(((y-self.out)**2).sum()) + self._eta*(((self.dout - r)**2).sum()) \
 #                     + L2_reg*self._beta_2 + L1_reg*self._beta_1
                     
-        cost = (1-self._eta)*(((r + next_val-self.out[a_t,:,:])**2).sum()) + self._eta*(((self.dout[a_tp1,:,:] - r)**2).sum()) \
+        cost = (1-self._eta)*(((r + next_val-self.out[a_t,:,:])**2).sum()) + self._eta*(((self.dout[a_t,:,:] - r)**2).sum()) \
                     + L2_reg*self._beta_2 + L1_reg*self._beta_1
                     
         gparams = [T.grad(cost, 
@@ -396,24 +403,29 @@ class QNeuroSFTD(object):
             if state.ndim == 1:
                     state = state[None,:]
             if action is None:
-                return self.__evaluate(state)
+                return self.__evaluate(state).squeeze()
             else:
-                a = np.zeros((1,1))
-                a[0,0] = action
-                return self.__evaluate_action(state, a)
+                a = np.zeros((1,))
+                a[0] = action
+                return self.__evaluate_action(state, a).squeeze()
     
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t is None:
             return
         
-        a = np.zeros((2,1,1))
-        a[0,0,0] = a_t
+        a = np.zeros((2,1))
+        a[0,0] = a_t
+        
+#         if s_tp1 is None:
+#             v_tp1 = 0
+#         else:
+#             v_tp1 = self.__call__(s_tp1, a_tp1)
         
         if s_tp1 is None:
             s_tp1 = np.zeros_like(s_t)
             ter = np.ones(1, dtype='int8')
         else:
-            a[1,0,0] = a_tp1
+            a[1,0] = a_tp1
             ter = np.zeros(1, dtype='int8')
             
         
@@ -422,8 +434,35 @@ class QNeuroSFTD(object):
         
         
         r = r - self.mu
-        self.__update_function(s_t[None,:], a_t, np.array([r]).reshape((1,1)), s_tp1[None,:], a_tp1, ter[:,None])
-        self.mu += self.alpha_mu * (r - self.mu)
+        
+#         v_t = self.__call__(s_t,a_t)
+        
+            
+        a_t = a[0,:]
+        a_tp1 = a[1,:]
+        
+#         delta = r + 0.99*v_tp1 - v_t
+#         print s_t[None,:].shape, a_t.shape, np.array([r]).reshape((1,1)).shape, s_tp1[None,:].shape, a_tp1.shape, ter[:,None].shape
+        d=self.__update_function(s_t[None,:], a_t, np.array([r]).reshape((1,1)), s_tp1[None,:], a_tp1, ter[:,None])
+        
+
+        
+#         my_up = np.zeros_like(d[1])
+#         my_up[a_t[0]] = -delta*d[2].T*2
+#         diff = d[1] - my_up
+#         
+#         no_up = d[1].copy()
+#         no_up[a_t[0]] = 0.0
+#         no_up = np.linalg.norm(no_up)
+#         
+#         my_up[a_t[0]] = 0.0
+#         my_up = np.linalg.norm(my_up)
+#         if  np.linalg.norm(diff)>0:
+#             print  np.linalg.norm(diff)
+#         print delta
+#         print np.linalg.norm(self.params[0].get_value())
+#         print d[1].shape, diff.shape, np.abs(d[0]-delta**2), np.linalg.norm(diff)/np.linalg.norm(d[1]), no_up, my_up
+        self.mu += self.alpha_mu * r
         
         
     @property
@@ -707,6 +746,84 @@ class HiddenLayer(object):
         # parameters of the model
         self.params = [self.W, self.b]
         
+class shared_input_QHiddenLayer(object):
+    def __init__(self, rng, input, n_in, n_out, n_NN, W=None, b=None,
+                 activation=T.tanh):
+        """
+        Typical hidden layer of a MLP: units are fully-connected and have
+        sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
+        and the bias vector b is of shape (n_out,).
+
+        NOTE : The nonlinearity used here is tanh
+
+        Hidden unit activation is given by: tanh(dot(input,W) + b)
+
+        :type rng: numpy.random.RandomState
+        :param rng: a random number generator used to initialize weights
+
+        :type input: theano.tensor.dmatrix
+        :param input: a symbolic tensor of shape (n_examples, n_in)
+
+        :type n_in: int
+        :param n_in: dimensionality of input
+
+        :type n_out: int
+        :param n_out: number of hidden units
+
+        :type activation: theano.Op or function
+        :param activation: Non linearity to be applied in the hidden
+                           layer
+        """
+        self.input = input
+        self.n_out = n_out
+
+        # `W` is initialized with `W_values` which is uniformely sampled
+        # from sqrt(-6./(n_in+n_hidden)) and sqrt(6./(n_in+n_hidden))
+        # for tanh activation function
+        # the output of uniform if converted using asarray to dtype
+        # theano.config.floatX so that the code is runable on GPU
+        # Note : optimal initialization of weights is dependent on the
+        #        activation function used (among other things).
+        #        For example, results presented in [Xavier10] suggest that you
+        #        should use 4 times larger initial weights for sigmoid
+        #        compared to tanh
+        #        We have no info for other function, so we use the same as
+        #        tanh.
+        if W is None:
+            W_values = numpy.asarray(
+                rng.uniform(
+                    low=-numpy.sqrt(6. / (n_in + n_out)),
+                    high=numpy.sqrt(6. / (n_in + n_out)),
+                    size=(n_NN, n_in, n_out)
+                ),
+                dtype=theano.config.floatX
+            )
+            if activation == T.nnet.sigmoid:
+                W_values *= 4
+
+            W = theano.shared(value=W_values, name='W', borrow=True)
+
+        if b is None:
+            b_values = numpy.zeros((n_NN, 1, n_out), dtype=theano.config.floatX)
+            b = theano.shared(value=b_values, name='b', broadcastable = (False, True, False), borrow=True)
+
+        self.W = W
+        self.b = b
+#
+#         print input.tag.test_value.shape,W.get_value().shape, b.get_value().shape
+        batch_dot = theano.map(fn = lambda w, x: T.dot(x, w),
+                               sequences = [self.W],
+                               non_sequences = [input])
+        lin_output = batch_dot[0] + self.b
+#         print lin_output.tag.test_value.shape
+        self.output = (
+            lin_output if activation is None
+            else activation(lin_output)
+        )
+        # parameters of the model
+        self.params = [self.W, self.b]
+
+
 class QHiddenLayer(object):
     def __init__(self, rng, input, n_in, n_out, n_NN, W=None, b=None,
                  activation=T.tanh):
@@ -765,14 +882,17 @@ class QHiddenLayer(object):
             W = theano.shared(value=W_values, name='W', borrow=True)
 
         if b is None:
-            b_values = numpy.zeros((n_NN, n_out), dtype=theano.config.floatX)
-            b = theano.shared(value=b_values[:,:,None], name='b', borrow=True)
-#             b = T.addbroadcast(b, 2)
+            b_values = numpy.zeros((n_NN, 1, n_out), dtype=theano.config.floatX)
+            b = theano.shared(value=b_values, name='b', broadcastable = (False, True, False), borrow=True)
 
         self.W = W
         self.b = b
 #
-        print W.get_value().shape, input.tag.test_value.shape
+#         print input.tag.test_value.shape,W.get_value().shape, b.get_value().shape
+#         batch_dot = theano.map(fn = lambda i, x, w: T.dot(x[i,:,:], w[i,:,:]),
+#                                sequences = [T.arange(n_NN)],
+#                                non_sequences = [input, self.W])
+#         lin_output = batch_dot[0] + self.b
         lin_output = T.batched_dot(input, self.W) + self.b
         self.output = (
             lin_output if activation is None
@@ -780,7 +900,6 @@ class QHiddenLayer(object):
         )
         # parameters of the model
         self.params = [self.W, self.b]
-
 
 class MLP(object):
     """Multi-Layer Perceptron Class

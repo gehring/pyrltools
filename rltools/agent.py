@@ -111,7 +111,7 @@ class TabularActionSarsa(Agent):
         self.s_t = s_tp1
         self.a_t = a_tp1
 
-        return self.actions[a_tp1] if a_tp1 != None else None
+        return self.actions[a_tp1] if not (a_tp1 is None) else None
 
     def reset(self):
         self.s_t = None
