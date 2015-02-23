@@ -1,5 +1,5 @@
 from rltools.GridWorld import GridWorld, obstacle_condition, boundary_condition
-from rltools.valuefn import TDSR
+from rltools.valuefn import TDCOF
 
 from itertools import product, izip
 
@@ -79,15 +79,14 @@ domain = GridWorld(reward_fn,
 
 phi = IdenProj((10,10))
 
-alpha = 0.01
-alpha_R = 0.01
-lamb = 0.3
+alpha = 0.1
+alpha_R = 0.1
+lamb = 0.9
 gamma = 1.0
-rank = 100
-replacing_trace = False
-use_U_only = False
+rank = 30
+replacing_trace = True
 
-valuefn = TDSR(phi, alpha, alpha_R, lamb, gamma, rank, replacing_trace, use_U_only)
+valuefn = TDCOF(phi, alpha, alpha_R, lamb, gamma, n_actions=1, rank=rank, replacing_trace=replacing_trace)
 
 def choose_action(s):
 #     if s[0] >= 5 and s[1] >= 5:
@@ -104,7 +103,7 @@ def choose_action(s):
 policy = choose_action #lambda s: np.random.choice(4)#, p= [0.4,0.2,0.2,0.2])
 
 print 'generating data...'
-states, rew = generate_data(domain, policy, 100)
+states, rew = generate_data(domain, policy,1000)
 
 
 
@@ -117,18 +116,21 @@ A = X_t.T.dot(X_t-X_tp1)
 b = X_t.T.dot(X_t)
 
 alpha = 0.0
+count = 0
 # theta = linear_model.ridge_regression(A,b, alpha)
 theta = np.linalg.lstsq(A, b)[0]
-
-for s, r in zip(states, rew):
-    s_t = s[0]
-    for i in xrange(s.shape[0] - 1):
-        r_t = r[i]
-        s_tp1 = s[i+1]
-        valuefn.update_no_act(s_t, r_t, s_tp1)
-        s_t = s_tp1
-    valuefn.update_no_act(s_t, r_t, None)
-print 'evaluating and plotting...'
+# print 'running incremental...'
+# for s, r in zip(states, rew):
+#     s_t = s[0]
+#     valuefn.update(None, None, None, None, None)
+#     for i in xrange(s.shape[0] - 1):
+#         r_t = r[i]
+#         s_tp1 = s[i+1]
+#         valuefn.update(s_t, 0,r_t, s_tp1,0)
+#         s_t = s_tp1
+#     print 'count', count
+#     count += 1
+# print 'evaluating and plotting...'
 xx, yy = np.meshgrid(np.arange(10), np.arange(10))
 points = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1))))
 grid = phi(points)
@@ -137,8 +139,10 @@ grid = phi(points)
 
 U, s, V = np.linalg.svd(theta)
 
-plt.figure()
-plt.plot(s)
+fig = plt.figure(figsize=(12,8))
+plt.plot(s, linewidth=3)
+fig.tight_layout()
+plt.savefig('svd-4room.pdf')
 
 plt.figure()
 for i in xrange(5):
@@ -160,9 +164,10 @@ R = np.zeros(theta.shape[0])
 R[11] = 1
 R[88] = 1
 
-U,S,V = valuefn.matrices
-RV = V.dot(R)
-theta_approx = U.dot(np.diag(S).dot(RV.T))
+U,S,V = valuefn.matrices[0]
+A,B = valuefn.buffer[0]
+
+theta_approx = U.dot(np.diag(S).dot(V.T.dot(R))) + A.dot(B.T.dot(R))
 
 val = grid.dot(theta.dot(R))
 val_approx = grid.dot(theta_approx)

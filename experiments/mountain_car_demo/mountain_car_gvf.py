@@ -152,8 +152,10 @@ grid = convert_to_sparse(phi(points), (points.shape[0], phi.size))
 print U.shape, V.shape, V[1,:].shape
 print type(V[1,:])
 print grid.shape
-plt.figure()
-plt.plot(s)
+fig = plt.figure(figsize=(12,8))
+plt.plot(s, linewidth = 3)
+fig.tight_layout()
+plt.savefig('svd-mountain-tiling.pdf')
 
 
 X_t, X_tp1, r = generate_matrices_sparse(states, rew, phi)

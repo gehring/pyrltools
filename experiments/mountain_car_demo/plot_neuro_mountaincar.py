@@ -28,7 +28,7 @@ def filter_dict(score, test):
             new_score[k] = score[k]
     return new_score
 
-filename = '/media/cgehri/data/experiment_data/mountaincar/test-200-complete-data.data'
+filename = '/media/cgehri/data/experiment_data/mountaincar/test-200-Morecomplete-data.data'
 with open(filename, 'rb') as f:
     results, params = pickle.load(f)
 
