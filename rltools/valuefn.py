@@ -280,11 +280,11 @@ class LinearTD(ValueFn):
 
 
 class TDCOF(object):
-    def __init__(self, 
-                 projector, 
+    def __init__(self,
+                 projector,
                  alpha,
-                 alpha_R, 
-                 lamb, 
+                 alpha_R,
+                 lamb,
                  gamma,
                  n_actions,
                  rank = None,
@@ -294,7 +294,7 @@ class TDCOF(object):
         self.alpha_R = alpha_R
         self.lamb = lamb
         self.phi = projector
-        
+
         if rank is None:
             self.rank = max(min(50, projector.size/2), np.log(projector.size))
         else:
@@ -302,19 +302,19 @@ class TDCOF(object):
         self.matrices = [(np.zeros((self.phi.size, 1)),
                          np.zeros(1),
                          np.zeros((self.phi.size, 1))) for i in xrange(n_actions)]
-        
+
         self.buffer = [(np.zeros((self.phi.size, self.rank)),
                        np.zeros((self.phi.size, self.rank))) for i in xrange(n_actions)]
-        self.count = np.zeros(n_actions)
+        self.count = np.zeros(n_actions, dtype='int')
         self.initialized = np.array([False]*n_actions)
-        
+
         self.e = np.zeros((n_actions, self.phi.size))
         self.replacing_trace = replacing_trace
         self.R = np.zeros(self.phi.size)
-        
+
     def __call__(self, state, action = None):
         phi_s = self.phi(state)
-        
+
         if action is None:
             v = np.zeros(self.count.shape[0])
             for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
@@ -328,8 +328,8 @@ class TDCOF(object):
             phiA = phi_s.T.dot(A)
             v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T))) + self.R.dot(B.dot(phiA.T))
         return v
-        
-        
+
+
     def call_no_act(self, state):
         phi_s = self.phi(state)
         U,S,V = self.matrices[0]
@@ -338,26 +338,26 @@ class TDCOF(object):
         phiA = phi_s.T.dot(A)
         v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T))) + self.R.dot(B.dot(phiA.T))
         return v
-        
+
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t == None:
             self.e[:,:] = 0.0
             return
-        
+
         phi_t = self.phi(s_t)
-        
+
         self.e *= self.gamma*self.lamb
         self.e[a_t] += phi_t
         if self.replacing_trace:
             self.e = np.clip(self.e, 0, 1)
-        
+
         # eval V(s_t)
         U,S,V = self.matrices[a_t]
         A, B = self.buffer[a_t]
         Uphi = phi_t.T.dot(U)
         phiA = phi_t.T.dot(A)
         v_t = V.dot(np.diag(S).dot(Uphi.T)) + B.dot(phiA.T)
-        
+
         if s_tp1 is not None:
             # eval v_tp1
             phi_tp1 = self.phi(s_tp1)
@@ -366,11 +366,11 @@ class TDCOF(object):
             Uphi = phi_tp1.T.dot(U)
             phiA = phi_tp1.T.dot(A)
             v_tp1 = V.dot(np.diag(S).dot(Uphi.T)) + B.dot(phiA.T)
-            
+
             delta = phi_t + self.gamma*v_tp1 - v_t
         else:
             delta = phi_t - v_t
-            
+
         # update svd of the occupancy function
         ealpha = self.e * self.alpha
         delta *= self.alpha
@@ -381,8 +381,8 @@ class TDCOF(object):
                 B[:,i] = delta
                 self.count[a] += 1
             else:
-                self.matrices[a] = self.update_svd(self.matrices[a], 
-                                                     self.buffer[a], 
+                self.matrices[a] = self.update_svd(self.matrices[a],
+                                                     self.buffer[a],
                                                      self.initialized[a])
                 self.initialized[a] = True
                 A[:,:] = 0
@@ -391,34 +391,34 @@ class TDCOF(object):
         R = self.R
         self.R = R +  self.alpha_R * (r - np.squeeze(phi_t.T.dot(self.R))) * phi_t
 #         self.R = np.squeeze(np.array(self.R))
-            
+
     def update_svd(self, matrices, ab_buffer, initialized):
         U,S,V = matrices
         A, B = ab_buffer
         if initialized:
             Q_a, R_a = np.linalg.qr(A - U.dot(U.T.dot(A)), mode='reduced')
             Q_b, R_b = np.linalg.qr(B - V.dot(V.T.dot(B)), mode='reduced')
-            
+
             Ap = np.vstack((U.T.dot(A), R_a))
             Bp = np.vstack((V.T.dot(B), R_b))
             K = np.diag(np.hstack((S, np.zeros(R_a.shape[0])))) + Ap.dot(Bp.T)
             Up, Sp, Vp = np.linalg.svd(K, full_matrices = False)
-            
+
             U = np.hstack((U, Q_a)).dot(Up)
             V = np.hstack((V, Q_b)).dot(Vp.T)
-            
+
         else:
             Q_a, R_a = np.linalg.qr(A, mode='reduced')
             Q_b, R_b = np.linalg.qr(B, mode='reduced')
             Up, Sp, Vp = np.linalg.svd(R_a.dot(R_b.T), full_matrices = False)
-            
+
             U = Q_a.dot(Up)
             V = Q_b.dot(Vp.T)
         S = Sp[:self.rank]
         U = U[:,0:self.rank]
         V = V[:,0:self.rank]
         return (U, S, V)
-                
+
     def correct_orthogonality(self):
         U, S, V = self.matrices
         Vq, Vr = np.linalg.qr(V)
@@ -435,17 +435,196 @@ class TDCOF(object):
         for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
             v[:,i] = U.dot(np.diag(S).dot(V.T.dot(self.R))) + A.dot(B.T.dot(self.R))
         return v
-    
+
+    @property
+    def theta(self):
+        return self.get_values().T
+
+class gradTDCOF(object):
+    def __init__(self,
+                 projector,
+                 alpha,
+                 alpha_R,
+                 lamb,
+                 gamma,
+                 n_actions,
+                 truth,
+                 rank = None,
+                 replacing_trace=True):
+        self.gamma = gamma
+        self.alpha = np.sqrt(alpha)
+        self.alpha_R = alpha_R
+        self.lamb = lamb
+        self.phi = projector
+
+        self.truth = truth
+        if rank is None:
+            self.rank = max(min(50, projector.size/2), np.log(projector.size))
+        else:
+            self.rank = rank
+        self.matrices = [(np.zeros((self.phi.size, 1)),
+                         np.zeros(1),
+                         np.zeros((self.phi.size, 1))) for i in xrange(n_actions)]
+
+        self.buffer = [(np.zeros((self.phi.size, self.rank)),
+                       np.zeros((self.phi.size, self.rank))) for i in xrange(n_actions)]
+        self.count = np.zeros(n_actions, dtype='int')
+        self.initialized = np.array([False]*n_actions)
+
+        self.e = np.zeros((n_actions, self.phi.size))
+        self.replacing_trace = replacing_trace
+        self.R = np.zeros(self.phi.size)
+
+    def __call__(self, state, action = None):
+        phi_s = self.phi(state)
+
+        if action is None:
+            v = np.zeros(self.count.shape[0])
+            for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
+                Uphi = phi_s.T.dot(U)
+                phiA = phi_s.T.dot(A)
+                v[i] = self.R.dot(V.dot(np.diag(S).dot(Uphi.T))) + self.R.dot(B.dot(phiA.T))
+        else:
+            U,S,V = self.matrices[action]
+            A, B = self.buffer[action]
+            Uphi = phi_s.T.dot(U)
+            phiA = phi_s.T.dot(A)
+            v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T))) + self.R.dot(B.dot(phiA.T))
+        return v
+
+
+    def call_no_act(self, state):
+        phi_s = self.phi(state)
+        U,S,V = self.matrices[0]
+        A, B = self.buffer[0]
+        Uphi = phi_s.T.dot(U)
+        phiA = phi_s.T.dot(A)
+        v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T))) + self.R.dot(B.dot(phiA.T))
+        return v
+
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if s_t == None:
+            self.e[:,:] = 0.0
+            return
+
+        phi_t = self.phi(s_t)
+
+
+
+        # eval V(s_t)
+        U,S,V = self.matrices[a_t]
+        A, B = self.buffer[a_t]
+        Uphi = phi_t.T.dot(U)
+        phiA = phi_t.T.dot(A)
+        v_t = V.dot(np.diag(S).dot(Uphi.T)) + B.dot(phiA.T)
+
+        if s_tp1 is not None:
+            # eval v_tp1
+            phi_tp1 = self.phi(s_tp1)
+            U,S,V = self.matrices[a_tp1]
+            A, B = self.buffer[a_tp1]
+            Uphi = phi_tp1.T.dot(U)
+            phiA = phi_tp1.T.dot(A)
+            v_tp1 = V.dot(np.diag(S).dot(Uphi.T)) + B.dot(phiA.T)
+
+            delta = phi_t + self.gamma*v_tp1 - v_t
+        else:
+            delta = phi_t - v_t
+
+        # update svd of the occupancy function
+        self.e *= self.gamma*self.lamb
+        U,S,V = self.truth #self.matrices[a_t]
+        if s_tp1 is None or not self.initialized[a_t]:
+            self.e[a_t] += phi_t
+        else:
+            self.e[a_t] += U.dot(np.diag(1.0/(S+0.00001)).dot(V.T.dot(phi_t)))
+#             self.e[a_t] += self.project_inv_trans(U, S, V, phi_t)
+
+
+        ealpha = self.e * self.alpha
+        delta *= self.alpha
+        for a, (A,B) in enumerate(self.buffer):
+            i = self.count[a]
+
+            if self.replacing_trace:
+                self.e = np.clip(self.e, 0, 1)
+
+            if i < self.rank:
+                A[:,i] = ealpha[a]
+                B[:,i] = delta
+                self.count[a] += 1
+            else:
+                self.matrices[a] = self.update_svd(self.matrices[a],
+                                                     self.buffer[a],
+                                                     self.initialized[a])
+                self.initialized[a] = True
+                A[:,:] = 0
+                B[:,:] = 0
+                self.count[a] = 0
+        R = self.R
+        self.R = R +  self.alpha_R * (r - np.squeeze(phi_t.T.dot(self.R))) * phi_t
+#         self.R = np.squeeze(np.array(self.R))
+
+    def update_svd(self, matrices, ab_buffer, initialized):
+        U,S,V = matrices
+        A, B = ab_buffer
+        if initialized:
+            Q_a, R_a = np.linalg.qr(A - U.dot(U.T.dot(A)), mode='reduced')
+            Q_b, R_b = np.linalg.qr(B - V.dot(V.T.dot(B)), mode='reduced')
+
+            Ap = np.vstack((U.T.dot(A), R_a))
+            Bp = np.vstack((V.T.dot(B), R_b))
+            K = np.diag(np.hstack((S, np.zeros(R_a.shape[0])))) + Ap.dot(Bp.T)
+            Up, Sp, Vp = np.linalg.svd(K, full_matrices = False)
+
+            U = np.hstack((U, Q_a)).dot(Up)
+            V = np.hstack((V, Q_b)).dot(Vp.T)
+
+        else:
+            Q_a, R_a = np.linalg.qr(A, mode='reduced')
+            Q_b, R_b = np.linalg.qr(B, mode='reduced')
+            Up, Sp, Vp = np.linalg.svd(R_a.dot(R_b.T), full_matrices = False)
+
+            U = Q_a.dot(Up)
+            V = Q_b.dot(Vp.T)
+        S = Sp[:self.rank]
+        U = U[:,0:self.rank]
+        V = V[:,0:self.rank]
+        return (U, S, V)
+
+    def correct_orthogonality(self):
+        U, S, V = self.matrices
+        Vq, Vr = np.linalg.qr(V)
+        Uq, Ur = np.linalg.qr(U)
+        tU, tS, tV = np.linalg.svd(Ur.dot(np.diag(S)).dot(Vr.T), full_matrices = False)
+        V = Vq.dot(tV)
+        U = Uq.dot(tU)
+        S = tS
+        self.matrices = (U,S,V)
+#         if self.use_U_only:
+#             self.R = self.R.dot(tV)
+    def get_values(self):
+        v = np.zeros((self.phi.size, self.count.shape[0]))
+        for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
+            v[:,i] = U.dot(np.diag(S).dot(V.T.dot(self.R))) + A.dot(B.T.dot(self.R))
+        return v
+
+    def project_inv_trans(self, U,S,V, x, ratio=0.999):
+        cs = np.cumsum(S)
+        cs /= cs[-1]
+        Sp = S[ (cs <= ratio).nonzero()]
+        return U[:,0:Sp.size].dot(np.diag(1.0/(Sp+0.01)).dot(V[:,:Sp.size].T.dot(x)))
+
     @property
     def theta(self):
         return self.get_values().T
 
 class TDOF(object):
-    def __init__(self, 
-                 projector, 
+    def __init__(self,
+                 projector,
                  alpha,
-                 alpha_R, 
-                 lamb, 
+                 alpha_R,
+                 lamb,
                  gamma,
                  n_actions,
                  replacing_trace=True):
@@ -454,17 +633,17 @@ class TDOF(object):
         self.alpha_R = alpha_R
         self.lamb = lamb
         self.phi = projector
-        
+
         self.matrices = [np.zeros((self.phi.size, self.phi.size))for i in xrange(n_actions)]
-        
-        
+
+
         self.e = np.zeros((n_actions, self.phi.size))
         self.replacing_trace = replacing_trace
         self.R = np.zeros(self.phi.size)
-        
+
     def __call__(self, state, action = None):
         phi_s = self.phi(state)
-        
+
         if action is None:
             v = np.zeros(self.count.shape[0])
             for i, Theta in enumerate(self.matrices):
@@ -475,80 +654,42 @@ class TDOF(object):
             phiTheta = phi_s.dot(Theta)
             v = self.R.dot(phiTheta.T)
         return v
-        
+
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t == None:
             self.e[:,:] = 0.0
             return
-        
+
         phi_t = self.phi(s_t)
-        
+
         self.e *= self.gamma*self.lamb
         self.e[a_t] += phi_t
         if self.replacing_trace:
             self.e = np.clip(self.e, 0, 1)
-        
+
         # eval V(s_t)
         Theta = self.matrices[a_t]
         phiTheta = phi_t.dot(Theta)
         v_t = phiTheta.T
-        
+
         if s_tp1 is not None:
             # eval v_tp1
             phi_tp1 = self.phi(s_tp1)
             Theta = self.matrices[a_t]
             phiTheta = phi_tp1.dot(Theta)
             v_tp1 = phiTheta.T
-            
+
             delta = phi_t + self.gamma*v_tp1 - v_t
         else:
             delta = phi_t - v_t
-            
+
         # update svd of the occupancy function
         for i, Theta in enumerate(self.matrices):
             Theta += self.alpha*(self.e[i,:].reshape((-1,1))).dot(delta.reshape((1,-1)))
         R = self.R
         self.R = R +  self.alpha_R * (r - np.squeeze(phi_t.T.dot(self.R))) * phi_t
 #         self.R = np.squeeze(np.array(self.R))
-            
-    def update_svd(self, matrices, ab_buffer, initialized):
-        U,S,V = matrices
-        A, B = ab_buffer
-        if initialized:
-            Q_a, R_a = np.linalg.qr(A - U.dot(U.T.dot(A)), mode='reduced')
-            Q_b, R_b = np.linalg.qr(B - V.dot(V.T.dot(B)), mode='reduced')
-            
-            Ap = np.vstack((U.T.dot(A), R_a))
-            Bp = np.vstack((V.T.dot(B), R_b))
-            K = np.diag(np.hstack((S, np.zeros(R_a.shape[0])))) + Ap.dot(Bp.T)
-            Up, Sp, Vp = np.linalg.svd(K, full_matrices = False)
-            
-            U = np.hstack((U, Q_a)).dot(Up)
-            V = np.hstack((V, Q_b)).dot(Vp.T)
-            
-        else:
-            Q_a, R_a = np.linalg.qr(A, mode='reduced')
-            Q_b, R_b = np.linalg.qr(B, mode='reduced')
-            Up, Sp, Vp = np.linalg.svd(R_a.dot(R_b.T), full_matrices = False)
-            
-            U = Q_a.dot(Up)
-            V = Q_b.dot(Vp.T)
-        S = Sp[:self.rank]
-        U = U[:,0:self.rank]
-        V = V[:,0:self.rank]
-        return (U, S, V)
-                
-    def correct_orthogonality(self):
-        U, S, V = self.matrices
-        Vq, Vr = np.linalg.qr(V)
-        Uq, Ur = np.linalg.qr(U)
-        tU, tS, tV = np.linalg.svd(Ur.dot(np.diag(S)).dot(Vr.T), full_matrices = False)
-        V = Vq.dot(tV)
-        U = Uq.dot(tU)
-        S = tS
-        self.matrices = (U,S,V)
-#         if self.use_U_only:
-#             self.R = self.R.dot(tV)
+
     def get_values(self):
         v = np.zeros((self.phi.size, self.count.shape[0]))
         for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
@@ -556,14 +697,14 @@ class TDOF(object):
         return v
 
 class TDSR(object):
-    def __init__(self, 
-                 projector, 
+    def __init__(self,
+                 projector,
                  alpha,
-                 alpha_R, 
-                 lamb, 
+                 alpha_R,
+                 lamb,
                  gamma,
                  rank = None,
-                 threshold = 1e-6,  
+                 threshold = 1e-6,
                  replacing_trace=True,
                  use_U_only = False):
         self.gamma = gamma
@@ -571,7 +712,7 @@ class TDSR(object):
         self.alpha_R = alpha_R
         self.lamb = lamb
         self.phi = projector
-        
+
         if rank is None:
             self.rank = max(min(50, projector.size/2), np.log(projector.size))
         else:
@@ -581,19 +722,19 @@ class TDSR(object):
                          np.zeros((self.phi.size, 1)))
         self.initialized = False
         self.threshold = threshold
-        
+
         self.e = np.zeros(self.phi.size)
         self.replacing_trace = replacing_trace
-        
+
         self.use_U_only = use_U_only
         if use_U_only:
             self.R = np.zeros(1)
         else:
             self.R = np.zeros(projector.size)
-        
+
     def __call__(self, state, action = None):
         phi_sa = self.phi(state, action)
-        
+
         U,S,V = self.matrices
         Uphi = phi_sa.T.dot(U)
         if self.use_U_only:
@@ -602,8 +743,8 @@ class TDSR(object):
         else:
             v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T)))
         return v
-        
-        
+
+
     def call_no_act(self, state):
         phi_sa = self.phi(state)
         U,S,V = self.matrices
@@ -613,24 +754,24 @@ class TDSR(object):
         else:
             v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T)))
         return v
-        
+
     def update(self, s_t, a_t, r, s_tp1, a_tp1):
         if s_t == None:
             self.e[:] = 0.0
             return
-        
+
         phi_t = self.phi(s_t, a_t)
-        
+
         self.e *= self.gamma*self.lamb
         if phi_t.ndim > 1:
             e = self.e[:,None]
         else:
             e = self.e
         self.e = np.squeeze(np.array(e + phi_t))
-        
+
         if self.replacing_trace:
             self.e = np.clip(self.e, 0, 1)
-        
+
         U,S,V = self.matrices
         Uphi_t = phi_t.T.dot(U)
         if s_tp1 is not None:
@@ -640,7 +781,7 @@ class TDSR(object):
                         - V.dot(np.diag(S).dot(Uphi_t.T))
         else:
             delta = phi_t - V.dot(np.diag(S).dot(Uphi_t.T))
-            
+
         delta = np.squeeze(np.array(delta))
         # update svd of the successor state representation
         ealpha = self.e * self.alpha
@@ -649,19 +790,19 @@ class TDSR(object):
                              np.array([np.linalg.norm(ealpha) * np.linalg.norm(delta)]),
                              (delta/np.linalg.norm(delta)).reshape((-1,1)))
             self.initialized = True
-            
+
         else:
             m = U.T.dot(ealpha)
             p = ealpha - U.dot(m)
             ra = np.linalg.norm(p)
-            
+
             n = V.T.dot(delta)
             q = delta - V.dot(n)
             rb = np.linalg.norm(q)
-            
+
             K = np.hstack((m, ra))[:,None] * np.hstack((n, rb))[None,:] \
                         + np.diag(np.hstack((S, 0)))
-        
+
             C, Sp, Dt = np.linalg.svd(K, full_matrices = False)
             D = Dt.T
             if np.abs(Sp[-1]) < self.threshold or Sp.shape[0] > self.rank:
@@ -670,7 +811,7 @@ class TDSR(object):
                 S = Sp[:-1]
                 if self.use_U_only:
                     self.R = self.R.dot(D[:-1, :-1])
-               
+
             else:
                 Pm = p/ra
                 Qm = q/rb
@@ -679,7 +820,7 @@ class TDSR(object):
                 S = Sp
                 if self.use_U_only:
                     self.R = np.hstack((self.R, 0)).dot(D)
-                    
+
             self.matrices = (U,S,V)
         Uphi_t = phi_t.T.dot(U)
         if self.use_U_only:
@@ -709,24 +850,24 @@ class TDSR(object):
                 R = self.R
             self.R = R +  self.alpha_R * (r - np.squeeze(phi_t.T.dot(self.R))) * phi_t
             self.R = np.squeeze(np.array(self.R))
-            
+
     def update_no_act(self, s_t, r, s_tp1):
         if s_t == None:
             self.e[:] = 0.0
             return
-        
+
         phi_t = self.phi(s_t)
-        
+
         self.e *= self.gamma*self.lamb
         if phi_t.ndim > 1:
             e = self.e[:,None]
         else:
             e = self.e
         self.e = np.squeeze(np.array(e + phi_t))
-        
+
         if self.replacing_trace:
             self.e = np.clip(self.e, 0, 1)
-        
+
         U,S,V = self.matrices
         Uphi_t = phi_t.T.dot(U)
         if s_tp1 is not None:
@@ -736,7 +877,7 @@ class TDSR(object):
                         - V.dot(np.diag(S).dot(Uphi_t.T))
         else:
             delta = phi_t - V.dot(np.diag(S).dot(Uphi_t.T))
-            
+
         delta = np.squeeze(np.array(delta))* np.sqrt(self.alpha)
         # update svd of the successor state representation
         ealpha = self.e * np.sqrt(self.alpha)
@@ -745,16 +886,16 @@ class TDSR(object):
                              np.array([np.linalg.norm(ealpha) * np.linalg.norm(delta)]),
                              (delta/np.linalg.norm(delta)).reshape((-1,1)))
             self.initialized = True
-            
+
         else:
             m = U.T.dot(ealpha)
             p = ealpha - U.dot(m)
             ra = np.linalg.norm(p)
-            
+
             n = V.T.dot(delta)
             q = delta - V.dot(n)
             rb = np.linalg.norm(q)
-            
+
 #             print ra, rb
 #             print p
 #             print q
@@ -770,7 +911,7 @@ class TDSR(object):
                 S = Sp[:-1]
                 if self.use_U_only:
                     self.R = self.R.dot(D[:-1, :-1])
-               
+
             else:
                 Pm = p/ra
                 Qm = q/rb
@@ -779,7 +920,7 @@ class TDSR(object):
                 S = Sp
                 if self.use_U_only:
                     self.R = np.hstack((self.R, 0)).dot(D)
-                    
+
             self.matrices = (U,S,V)
             if np.any(np.isinf(U)) or np.any(np.isinf(S)) or np.any(np.isinf(V)):
                 print ra, rb
@@ -801,8 +942,8 @@ class TDSR(object):
                 R = self.R
             self.R = R +  self.alpha_R * (r - np.squeeze(phi_t.T.dot(self.R))) * phi_t
             self.R = np.squeeze(np.array(self.R))
-        
-                
+
+
     def correct_orthogonality(self):
         U, S, V = self.matrices
         Vq, Vr = np.linalg.qr(V)

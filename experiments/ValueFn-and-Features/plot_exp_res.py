@@ -5,14 +5,14 @@ import matplotlib
 
 matplotlib.rcParams.update({'font.size': 14})
 
-with open('exp_res-5.data', 'rb') as f:
-    (index, tdcof_score, tdof_score, theta, 
+with open('exp_res-proto-3.data', 'rb') as f:
+    (index, tdcof_score, tdof_score, theta,
                   (alpha, alpha_R, lamb, gamma, n_actions, rank, replacing_trace)) =pickle.load(f)
-    
+
 
 s = (12,8)
 fig = plt.figure(figsize=s)
-for k in rank:  
+for k in rank:
     plt.plot(index, np.mean(tdcof_score[k], axis=0), label='ALSR, k=' + str(k), linewidth=3)
 plt.plot(index, np.mean(tdof_score, axis=0), label='SR', linewidth=3)
 plt.xlabel('Number of episodes')

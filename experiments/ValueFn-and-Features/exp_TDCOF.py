@@ -1,6 +1,6 @@
 from rltools.MountainCar import MountainCar, PumpingPolicy
 from rltools.theanotools import Theano_RBF_Projector
-from rltools.valuefn import TDOF, TDCOF
+from rltools.valuefn import TDOF, gradTDCOF
 
 import numpy as np
 
@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 import sys
+import winsound
 time.time()
 
 def episode_data(domain, policy):
@@ -44,7 +45,7 @@ def generate_matrices(states, rew, phi):
     X_t = np.vstack(X_t)
     X_t = phi(X_t)
     X_tp1 = np.vstack(X_tp1)
-    
+
     return X_t, X_tp1, np.hstack(b)
 
 def compute_Theta(valuefn):
@@ -76,21 +77,21 @@ phi = Theano_RBF_Projector(c, w)
 ################ TD PARAMETERS ################
 alpha = 0.1
 alpha_R = 0.1
-lamb = 0.6
+lamb = 0.5
 gamma = 0.99
 n_actions = 1
-rank = [10,20,40,80,160,320]
+rank = [30, 60, 120]
 replacing_trace = False
 ################################################
-# 
+#
 # tdcof = TDCOF(phi, alpha, alpha_R, lamb, gamma, n_actions, rank, replacing_trace)
 # tdof = TDOF(phi, alpha, alpha_R, lamb, gamma, n_actions, replacing_trace)
-# 
+#
 # t = time.time()
 # for i in xrange(10000):
 #     tdcof.update(np.random.rand(2), 0, -1.0, np.random.rand(2),0)
 # print 'tdcof ', time.time()- t
-# 
+#
 # t = time.time()
 # for i in xrange(10000):
 #     tdof.update(np.random.rand(2), 0, -1.0, np.random.rand(2),0)
@@ -99,9 +100,18 @@ replacing_trace = False
 
 true_theta = compute_true_theta(domain, policy, 4000, gamma, phi)
 
+for i in xrange(2):
+    winsound.Beep(450,250)
+    time.sleep(0.25)
 
-num_trials = 5
-num_episodes = 3000
+U,S,V = np.linalg.svd(true_theta, full_matrices=False)
+
+true_svd = (U[:,:40], S[:40], V.T[:,:40])
+
+TDCOF = gradTDCOF
+
+num_trials = 2
+num_episodes = 1000
 screenshot_interval = 20
 all_states, all_rew = [],[]
 tdcof_score = { k:[] for k in rank}
@@ -112,15 +122,15 @@ for i in xrange(num_trials):
     states, rew = generate_data(domain, policy, num_episodes)
     all_states += states
     all_rew += rew
-    
-    # SIMULATE TDCOF, TDOF 
+
+    # SIMULATE TDCOF, TDOF
     theta_tdcof = { k:[] for k in rank}
     theta_tdof = []
     index = []
-    
-    tdcof = {k:TDCOF(phi, alpha, alpha_R, lamb, gamma, n_actions, k, replacing_trace) for k in rank}
+
+    tdcof = {k:TDCOF(phi, alpha, alpha_R, lamb*0.0, gamma, n_actions, true_svd, k, replacing_trace) for k in rank}
     tdof = TDOF(phi, alpha, alpha_R, lamb, gamma, n_actions, replacing_trace)
-    
+
     for j, (traj, traj_r) in enumerate(zip(states, rew)):
         s_t = traj[0]
         for k in rank:
@@ -139,18 +149,22 @@ for i in xrange(num_trials):
                 theta_tdcof[k].append(np.linalg.norm(compute_Theta(tdcof[k]) - true_theta))
             theta_tdof.append(np.linalg.norm(tdof.matrices[0] - true_theta))
             index.append(j)
-            
+
     for k in rank:
         tdcof_score[k].append(theta_tdcof[k])
     tdof_score.append(theta_tdof)
-    
-with open('exp_res-5.data', 'wb') as f:
+
+with open('exp_res-proto-3.data', 'wb') as f:
     pickle.dump( (index, tdcof_score, tdof_score, true_theta,
                   (alpha, alpha_R, lamb, gamma, n_actions, rank, replacing_trace)),
                 f)
 
+for i in xrange(4):
+    winsound.Beep(450,250)
+    time.sleep(0.25)
+
 plt.figure()
-plt.plot(index, np.mean(tdcof_score[40], axis=0), label='TDCOF')
+plt.plot(index, np.mean(tdcof_score[60], axis=0), label='TDCOF')
 plt.plot(index, np.mean(tdof_score, axis=0), label='TDOF')
 plt.legend()
 plt.show()
