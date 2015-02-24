@@ -430,10 +430,12 @@ class TDCOF(object):
         self.matrices = (U,S,V)
 #         if self.use_U_only:
 #             self.R = self.R.dot(tV)
-    def get_values(self):
+    def get_values(self,R = None):
+        if R is None:
+            R = self.R
         v = np.zeros((self.phi.size, self.count.shape[0]))
         for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
-            v[:,i] = U.dot(np.diag(S).dot(V.T.dot(self.R))) + A.dot(B.T.dot(self.R))
+            v[:,i] = U.dot(np.diag(S).dot(V.T.dot(R))) + A.dot(B.T.dot(R))
         return v
 
     @property
@@ -533,12 +535,12 @@ class gradTDCOF(object):
 
         # update svd of the occupancy function
         self.e *= self.gamma*self.lamb
-        U,S,V = self.truth #self.matrices[a_t]
+        U,S,V = self.matrices[a_t]
         if s_tp1 is None or not self.initialized[a_t]:
             self.e[a_t] += phi_t
         else:
-            self.e[a_t] += U.dot(np.diag(1.0/(S+0.00001)).dot(V.T.dot(phi_t)))
-#             self.e[a_t] += self.project_inv_trans(U, S, V, phi_t)
+#             self.e[a_t] += U.dot(np.diag(1.0/(S+0.00001)).dot(V.T.dot(phi_t)))
+            self.e[a_t] += self.project_inv_trans(U, S, V, phi_t)
 
 
         ealpha = self.e * self.alpha
@@ -603,17 +605,19 @@ class gradTDCOF(object):
         self.matrices = (U,S,V)
 #         if self.use_U_only:
 #             self.R = self.R.dot(tV)
-    def get_values(self):
+    def get_values(self,R = None):
+        if R is None:
+            R = self.R
         v = np.zeros((self.phi.size, self.count.shape[0]))
         for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
-            v[:,i] = U.dot(np.diag(S).dot(V.T.dot(self.R))) + A.dot(B.T.dot(self.R))
+            v[:,i] = U.dot(np.diag(S).dot(V.T.dot(R))) + A.dot(B.T.dot(R))
         return v
 
-    def project_inv_trans(self, U,S,V, x, ratio=0.999):
+    def project_inv_trans(self, U,S,V, x, ratio=0.9999):
         cs = np.cumsum(S)
         cs /= cs[-1]
         Sp = S[ (cs <= ratio).nonzero()]
-        return U[:,0:Sp.size].dot(np.diag(1.0/(Sp+0.01)).dot(V[:,:Sp.size].T.dot(x)))
+        return U[:,0:Sp.size].dot(np.diag(1.0/(Sp+0.0001)).dot(V[:,:Sp.size].T.dot(x)))
 
     @property
     def theta(self):
@@ -690,10 +694,12 @@ class TDOF(object):
         self.R = R +  self.alpha_R * (r - np.squeeze(phi_t.T.dot(self.R))) * phi_t
 #         self.R = np.squeeze(np.array(self.R))
 
-    def get_values(self):
-        v = np.zeros((self.phi.size, self.count.shape[0]))
-        for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
-            v[:,i] = U.dot(np.diag(S).dot(V.T.dot(self.R))) + A.dot(B.T.dot(self.R))
+    def get_values(self,R = None):
+        if R is None:
+            R = self.R
+        v = np.zeros((self.phi.size, len(self.matrices)))
+        for i, Theta in enumerate(self.matrices):
+            v[:,i] = Theta.dot(R)
         return v
 
 class TDSR(object):

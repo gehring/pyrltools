@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pickle
 import time
 import sys
-import winsound
+# import winsound
 time.time()
 
 def episode_data(domain, policy):
@@ -61,6 +61,11 @@ def compute_true_theta(domain, policy, n_episodes, gamma, phi):
     b = X_t.T.dot(X_t)
     return np.linalg.lstsq(A, b)[0]
 
+def get_R(domain, policy, n_episodes, phi):
+    states, rew = generate_data(domain, policy, n_episodes)
+    X_t, X_tp1, b = generate_matrices(states, rew, phi)
+    return np.linalg.lstsq(X_t.T.dot(X_t), X_t.T.dot(b))[0]
+    
 domain = MountainCar(random_start=True, max_episode=10000)
 policy = PumpingPolicy()
 
@@ -77,10 +82,10 @@ phi = Theano_RBF_Projector(c, w)
 ################ TD PARAMETERS ################
 alpha = 0.1
 alpha_R = 0.1
-lamb = 0.5
+lamb = 0.6
 gamma = 0.99
 n_actions = 1
-rank = [30, 60, 120]
+rank = [ 60, 120, 240]
 replacing_trace = False
 ################################################
 #
@@ -98,24 +103,36 @@ replacing_trace = False
 # print 'tdof ', time.time()- t
 # sys.exit()
 
-true_theta = compute_true_theta(domain, policy, 4000, gamma, phi)
+# R = get_R(domain, policy, 6000, phi)
+# with open('rew.data', 'wb') as f:
+#     pickle.dump( R, f)
+# sys.exit()
+with open('rew.data', 'rb') as f:
+    R = pickle.load(f)[0]
 
-for i in xrange(2):
-    winsound.Beep(450,250)
-    time.sleep(0.25)
+
+true_theta = compute_true_theta(domain, policy, 8000, gamma, phi)
+
+# for i in xrange(2):
+#     winsound.Beep(450,250)
+#     time.sleep(0.25)
 
 U,S,V = np.linalg.svd(true_theta, full_matrices=False)
 
-true_svd = (U[:,:40], S[:40], V.T[:,:40])
+r_true = 401
+true_svd = (U[:,:r_true], S[:r_true], V.T[:,:r_true])
 
 TDCOF = gradTDCOF
 
-num_trials = 2
-num_episodes = 1000
+num_trials = 3
+num_episodes = 3000
 screenshot_interval = 20
 all_states, all_rew = [],[]
 tdcof_score = { k:[] for k in rank}
 tdof_score = []
+
+tdcof_score_t = { k:[] for k in rank}
+tdof_score_t = []
 for i in xrange(num_trials):
     print 'starting trial: ' + str(i)
     # GENERATE TRIAL DATA
@@ -126,9 +143,13 @@ for i in xrange(num_trials):
     # SIMULATE TDCOF, TDOF
     theta_tdcof = { k:[] for k in rank}
     theta_tdof = []
+    
+    theta_tdcof_t = { k:[] for k in rank}
+    theta_tdof_t = []
+    
     index = []
 
-    tdcof = {k:TDCOF(phi, alpha, alpha_R, lamb*0.0, gamma, n_actions, true_svd, k, replacing_trace) for k in rank}
+    tdcof = {k:TDCOF(phi, alpha*0.5, alpha_R, lamb, gamma, n_actions, true_svd, k, replacing_trace) for k in rank}
     tdof = TDOF(phi, alpha, alpha_R, lamb, gamma, n_actions, replacing_trace)
 
     for j, (traj, traj_r) in enumerate(zip(states, rew)):
@@ -146,25 +167,43 @@ for i in xrange(num_trials):
         tdof.update(s_t, 0, r_t, None, 0)
         if (j%screenshot_interval) == screenshot_interval-1:
             for k in rank:
-                theta_tdcof[k].append(np.linalg.norm(compute_Theta(tdcof[k]) - true_theta))
-            theta_tdof.append(np.linalg.norm(tdof.matrices[0] - true_theta))
+                theta_tdcof[k].append(np.linalg.norm((compute_Theta(tdcof[k]) - true_theta).dot(R)))
+            theta_tdof.append(np.linalg.norm((tdof.matrices[0] - true_theta).dot(R)))
+            
+            for k in rank:
+                theta_tdcof_t[k].append(np.linalg.norm((compute_Theta(tdcof[k]) - true_theta)))
+            theta_tdof_t.append(np.linalg.norm((tdof.matrices[0] - true_theta)))
+            
             index.append(j)
 
     for k in rank:
         tdcof_score[k].append(theta_tdcof[k])
     tdof_score.append(theta_tdof)
+    
+    for k in rank:
+        tdcof_score_t[k].append(theta_tdcof_t[k])
+    tdof_score_t.append(theta_tdof_t)
 
-with open('exp_res-proto-3.data', 'wb') as f:
+with open('exp_res-proto-no_true.data', 'wb') as f:
     pickle.dump( (index, tdcof_score, tdof_score, true_theta,
                   (alpha, alpha_R, lamb, gamma, n_actions, rank, replacing_trace)),
                 f)
+    
+approx_thetas = {k:tdcof[k].get_values(R) for k in rank}
+td_thetas = tdof.get_values(R) 
 
-for i in xrange(4):
-    winsound.Beep(450,250)
-    time.sleep(0.25)
+with open('exp_res-theta_no_true.data', 'wb') as f:
+    pickle.dump((approx_thetas, td_thetas), f)
+
+
+
+# for i in xrange(4):
+#     winsound.Beep(450,250)
+#     time.sleep(0.25)
 
 plt.figure()
 plt.plot(index, np.mean(tdcof_score[60], axis=0), label='TDCOF')
 plt.plot(index, np.mean(tdof_score, axis=0), label='TDOF')
 plt.legend()
+
 plt.show()
