@@ -1261,6 +1261,28 @@ class TabularAvgRewNSFTD(incrementalValueFn):
             beta = phi_tp1.dot(phi_tp1) + phi_t.dot(phi_t) - 2*(phi_tp1.dot(phi_t))
             self.theta[index_t] += self.alpha * delta/beta * phi_t
             self.theta[index_t] -= self.alpha * self.eta * delta/beta * phi_tp1
+            
+            
+def solveKBRL(K, c, offset):
+    A = (np.eye(K.shape) - K)
+    b = K.dot(c) + offset
+    v = np.linalg.lstsq(A, b)
+    return v
+
+
+def updateK(K, mass, samples, new_sample, psi, dtype='float32'):
+    shape = K.shape
+    new_K = np.empty((shape[0]+1, shape[1]+1), dtype=dtype)
+    new_K[:-1,:-1] = K*mass[:,None]
+    new_K[:-1,-1] = psi(samples[2], new_sample[0])
+    new_K[-1,:-1] = psi(new_sample[2], samples[0])
+    new_K[-1,-1] = psi(new_sample[2], new_sample[0])
+    mass = mass + new_K[:,-1]
+    mass[-1] += np.sum(new_K[-1,:-1])
+    new_K /= mass[:,None]
+    return new_K, mass
+    
+    
 
 class TabularAvgRewNSFTD_Factory(object):
     def __init__(self, **argk):
