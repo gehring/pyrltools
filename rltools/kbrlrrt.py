@@ -145,6 +145,11 @@ class KBRLRRT(object):
         
         k = psi(x, samples[0])
         
+        
+        print 'k', k.shape
+        print 'atgoal', atgoal.shape
+        print 'bias', bias.shape
+        
         mass = np.sum(k) + atgoal + bias
         k /= mass
         
@@ -158,7 +163,6 @@ class KBRLRRT(object):
         print epsilon.shape
         print eta.shape
         print mass.shape
-        print k.shape
         print vpc.shape
         
         
