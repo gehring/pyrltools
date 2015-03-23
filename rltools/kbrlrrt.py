@@ -149,6 +149,9 @@ class KBRLRRT(object):
         print 'k', k.shape
         print 'atgoal', atgoal.shape
         
+        if k.ndim>1:
+            atgoal = atgoal[:,None]
+        
         mass = np.sum(k) + atgoal + bias
         k /= mass
         
