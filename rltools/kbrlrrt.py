@@ -135,8 +135,10 @@ class KBRLRRT(object):
         epsilon = self.bias/mass
         eta = self.heuristic(samples[2], goal)
         
-        v = solveKBRL(K/mass[:,None], samples[1], epsilon*eta)
-        return v+samples[1]
+        vpc = solveKBRL(K/mass[:,None], samples[1], epsilon*eta) + samples[1]
+        if vpc.ndim < 2:
+            vpc = vpc.reshape((1,-1))
+        return vpc
     
     def compute_h_hat(self, x, goal, psi, vpc, bias, heuristic, samples):
         atgoal = psi(x, goal)
