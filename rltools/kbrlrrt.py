@@ -148,11 +148,12 @@ class KBRLRRT(object):
         epsilon = bias/mass
         eta = heuristic(x, goal)
         
-                
+        print 'other'    
         print epsilon
         print eta
         print mass
         print k
+        print vpc
         
         return k.dot(vpc) + eta*epsilon
         
