@@ -144,14 +144,15 @@ class KBRLRRT(object):
         atgoal = psi(x, goal)
         
         k = psi(x, samples[0])
-        if k.ndim < 2:
-            k = k.reshape((-1,1))
         
         mass = np.sum(k) + atgoal + bias
         k /= mass
         
         epsilon = bias/mass
         eta = heuristic(x, goal)
+        
+        if k.ndim < 2:
+            k = k.reshape((-1,1))
         
         print 'other'    
         print epsilon.shape
