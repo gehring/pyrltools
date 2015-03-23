@@ -85,6 +85,7 @@ class KBRLRRT(object):
             parents[tuple(next_point)] = tuple(origin)
             nodes.append(next_point)
             count += 1
+            print count
             
             
             if count >= max_iterations:
