@@ -29,7 +29,7 @@ class KBRLRRT(object):
         # first argument varying with the rows.
         self.psi = psi
     
-    def plan(self, start, goal_test):
+    def plan(self, start, goal_test, max_iterations):
         env = self.env
         heuristic = self.heuristic
         sampler = self.sampler
@@ -44,7 +44,7 @@ class KBRLRRT(object):
                    np.array([next_point], dtype='float32'))
         
         # initialize the parent pointer tree structure
-        parents = {tuple(next_point):start}
+        parents = {tuple(next_point):tuple(start)}
         
         # all nodes
         nodes = [start, next_point]
@@ -52,6 +52,8 @@ class KBRLRRT(object):
         # set of nodes with children
         has_child = set()
         has_child.add(tuple(start))
+        count = 0
+        failed = False
         
         while not goal_test(next_point):
             # sample random destination point
@@ -79,12 +81,24 @@ class KBRLRRT(object):
                 has_child.add(tuple(origin))
             
             # add new point to the parent pointer tree
-            parents[tuple(next_point)] = origin
+            parents[tuple(next_point)] = tuple(origin)
             nodes.append(next_point)
+            count += 1
+            
+            
+            if count >= max_iterations:
+                failed = True
+                break
         
         # extract the path from the parent pointer tree
-        path = self.generate_path(parents, next_point)
-        return path
+        if not failed:
+            path = self.generate_path(parents, next_point)
+        else:
+            path = None
+            
+        return path, {'start':tuple(start),
+                      'path':path,
+                      'screenshots':[parents]}
     
     def generate_path(self, parents, point):
         path = [point]
@@ -111,7 +125,7 @@ class KBRLRRT(object):
         
         # compute heuristic bias
         epsilon = self.bias/mass
-        eta = self.heuristic(samples[2])
+        eta = self.heuristic(samples[2], goal)
         
         v = solveKBRL(K/mass[:,None], self.samples[1], epsilon*eta)
         return v+self.samples[1]
@@ -124,7 +138,7 @@ class KBRLRRT(object):
         k /= mass
         
         epsilon = bias/mass
-        eta = heuristic(x)
+        eta = heuristic(x, goal)
         
         return k.dot(vpc) + eta*epsilon
         
