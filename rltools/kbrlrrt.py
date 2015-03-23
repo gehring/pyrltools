@@ -29,14 +29,15 @@ class KBRLRRT(object):
         # first argument varying with the rows.
         self.psi = psi
     
-    def plan(self, start, goal_test, max_iterations):
+    def plan(self, start, goal, goal_test, max_iterations):
         env = self.env
         heuristic = self.heuristic
         sampler = self.sampler
         
         # sample new point to boot strap the process
         point = sampler()
-        origin, cost, next_point = env.get_best([start], heuristic)
+        h_hat = lambda x: heuristic(x, goal)
+        origin, cost, next_point = env.get_best([start], h_hat)
         
         # initialize the sample set
         samples = (np.array([start], dtype='float32'),
@@ -97,6 +98,7 @@ class KBRLRRT(object):
             path = None
             
         return path, {'start':tuple(start),
+                      'goal': tuple(goal),
                       'path':path,
                       'screenshots':[parents]}
     
