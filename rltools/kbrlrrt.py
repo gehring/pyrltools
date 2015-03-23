@@ -162,6 +162,6 @@ class RBF_Kernel(object):
             y = y[None, :]
         
         d = -(((x[:,:, None]-y.T[None, :, :])/w)**2).sum(axis=1)
-        return np.exp(d)
+        return np.exp(d).squeeze()
         
 
