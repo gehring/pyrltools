@@ -148,7 +148,6 @@ class KBRLRRT(object):
         
         print 'k', k.shape
         print 'atgoal', atgoal.shape
-        print 'bias', bias.shape
         
         mass = np.sum(k) + atgoal + bias
         k /= mass
