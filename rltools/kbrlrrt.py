@@ -118,7 +118,7 @@ class KBRLRRT(object):
         atgoal = self.psi(samples[2], goal)
         
         # compute the similarity matrix 
-        K = self.psi(samples[2], self.samples[0])
+        K = self.psi(samples[2], samples[0])
         
         # compute mass with bias
         mass = np.sum(K, axis=1)
@@ -129,8 +129,8 @@ class KBRLRRT(object):
         epsilon = self.bias/mass
         eta = self.heuristic(samples[2], goal)
         
-        v = solveKBRL(K/mass[:,None], self.samples[1], epsilon*eta)
-        return v+self.samples[1]
+        v = solveKBRL(K/mass[:,None], samples[1], epsilon*eta)
+        return v+samples[1]
     
     def compute_h_hat(self, x, goal, psi, vpc, bias, heuristic, samples):
         atgoal = psi(x, goal)
