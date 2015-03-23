@@ -168,7 +168,8 @@ class KBRLRRT(object):
         print vpc.shape
         
         
-        print k.dot(vpc)
+        print k.dot(vpc).squeeze()
+        print eta*epsilon
         return k.dot(vpc).squeeze() + eta*epsilon
         
     
