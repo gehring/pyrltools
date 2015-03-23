@@ -123,7 +123,6 @@ class KBRLRRT(object):
         # compute mass with bias
         if K.ndim <1:
             K = K[np.newaxis, np.newaxis]
-           
         mass = np.sum(K, axis=1)
         print samples
         print mass

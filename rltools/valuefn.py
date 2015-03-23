@@ -1264,7 +1264,7 @@ class TabularAvgRewNSFTD(incrementalValueFn):
             
             
 def solveKBRL(K, c, offset):
-    A = (np.eye(K.shape) - K)
+    A = (np.eye(K.shape[0]) - K)
     b = K.dot(c) + offset
     v = np.linalg.lstsq(A, b)
     return v
