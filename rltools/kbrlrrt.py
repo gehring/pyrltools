@@ -121,8 +121,8 @@ class KBRLRRT(object):
         K = self.psi(samples[2], samples[0])
         
         # compute mass with bias
-        if K.ndim <2:
-            K = K.reshape((1,-1))
+        if K.ndim <1:
+            K = K[np.newaxis, np.newaxis]
            
         mass = np.sum(K, axis=1)
         print samples
