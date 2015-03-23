@@ -169,8 +169,8 @@ class KBRLRRT(object):
         
         
         print k.dot(vpc).squeeze()
-        print eta*epsilon
-        return k.dot(vpc).squeeze() + eta*epsilon
+        print eta*epsilon.squeeze()
+        return k.dot(vpc).squeeze() + eta*epsilon.squeeze()
         
     
 class RBF_Kernel(object):
