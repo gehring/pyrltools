@@ -151,7 +151,7 @@ class KBRLRRT(object):
     
 class RBF_Kernel(object):
     def __init__(self, width):
-        self.w = np.sqrt(width)[:,None,:]
+        self.w = np.sqrt(width)[None,:,None]
         
     def __call__(self, x, y):
         w = self.w
