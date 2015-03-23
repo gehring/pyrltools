@@ -160,9 +160,8 @@ class RBF_Kernel(object):
             x = x[None, :]
         if y.ndim == 1:
             y = y[None, :]
-            
         
-        d = -(((x[:,:, None]-y[None, :, :])/w)**2).sum(axis=1)
+        d = -(((x[:,:, None]-y.T[None, :, :])/w)**2).sum(axis=1)
         return np.exp(d)
         
 
