@@ -122,6 +122,7 @@ class KBRLRRT(object):
         
         # compute mass with bias
         mass = np.sum(K, axis=1)
+        print samples
         print mass
         print K
         print atgoal
