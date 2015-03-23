@@ -124,10 +124,10 @@ class KBRLRRT(object):
         if K.ndim <1:
             K = K[np.newaxis, np.newaxis]
         mass = np.sum(K, axis=1)
-        print samples
-        print mass
-        print K
-        print atgoal
+#         print samples
+#         print mass
+#         print K
+#         print atgoal
         mass += atgoal
         mass += self.bias
         
@@ -146,8 +146,8 @@ class KBRLRRT(object):
         k = psi(x, samples[0])
         
         
-        print 'k', k.shape
-        print 'atgoal', atgoal.shape
+#         print 'k', k.shape
+#         print 'atgoal', atgoal.shape
         
         if k.ndim>1:
             atgoal = atgoal[:,None]
@@ -161,15 +161,15 @@ class KBRLRRT(object):
         if k.ndim < 2:
             k = k.reshape((-1,1))
         
-        print 'other'    
-        print epsilon.shape
-        print eta.shape
-        print mass.shape
-        print vpc.shape
-        
-        
-        print k.dot(vpc).squeeze()
-        print eta*epsilon.squeeze()
+#         print 'other'    
+#         print epsilon.shape
+#         print eta.shape
+#         print mass.shape
+#         print vpc.shape
+#         
+#         
+#         print k.dot(vpc).squeeze()
+#         print eta*epsilon.squeeze()
         return k.dot(vpc).squeeze() + eta*epsilon.squeeze()
         
     
