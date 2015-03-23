@@ -20,7 +20,7 @@ class KBRLRRT(object):
         # This value serves to bias the approx. cost-to-go to use the heuristic
         # when similarities between observed samples are low.
         # The larger this is, the more aggressive the bias is.
-        self.b = bias
+        self.bias = bias
         
         # psi is the similarity function comparing two states
         # it is assumed that if only ones of its arguments is an array
