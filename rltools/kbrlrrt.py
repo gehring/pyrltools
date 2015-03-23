@@ -137,7 +137,7 @@ class KBRLRRT(object):
         
         vpc = solveKBRL(K/mass[:,None], samples[1], epsilon*eta) + samples[1]
         if vpc.ndim < 2:
-            vpc = vpc.reshape((1,-1))
+            vpc = vpc.reshape((-1,1))
         return vpc
     
     def compute_h_hat(self, x, goal, psi, vpc, bias, heuristic, samples):
