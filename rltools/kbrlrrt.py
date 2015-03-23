@@ -136,7 +136,7 @@ class KBRLRRT(object):
         epsilon = self.bias/mass
         eta = self.heuristic(samples[2], goal)
         
-        vpc = solveKBRL(K/mass[:,None], samples[1], epsilon*eta) + samples[1]
+        vpc = np.ones(samples[0].shape[0])*100#solveKBRL(K/mass[:,None], samples[1], epsilon*eta) + samples[1]
         if vpc.ndim < 2:
             vpc = vpc.reshape((-1,1))
         return vpc
