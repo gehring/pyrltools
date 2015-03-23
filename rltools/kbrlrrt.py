@@ -151,12 +151,14 @@ class KBRLRRT(object):
         eta = heuristic(x, goal)
         
         print 'other'    
-        print epsilon
-        print eta
-        print mass
-        print k
-        print vpc
+        print epsilon.shape
+        print eta.shape
+        print mass.shape
+        print k.shape
+        print vpc.shape
         
+        
+        print k.dot(vpc)
         return k.dot(vpc) + eta*epsilon
         
     
