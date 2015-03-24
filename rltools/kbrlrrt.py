@@ -119,8 +119,8 @@ class KBRLRRT(object):
         while tuple(point) in parents:
             point = parents[tuple(point)]
             path.append(point)
-            
-        return path.reverse()
+        path.reverse()
+        return path
         
         
     def solve_values_plus_cost(self, samples, goal):
