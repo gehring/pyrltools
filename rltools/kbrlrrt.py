@@ -36,6 +36,7 @@ class KBRLRRT(object):
         
         # sample new point to boot strap the process
         point = sampler()
+#         h_hat = lambda x: heuristic(x, point)
         h_hat = lambda x: heuristic(x, goal)
         origin, cost, next_point = env.get_best([start], h_hat)
         
@@ -61,9 +62,17 @@ class KBRLRRT(object):
             point = sampler()
 
             # approximate cost-to-go heuristic
-            vpc = self.solve_values_plus_cost(samples, point)
+#             vpc = self.solve_values_plus_cost(samples, point)
+#             h_hat = lambda x: self.compute_h_hat(x, 
+#                                                  point, 
+#                                                  self.psi, 
+#                                                  vpc, 
+#                                                  self.bias, 
+#                                                  heuristic, 
+#                                                  samples)
+            vpc = self.solve_values_plus_cost(samples, goal)
             h_hat = lambda x: self.compute_h_hat(x, 
-                                                 point, 
+                                                 goal, 
                                                  self.psi, 
                                                  vpc, 
                                                  self.bias, 
@@ -136,7 +145,7 @@ class KBRLRRT(object):
         epsilon = self.bias/mass
         eta = self.heuristic(samples[2], goal)
         
-        vpc = np.ones(samples[0].shape[0])*100#solveKBRL(K/mass[:,None], samples[1], epsilon*eta) + samples[1]
+        vpc = solveKBRL(K/mass[:,None], samples[1], epsilon*eta) + samples[1]
         if vpc.ndim < 2:
             vpc = vpc.reshape((-1,1))
         return vpc
