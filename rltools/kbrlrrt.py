@@ -36,8 +36,8 @@ class KBRLRRT(object):
         
         # sample new point to boot strap the process
         point = sampler()
-#         h_hat = lambda x: heuristic(x, point)
-        h_hat = lambda x: heuristic(x, goal)
+        h_hat = lambda x: heuristic(x, point)
+#         h_hat = lambda x: heuristic(x, goal)
         origin, cost, next_point = env.get_best([start], h_hat)
         
         # initialize the sample set
@@ -62,22 +62,22 @@ class KBRLRRT(object):
             point = sampler()
 
             # approximate cost-to-go heuristic
-#             vpc = self.solve_values_plus_cost(samples, point)
-#             h_hat = lambda x: self.compute_h_hat(x, 
-#                                                  point, 
-#                                                  self.psi, 
-#                                                  vpc, 
-#                                                  self.bias, 
-#                                                  heuristic, 
-#                                                  samples)
-            vpc = self.solve_values_plus_cost(samples, goal)
+            vpc = self.solve_values_plus_cost(samples, point)
             h_hat = lambda x: self.compute_h_hat(x, 
-                                                 goal, 
+                                                 point, 
                                                  self.psi, 
                                                  vpc, 
                                                  self.bias, 
                                                  heuristic, 
                                                  samples)
+#             vpc = self.solve_values_plus_cost(samples, goal)
+#             h_hat = lambda x: self.compute_h_hat(x, 
+#                                                  goal, 
+#                                                  self.psi, 
+#                                                  vpc, 
+#                                                  self.bias, 
+#                                                  heuristic, 
+#                                                  samples)
             
             
             # find the best expansion
@@ -103,7 +103,7 @@ class KBRLRRT(object):
         
         # extract the path from the parent pointer tree
         if not failed:
-            path = self.generate_path(parents, next_point)
+            path = self.generate_path(parents, next_point).append(goal)
         else:
             path = None
             
