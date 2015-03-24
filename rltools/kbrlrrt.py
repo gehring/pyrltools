@@ -103,7 +103,8 @@ class KBRLRRT(object):
         
         # extract the path from the parent pointer tree
         if not failed:
-            path = self.generate_path(parents, next_point).append(goal)
+            path = self.generate_path(parents, next_point)
+            path.append(goal)
         else:
             path = None
             
