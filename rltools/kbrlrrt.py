@@ -76,7 +76,7 @@ class KBRLRRT(object):
                 h_hat = lambda x: self.compute_h_hat(x, 
                                                  point.copy(), 
                                                  self.psi, 
-                                                 vpc, 
+                                                 vpc.copy(), 
                                                  self.bias, 
                                                  heuristic, 
                                                  [samples[i].copy() for i in range(3)])
