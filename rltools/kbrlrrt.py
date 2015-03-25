@@ -77,7 +77,7 @@ class KBRLRRT(object):
                                                  vpc, 
                                                  self.bias, 
                                                  heuristic, 
-                                                 tuple((samples[i].copy() for i in range(3))))
+                                                 [samples[i].copy() for i in range(3)])
                 screenshots.append( (parents.copy(), h_hat))
 
 
@@ -188,12 +188,11 @@ class KBRLRRT(object):
     def compute_h_hat(self, x, goal, psi, vpc, bias, heuristic, samples):
         atgoal = psi(x, goal)
         
-        print samples
         k = psi(x, samples[0])
         
         
-#         print 'k', k.shape
-#         print 'atgoal', atgoal.shape
+        print 'k', k.shape
+        print 'atgoal', atgoal.shape
         
         if k.ndim>1:
             atgoal = atgoal[:,None]
@@ -207,15 +206,15 @@ class KBRLRRT(object):
         if k.ndim < 2:
             k = k.reshape((-1,1))
         
-#         print 'other'    
-#         print epsilon.shape
-#         print eta.shape
-#         print mass.shape
-#         print vpc.shape
+        print 'other'    
+        print epsilon.shape
+        print eta.shape
+        print mass.shape
+        print vpc.shape
 #         
 #         
-#         print k.dot(vpc).squeeze()
-#         print eta*epsilon.squeeze()
+        print k.dot(vpc).squeeze()
+        print eta*epsilon.squeeze()
         return k.dot(vpc).squeeze() + eta*epsilon.squeeze()
         
     
