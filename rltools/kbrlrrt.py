@@ -83,23 +83,24 @@ class KBRLRRT(object):
                 screenshots.append( (parents.copy(), h_hat))
 
 
-            # approximate cost-to-go heuristic
-            vpc = self.solve_values_plus_cost(samples, point)
-            # update heuristic
-            h_hat = approx_cost_to_go(point.copy(), 
-                                     self.psi, 
-                                     vpc.copy(), 
-                                     self.bias, 
-                                     heuristic, 
-                                     samples)   
-#             vpc = self.solve_values_plus_cost(samples, goal)
-#             h_hat = lambda x: self.compute_h_hat(x, 
-#                                                  goal, 
-#                                                  self.psi, 
-#                                                  vpc, 
-#                                                  self.bias, 
-#                                                  heuristic, 
-#                                                  samples)
+#             # approximate cost-to-go heuristic
+#             vpc = self.solve_values_plus_cost(samples, point)
+#             # update heuristic
+#             h_hat = approx_cost_to_go(point, 
+#                                      self.psi, 
+#                                      vpc.copy(), 
+#                                      self.bias, 
+#                                      heuristic, 
+#                                      samples)   
+#             # approximate cost-to-go heuristic
+                vpc = self.solve_values_plus_cost(samples, goal)
+                # update heuristic
+                h_hat = approx_cost_to_go(goal, 
+                                         self.psi, 
+                                         vpc.copy(), 
+                                         self.bias, 
+                                         heuristic, 
+                                         samples) 
             
             
             # find the best expansion
