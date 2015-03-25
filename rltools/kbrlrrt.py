@@ -132,12 +132,12 @@ class KBRLRRT(object):
         
         # process the last screenshot
         h_hat = lambda x: self.compute_h_hat(x, 
-                                                 point, 
+                                                 point.copy(), 
                                                  self.psi, 
-                                                 vpc, 
+                                                 vpc.copy(), 
                                                  self.bias, 
                                                  heuristic, 
-                                                 samples)    
+                                                 samples.copy())    
         screenshots.append((parents, h_hat))
         
         
