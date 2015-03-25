@@ -72,6 +72,7 @@ class KBRLRRT(object):
             vpc = self.solve_values_plus_cost(samples, point)
 
             # if asked, take a screenshot of the state
+            print save_screenshot, (count % screenshot_rate)
             if save_screenshot and (count % screenshot_rate) == 0:
                 h_hat = lambda x: self.compute_h_hat(x, 
                                                  point.copy(), 
