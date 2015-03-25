@@ -193,7 +193,7 @@ class KBRLRRT(object):
         k = psi(x, samples[0])
         
         
-#         print 'k', k.shape
+        print 'k', k.shape
 #         print 'atgoal', atgoal.shape
 #         
         if k.ndim>1:
