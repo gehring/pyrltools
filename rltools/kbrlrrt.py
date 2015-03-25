@@ -83,24 +83,24 @@ class KBRLRRT(object):
                 screenshots.append( (parents.copy(), h_hat))
 
 
-#             # approximate cost-to-go heuristic
-#             vpc = self.solve_values_plus_cost(samples, point)
-#             # update heuristic
-#             h_hat = approx_cost_to_go(point, 
-#                                      self.psi, 
-#                                      vpc.copy(), 
-#                                      self.bias, 
-#                                      heuristic, 
-#                                      samples)   
-#             # approximate cost-to-go heuristic
-                vpc = self.solve_values_plus_cost(samples, goal)
-                # update heuristic
-                h_hat = approx_cost_to_go(goal, 
-                                         self.psi, 
-                                         vpc.copy(), 
-                                         self.bias, 
-                                         heuristic, 
-                                         samples) 
+            # approximate cost-to-go heuristic
+            vpc = self.solve_values_plus_cost(samples, point)
+            # update heuristic
+            h_hat = approx_cost_to_go(point, 
+                                     self.psi, 
+                                     vpc, 
+                                     self.bias, 
+                                     heuristic, 
+                                     samples)   
+            # approximate cost-to-go heuristic
+#                 vpc = self.solve_values_plus_cost(samples, goal)
+#                 # update heuristic
+#                 h_hat = approx_cost_to_go(goal, 
+#                                          self.psi, 
+#                                          vpc, 
+#                                          self.bias, 
+#                                          heuristic, 
+#                                          samples) 
             
             
             # find the best expansion
@@ -109,10 +109,15 @@ class KBRLRRT(object):
             
             # if origin is not in the samples, add it
             if tuple(origin) not in has_child:
-                samples = ( np.vstack((samples[0], [origin])),
+#                 samples = ( np.vstack((samples[0], [origin])),
+#                             np.hstack((samples[1], [cost])),
+#                             np.vstack((samples[2], [next_point])))
+                has_child.add(tuple(origin))
+                
+            samples = ( np.vstack((samples[0], [origin])),
                             np.hstack((samples[1], [cost])),
                             np.vstack((samples[2], [next_point])))
-                has_child.add(tuple(origin))
+#             has_child.add(tuple(origin))
             
             # add new point to the parent pointer tree
             parents[tuple(next_point)] = tuple(origin)
