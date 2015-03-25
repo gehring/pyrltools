@@ -191,7 +191,7 @@ def compute_h_hat(x, goal, psi, vpc, bias, heuristic, samples):
     k = psi(x, samples[0])
     
     
-    print 'k', k.shape
+#     print 'k', k.shape
 #         print 'atgoal', atgoal.shape
 #         
     if k.ndim>1:
