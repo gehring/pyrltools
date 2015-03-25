@@ -29,7 +29,13 @@ class KBRLRRT(object):
         # first argument varying with the rows.
         self.psi = psi
     
-    def plan(self, start, goal, goal_test, max_iterations):
+    def plan(self, 
+             start,
+             goal, 
+             goal_test, 
+             max_iterations, 
+             screenshot_rate=1,
+             save_screenshot=False):
         env = self.env
         heuristic = self.heuristic
         sampler = self.sampler
@@ -56,10 +62,24 @@ class KBRLRRT(object):
         has_child.add(tuple(start))
         count = 0
         failed = False
+        screenshots = []
         
         while not goal_test(next_point):
             # sample random destination point
             point = sampler()
+
+
+            # if asked, take a screenshot of the state
+            if save_screenshot and (count % screenshot_rate) == 0:
+                h_hat = lambda x: self.compute_h_hat(x, 
+                                                 point.copy(), 
+                                                 self.psi, 
+                                                 vpc, 
+                                                 self.bias, 
+                                                 heuristic, 
+                                                 samples.copy())
+                screenshots.append( (parents.copy(), h_hat))
+
 
             # approximate cost-to-go heuristic
             vpc = self.solve_values_plus_cost(samples, point)
@@ -82,6 +102,7 @@ class KBRLRRT(object):
             
             # find the best expansion
             origin, cost, next_point = env.get_best(nodes, h_hat)
+            
             
             # if origin is not in the samples, add it
             if tuple(origin) not in has_child:
@@ -108,10 +129,23 @@ class KBRLRRT(object):
         else:
             path = None
             
+        
+        # process the last screenshot
+        h_hat = lambda x: self.compute_h_hat(x, 
+                                                 point, 
+                                                 self.psi, 
+                                                 vpc, 
+                                                 self.bias, 
+                                                 heuristic, 
+                                                 samples)    
+        screenshots.append((parents, h_hat))
+        
+        
         return path, {'start':tuple(start),
                       'goal': tuple(goal),
                       'path':path,
-                      'screenshots':[parents]}
+                      'environment': env,
+                      'screenshots': screenshots}
     
     def generate_path(self, parents, point):
         path = [point]
