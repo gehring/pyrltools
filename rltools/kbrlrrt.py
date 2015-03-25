@@ -185,7 +185,7 @@ class KBRLRRT(object):
             vpc = vpc.reshape((-1,1))
         return vpc
     
-def compute_h_hat(self, x, goal, psi, vpc, bias, heuristic, samples):
+def compute_h_hat(x, goal, psi, vpc, bias, heuristic, samples):
     atgoal = psi(x, goal)
     
     k = psi(x, samples[0])
