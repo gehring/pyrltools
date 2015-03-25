@@ -69,11 +69,11 @@ class KBRLRRT(object):
             # sample random destination point
             point = sampler()
 
-            # approximate cost-to-go heuristic
-            vpc = self.solve_values_plus_cost(samples, point)
+            
 
             # if asked, take a screenshot of the state
             if save_screenshot and (count % screenshot_rate) == 0:
+                vpc = self.solve_values_plus_cost(samples, goal)
                 h_hat = approx_cost_to_go(goal, 
                                      self.psi, 
                                      vpc.copy(), 
@@ -83,6 +83,8 @@ class KBRLRRT(object):
                 screenshots.append( (parents.copy(), h_hat))
 
 
+            # approximate cost-to-go heuristic
+            vpc = self.solve_values_plus_cost(samples, point)
             # update heuristic
             h_hat = approx_cost_to_go(point.copy(), 
                                      self.psi, 
@@ -131,7 +133,7 @@ class KBRLRRT(object):
             
         
         # process the last screenshot
-        vpc = self.solve_values_plus_cost(samples, point)
+        vpc = self.solve_values_plus_cost(samples, goal)
         h_hat = approx_cost_to_go(goal, 
                                      self.psi, 
                                      vpc.copy(), 
