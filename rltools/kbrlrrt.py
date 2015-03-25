@@ -68,6 +68,8 @@ class KBRLRRT(object):
             # sample random destination point
             point = sampler()
 
+            # approximate cost-to-go heuristic
+            vpc = self.solve_values_plus_cost(samples, point)
 
             # if asked, take a screenshot of the state
             if save_screenshot and (count % screenshot_rate) == 0:
@@ -81,8 +83,7 @@ class KBRLRRT(object):
                 screenshots.append( (parents.copy(), h_hat))
 
 
-            # approximate cost-to-go heuristic
-            vpc = self.solve_values_plus_cost(samples, point)
+            # update heuristic
             h_hat = lambda x: self.compute_h_hat(x, 
                                                  point, 
                                                  self.psi, 
@@ -131,6 +132,7 @@ class KBRLRRT(object):
             
         
         # process the last screenshot
+        vpc = self.solve_values_plus_cost(samples, point)
         h_hat = lambda x: self.compute_h_hat(x, 
                                              point.copy(), 
                                              self.psi, 
@@ -191,9 +193,9 @@ class KBRLRRT(object):
         k = psi(x, samples[0])
         
         
-        print 'k', k.shape
-        print 'atgoal', atgoal.shape
-        
+#         print 'k', k.shape
+#         print 'atgoal', atgoal.shape
+#         
         if k.ndim>1:
             atgoal = atgoal[:,None]
         
@@ -206,15 +208,15 @@ class KBRLRRT(object):
         if k.ndim < 2:
             k = k.reshape((-1,1))
         
-        print 'other'    
-        print epsilon.shape
-        print eta.shape
-        print mass.shape
-        print vpc.shape
+#         print 'other'    
+#         print epsilon.shape
+#         print eta.shape
+#         print mass.shape
+#         print vpc.shape
 #         
 #         
-        print k.dot(vpc).squeeze()
-        print eta*epsilon.squeeze()
+#         print k.dot(vpc).squeeze()
+#         print eta*epsilon.squeeze()
         return k.dot(vpc).squeeze() + eta*epsilon.squeeze()
         
     
