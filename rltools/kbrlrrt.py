@@ -74,7 +74,7 @@ class KBRLRRT(object):
 
             # if asked, take a screenshot of the state
             if save_screenshot and (count % screenshot_rate) == 0:
-                h_hat = approx_cost_to_go(point.copy(), 
+                h_hat = approx_cost_to_go(goal, 
                                      self.psi, 
                                      vpc.copy(), 
                                      self.bias, 
@@ -132,7 +132,7 @@ class KBRLRRT(object):
         
         # process the last screenshot
         vpc = self.solve_values_plus_cost(samples, point)
-        h_hat = approx_cost_to_go(point.copy(), 
+        h_hat = approx_cost_to_go(goal, 
                                      self.psi, 
                                      vpc.copy(), 
                                      self.bias, 
