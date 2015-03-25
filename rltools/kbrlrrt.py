@@ -1,6 +1,7 @@
 import numpy as np
 
 from rltools.valuefn import solveKBRL
+from scipy.constants.constants import psi
 
 class KBRLRRT(object):
     def __init__(self, env, heuristic, sampler, bias, psi):
@@ -73,24 +74,22 @@ class KBRLRRT(object):
 
             # if asked, take a screenshot of the state
             if save_screenshot and (count % screenshot_rate) == 0:
-                h_hat = lambda x: self.compute_h_hat(x, 
-                                                 point.copy(), 
-                                                 self.psi, 
-                                                 vpc.copy(), 
-                                                 self.bias, 
-                                                 heuristic, 
-                                                 [samples[i].copy() for i in range(3)])
+                h_hat = approx_cost_to_go(point.copy(), 
+                                     self.psi, 
+                                     vpc.copy(), 
+                                     self.bias, 
+                                     heuristic, 
+                                     [samples[i].copy() for i in range(3)])   
                 screenshots.append( (parents.copy(), h_hat))
 
 
             # update heuristic
-            h_hat = lambda x: self.compute_h_hat(x, 
-                                                 point, 
-                                                 self.psi, 
-                                                 vpc, 
-                                                 self.bias, 
-                                                 heuristic, 
-                                                 samples)
+            h_hat = approx_cost_to_go(point.copy(), 
+                                     self.psi, 
+                                     vpc.copy(), 
+                                     self.bias, 
+                                     heuristic, 
+                                     samples)   
 #             vpc = self.solve_values_plus_cost(samples, goal)
 #             h_hat = lambda x: self.compute_h_hat(x, 
 #                                                  goal, 
@@ -133,13 +132,12 @@ class KBRLRRT(object):
         
         # process the last screenshot
         vpc = self.solve_values_plus_cost(samples, point)
-        h_hat = lambda x: self.compute_h_hat(x, 
-                                             point.copy(), 
-                                             self.psi, 
-                                             vpc.copy(), 
-                                             self.bias, 
-                                             heuristic, 
-                                             [samples[i].copy() for i in range(3)])    
+        h_hat = approx_cost_to_go(point.copy(), 
+                                     self.psi, 
+                                     vpc.copy(), 
+                                     self.bias, 
+                                     heuristic, 
+                                     [samples[i].copy() for i in range(3)])    
         screenshots.append((parents, h_hat))
         
         
@@ -187,27 +185,27 @@ class KBRLRRT(object):
             vpc = vpc.reshape((-1,1))
         return vpc
     
-    def compute_h_hat(self, x, goal, psi, vpc, bias, heuristic, samples):
-        atgoal = psi(x, goal)
-        
-        k = psi(x, samples[0])
-        
-        
-        print 'k', k.shape
+def compute_h_hat(self, x, goal, psi, vpc, bias, heuristic, samples):
+    atgoal = psi(x, goal)
+    
+    k = psi(x, samples[0])
+    
+    
+    print 'k', k.shape
 #         print 'atgoal', atgoal.shape
 #         
-        if k.ndim>1:
-            atgoal = atgoal[:,None]
-        
-        mass = np.sum(k) + atgoal + bias
-        k /= mass
-        
-        epsilon = bias/mass
-        eta = heuristic(x, goal)
-        
-        if k.ndim < 2:
-            k = k.reshape((-1,1))
-        
+    if k.ndim>1:
+        atgoal = atgoal[:,None]
+    
+    mass = np.sum(k) + atgoal + bias
+    k /= mass
+    
+    epsilon = bias/mass
+    eta = heuristic(x, goal)
+    
+    if k.ndim < 2:
+        k = k.reshape((-1,1))
+    
 #         print 'other'    
 #         print epsilon.shape
 #         print eta.shape
@@ -217,9 +215,26 @@ class KBRLRRT(object):
 #         
 #         print k.dot(vpc).squeeze()
 #         print eta*epsilon.squeeze()
-        return k.dot(vpc).squeeze() + eta*epsilon.squeeze()
+    return k.dot(vpc).squeeze() + eta*epsilon.squeeze()
         
+class approx_cost_to_go(object):
+    def __init__(self, goal, psi, vpc, bias, heuristic, samples):
+        self.goal = goal
+        self.psi = psi
+        self.vpc = vpc
+        self.bias = bias
+        self.heuristic = heuristic
+        self.samples = samples
     
+    def __call__(self, x):
+        return compute_h_hat(x, 
+                             self.goal,
+                             self.psi,
+                             self.vpc,
+                             self.bias,
+                             self.heuristic,
+                             self.samples)
+
 class RBF_Kernel(object):
     def __init__(self, width):
         self.w = np.sqrt(width)[None,:,None]
