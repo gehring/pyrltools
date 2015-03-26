@@ -224,6 +224,29 @@ def compute_h_hat(x, goal, psi, vpc, bias, heuristic, samples):
 #         print k.dot(vpc).squeeze()
 #         print eta*epsilon.squeeze()
     return k.dot(vpc).squeeze() + eta*epsilon.squeeze()
+
+def solve_values_plus_cost( samples, goal, psi, bias, heuristic):
+        # find how close each sample is to the goal
+        atgoal = psi(samples[2], goal)
+        
+        # compute the similarity matrix 
+        K = psi(samples[2], samples[0])
+        
+        # compute mass with bias
+        if K.ndim <1:
+            K = K[np.newaxis, np.newaxis]
+        mass = np.sum(K, axis=1)
+        mass += atgoal
+        mass += bias
+        
+        # compute heuristic bias
+        epsilon = bias/mass
+        eta = heuristic(samples[2], goal)
+        
+        vpc = solveKBRL(K/mass[:,None], samples[1], epsilon*eta) + samples[1]
+        if vpc.ndim < 2:
+            vpc = vpc.reshape((-1,1))
+        return vpc
         
 class approx_cost_to_go(object):
     def __init__(self, goal, psi, vpc, bias, heuristic, samples):
