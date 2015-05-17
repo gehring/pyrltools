@@ -442,6 +442,178 @@ class TDCOF(object):
     def theta(self):
         return self.get_values().T
 
+class InvTDCOF(object):
+    def __init__(self,
+                 projector,
+                 alpha,
+                 alpha_R,
+                 lamb,
+                 gamma,
+                 n_actions,
+                 rank = None,
+                 replacing_trace=True):
+        self.gamma = gamma
+        self.alpha = np.sqrt(alpha)
+        self.alpha_R = alpha_R
+        self.lamb = lamb
+        self.phi = projector
+
+        if rank is None:
+            self.rank = max(min(50, projector.size/2), np.log(projector.size))
+        else:
+            self.rank = rank
+        self.matrices = [(np.zeros((self.phi.size, 1)),
+                         np.zeros(1),
+                         np.zeros((self.phi.size, 1))) for i in xrange(n_actions)]
+
+        self.buffer = [(np.zeros((self.phi.size, self.rank)),
+                       np.zeros((self.phi.size, self.rank))) for i in xrange(n_actions)]
+        self.count = np.zeros(n_actions, dtype='int')
+        self.initialized = np.array([False]*n_actions)
+
+        self.e = np.zeros((n_actions, self.phi.size))
+        self.replacing_trace = replacing_trace
+        self.R = np.zeros(self.phi.size)
+
+    def __call__(self, state, action = None):
+        phi_s = self.phi(state)
+
+        if action is None:
+            v = np.zeros(self.count.shape[0])
+            for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
+                Uphi = phi_s.T.dot(U)
+                phiA = phi_s.T.dot(A)
+                v[i] = self.R.dot(V.dot(np.diag(S).dot(Uphi.T))) + self.R.dot(B.dot(phiA.T))
+        else:
+            U,S,V = self.matrices[action]
+            A, B = self.buffer[action]
+            Uphi = phi_s.T.dot(U)
+            phiA = phi_s.T.dot(A)
+            v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T))) + self.R.dot(B.dot(phiA.T))
+        return v
+
+
+    def call_no_act(self, state):
+        phi_s = self.phi(state)
+        U,S,V = self.matrices[0]
+        A, B = self.buffer[0]
+        Uphi = phi_s.T.dot(U)
+        phiA = phi_s.T.dot(A)
+        v = self.R.dot(V.dot(np.diag(S).dot(Uphi.T))) + self.R.dot(B.dot(phiA.T))
+        return v
+
+    def update(self, s_t, a_t, r, s_tp1, a_tp1):
+        if s_t == None:
+            self.e[:,:] = 0.0
+            return
+
+        phi_t = self.phi(s_t)
+
+        self.e *= self.gamma*self.lamb
+        self.e[a_t] += phi_t
+        if self.replacing_trace:
+            self.e = np.clip(self.e, 0, 1)
+
+        # eval V(s_t)
+        U,S,V = self.matrices[a_t]
+        A, B = self.buffer[a_t]
+        Uphi = phi_t.T.dot(U)
+        Vphi = phi_t.T.dot(V)
+        phiA = phi_t.T.dot(A)
+#         v_t = V.dot(np.diag(S).dot(Uphi.T)) + B.dot(phiA.T)
+
+        if s_tp1 is not None:
+            # eval v_tp1
+            phi_tp1 = self.phi(s_tp1)
+            U,S,V = self.matrices[a_tp1]
+            A, B = self.buffer[a_tp1]
+            
+
+            delta = phi_tp1 - (phi_t - U.dot(np.diag(1.0/(S+1e-6)).dot(Vphi.T)) \
+                        - B.dot(phiA.T))/self.gamma
+        else:
+            delta = - (phi_t - U.dot(np.diag(1.0/(S+1e-6)).dot(Vphi.T)) \
+                        - B.dot(phiA.T))/self.gamma
+
+        # update svd of the occupancy function
+        ealpha = self.e * self.alpha
+        delta *= self.alpha * self.gamma
+        for a, (A,B) in enumerate(self.buffer):
+            i = self.count[a]
+            if i < self.rank:
+                A[:,i] = delta
+                B[:,i] = ealpha[a]
+                self.count[a] += 1
+            else:
+                U,S,V = self.matrices[a]
+                V, invS, U = self.update_svd((V, 1.0/(S+1e-6), U),
+                                                     self.buffer[a],
+                                                     self.initialized[a])
+                 
+                self.matrices[a] = (U, 1.0/invS, V)
+                self.initialized[a] = True
+                A[:,:] = 0
+                B[:,:] = 0
+                self.count[a] = 0
+        R = self.R
+        self.R = R +  self.alpha_R * (r - np.squeeze(phi_t.T.dot(self.R))) * phi_t
+#         self.R = np.squeeze(np.array(self.R))
+
+    def update_svd(self, matrices, ab_buffer, initialized):
+        U,S,V = matrices
+        A, B = ab_buffer
+        if initialized:
+            Q_a, R_a = np.linalg.qr(A - U.dot(U.T.dot(A)), mode='reduced')
+            Q_b, R_b = np.linalg.qr(B - V.dot(V.T.dot(B)), mode='reduced')
+
+            Ap = np.vstack((U.T.dot(A), R_a))
+            Bp = np.vstack((V.T.dot(B), R_b))
+            K = np.diag(np.hstack((S, np.zeros(R_a.shape[0])))) + Ap.dot(Bp.T)
+            Up, Sp, Vp = np.linalg.svd(K, full_matrices = False)
+
+            U = np.hstack((U, Q_a)).dot(Up)
+            V = np.hstack((V, Q_b)).dot(Vp.T)
+
+        else:
+            Q_a, R_a = np.linalg.qr(A, mode='reduced')
+            Q_b, R_b = np.linalg.qr(B, mode='reduced')
+            Up, Sp, Vp = np.linalg.svd(R_a.dot(R_b.T), full_matrices = False)
+
+            U = Q_a.dot(Up)
+            V = Q_b.dot(Vp.T)
+        S = Sp[:self.rank]
+        U = U[:,0:self.rank]
+        V = V[:,0:self.rank]
+        return (U, S, V)
+
+    def correct_orthogonality(self):
+        U, S, V = self.matrices
+        Vq, Vr = np.linalg.qr(V)
+        Uq, Ur = np.linalg.qr(U)
+        tU, tS, tV = np.linalg.svd(Ur.dot(np.diag(S)).dot(Vr.T), full_matrices = False)
+        V = Vq.dot(tV)
+        U = Uq.dot(tU)
+        S = tS
+        self.matrices = (U,S,V)
+#         if self.use_U_only:
+#             self.R = self.R.dot(tV)
+    def get_values(self,R = None):
+        if R is None:
+            R = self.R
+        v = np.zeros((self.phi.size, self.count.shape[0]))
+        for i, ((U,S,V), (A,B)) in enumerate(zip(self.matrices, self.buffer)):
+            print U.shape, S.shape, V.shape, R.shape
+            v[:,i] = U.dot(np.diag(S).dot(V.T.dot(R)))
+        return v
+
+    def get_Theta(self):
+        U,S,V = self.matrices[0]
+        return U.dot(np.diag(S).dot(V.T))
+
+    @property
+    def theta(self):
+        return self.get_values().T
+
 class gradTDCOF(object):
     def __init__(self,
                  projector,

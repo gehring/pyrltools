@@ -9,7 +9,7 @@ from rltools.representation import TileCoding, UNH
 import numpy as np
 import timeit
 
-dim = 4
+dim = 6
 k = 1000
 
 indices = [np.arange(dim)]
@@ -17,19 +17,19 @@ s_range = [np.zeros(dim).astype('float32'), np.ones(dim).astype('float32')]
 ntiles = [10]
 ntilings = [10]
 
-tunh = Theano_UNH(dim, 1000)
-unh = UNH(1000)
+tunh = Theano_UNH(dim, 10000)
+unh = UNH(10000)
 unh.rndseq = tunh.rndseq.copy()
 
-phi1 =Theano_Tiling(indices, ntiles, ntilings, None, s_range, True)
-phi2 = TileCoding(indices, ntiles, ntilings, None, s_range, True)
+phi1 =Theano_Tiling(indices, ntiles, ntilings, [tunh], s_range, True)
+phi2 = TileCoding(indices, ntiles, ntilings, [unh], s_range, True)
 
 x = np.random.rand(dim).astype('float32')
 X = np.random.rand(k,dim).astype('float32')
 
 # print np.all(phi1(x) == phi2(x))
-# print phi1(x)
-# print phi2(x)
+# print phi1(X[:2,:])
+# print phi2(X[:2,:])
 
 
 def testone1():
@@ -43,8 +43,7 @@ def test1():
         phi1(s)
 
 def test2():
-    for s in X:
-        phi2(s)
+    phi2(X)
 
 def test3():
     phi1(X)

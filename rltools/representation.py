@@ -160,9 +160,17 @@ class Tiling(object):
         return self.getIndices(state)
 
     def getIndices(self, state):
-        nstate = (state[self.input_index] - self.state_range[0])/(self.state_range[1]-self.state_range[0])
-        indicies =((self.offset + nstate[:,None])*self.ntiles[:,None]).astype(np.uint)
-        return self.hashing.__call__(indicies) + self.index_offset
+        if state.ndim == 1:
+            state = state.reshape((1,-1))[:,:,None]
+        else:
+            state = state[:,:,None]
+        
+        nstate = (state[:, self.input_index, :] - self.state_range[0][None,:,None])/(self.state_range[1]-self.state_range[0])[None,:,None]
+        indicies =((self.offset[None,:,:] + nstate)*self.ntiles[None,:,None]).astype(np.int)
+        return self.hashing(indicies) + self.index_offset[None,:]
+#         nstate = (state[self.input_index] - self.state_range[0])/(self.state_range[1]-self.state_range[0])
+#         indicies =((self.offset + nstate[:,None])*self.ntiles[:,None]).astype(np.uint)
+#         return self.hashing.__call__(indicies) + self.index_offset
 
 class TileCoding(Projector):
     def __init__(self,
@@ -193,10 +201,14 @@ class TileCoding(Projector):
 
 
     def __call__(self, state):
+        if state.ndim == 1:
+            state = state.reshape((1,-1))
+            
         if self.bias_term:
-            return np.hstack(chain((t(state) for t in self.tilings), [np.array(0, dtype='uint')])) + self.index_offset
+            indices = np.hstack(chain((t(state) for t in self.tilings), [np.zeros((state.shape[0], 1), dtype='uint')])) + self.index_offset
         else:
-            return np.hstack((t(state) for t in self.tilings)) + self.index_offset
+            indices = np.hstack((t(state) for t in self.tilings)) + self.index_offset
+        return indices.squeeze()
 
     @property
     def size(self):
@@ -230,14 +242,20 @@ class UNH(Hashing):
     def __init__(self, memory):
         super(UNH, self).__init__()
         self.rndseq = np.zeros(16384, dtype='int')
-        self.memory = memory
+        self.memory = int(memory)
         for i in range(4):
             self.rndseq = self.rndseq << 8 | np.random.random_integers(np.iinfo('int16').min,
                                                                        np.iinfo('int16').max,
                                                                        16384) & 0xff
     def __call__(self, indices):
-        index = np.remainder(indices + self.increment*np.arange(indices.shape[0])[:,None], self.rndseq.size).astype('int')
-        return np.remainder(np.sum(self.rndseq[index], axis=0), self.memory).astype('uint')
+        rnd_seq = self.rndseq
+        a = self.increment*np.arange(indices.shape[1])
+        index = indices + a[None,:,None]
+        index = index - (index.astype(np.int)/rnd_seq.size)*rnd_seq.size
+        hashed_index = (np.sum(rnd_seq[index], axis=1)).astype(np.int)
+        return (hashed_index - (hashed_index/self.memory).astype(np.int)*self.memory).astype('uint')
+#         index = np.remainder(indices + self.increment*np.arange(indices.shape[0])[:,None], self.rndseq.size).astype('int')
+#         return np.remainder(np.sum(self.rndseq[index], axis=0), self.memory).astype('uint')
 
 class PythonHash(Hashing):
     def __init__(self, memory):
