@@ -52,7 +52,7 @@ print evaluate_policy(domain, controller, 1)
 # name = 'sarsa2'
 # with open('agent-'+name+'.data', 'rb') as f:
 #     (phi, policy, agent) = pickle.load(f)
-mode = 1
+mode = 0
 
 configTemp = pyglet.gl.Config(sample_buffers=1,
     samples=4,

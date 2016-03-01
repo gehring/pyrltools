@@ -9,7 +9,7 @@ from rltools.theanotools import Theano_RBF_Projector
 
 matplotlib.rcParams.update({'font.size': 14})
 
-with open('exp_res-proto-7.data', 'rb') as f:
+with open('exp_res-inv-no_true.data', 'rb') as f:
     (index, tdcof_score, tdof_score, theta,
                   (alpha, alpha_R, lamb, gamma, n_actions, rank, replacing_trace)) =pickle.load(f)
 
@@ -28,7 +28,7 @@ plt.savefig('all.pdf')
 
 fig = plt.figure(figsize=s)
 plt.plot(rank, [np.mean(tdcof_score[k], axis=0)[-1] for k in rank ], color='r', label='ALSR', linewidth=3)
-plt.plot([0,400], [np.mean(tdof_score, axis=0)[-1]]*2, 'k--', label='SR', linewidth=4)
+plt.plot([0,30], [np.mean(tdof_score, axis=0)[-1]]*2, 'k--', label='SR', linewidth=4)
 plt.xlabel('rank')
 plt.ylabel('$\parallel \Theta - \hat{\Theta} \parallel_F$')
 plt.legend()
@@ -56,14 +56,14 @@ domain = MountainCar(random_start=True, max_episode=10000)
 
 s_range = domain.state_range
 
-xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], 20, True),
-                     np.linspace(s_range[0][1], s_range[1][1], 20, True))
+xx, yy = np.meshgrid(np.linspace(s_range[0][0], s_range[1][0], 10, True),
+                     np.linspace(s_range[0][1], s_range[1][1], 10, True))
 c = np.hstack((xx.reshape((-1,1)), yy.reshape((-1,1))))
 w = (s_range[1] - s_range[0])*0.09
 phi = Theano_RBF_Projector(c, w)
 
 
-with open('exp_res-theta.data', 'rb') as f:
+with open('exp_res-inv-theta_no_true.data', 'rb') as f:
     (approx_thetas, td_thetas) = pickle.load(f)
 
 num = 40

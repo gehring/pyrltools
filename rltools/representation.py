@@ -274,13 +274,16 @@ class IdentityHash(Hashing):
         self.memory = np.prod(dims)
         self.dims = dims.astype('uint')
         self.wrap = wrap
+        self.dim_offset =np.cumprod(np.hstack(([1],self.dims[:0:-1]))).astype('int')[None,::-1,None]
 
     def __call__(self, indices):
         if self.wrap:
-            return np.ravel_multi_index(np.remainder(indices, self.dims[:,None]), self.dims).astype('uint')
+            indices = np.remainder(indices, self.dims[None, :,None])
+            #return np.ravel_multi_index(np.remainder(indices.T, self.dims[:,None]), self.dims, mode=).astype('uint')
         else:
-            return np.ravel_multi_index(np.clip(indices, 0, self.dims[:,None]-1), self.dims).astype('uint')
-
+            indices = np.clip(indices, 0, self.dims[None, :,None]-1)
+            #return np.ravel_multi_index(np.clip(indices.T, 0, self.dims[:,None]-1), self.dims).astype('uint')
+        return np.sum(indices*self.dim_offset, axis=1)
 
 class RBFCoding(Projector):
     def __init__(self,  stddev, c, **params):
