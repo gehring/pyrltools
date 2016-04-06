@@ -46,7 +46,7 @@ class MountainCar(object):
 
         self.step_count = 0
 
-        return 0, self.state.copy()
+        return self.state.copy()
 
     def update(self, action):
         self.state[1] += (np.clip(action[0], *self.action_range)

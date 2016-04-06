@@ -136,7 +136,9 @@ class Cartpole(object):
         return copy.deepcopy(self)
 
     def isterminal(self):
-        return self.step_count>self.max_episode or self.inGoal()
+        angle = np.abs(np.pi - self.state[1])
+        angle = np.pi - angle if angle > np.pi else angle
+        return angle< np.pi/12 and np.abs(self.state[3]) < 0.5
 
     @property
     def discrete_actions(self):

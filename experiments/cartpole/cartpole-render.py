@@ -36,7 +36,7 @@ class IdenStateAction(object):
             return self.proj(np.hstack((s,a)))
 
 
-filename = 'cartpole-test.data'
+filename = 'cartpole-test-gus.data'
 
 num_points = 200
 angles = 2.0*np.pi*np.arange(num_points)/num_points
@@ -61,7 +61,7 @@ u = np.zeros(1)
 
 time =0
 
-render_circle = True
+render_circle = False
 render_lines = True
 
 # name = 'sarsa2'
@@ -201,7 +201,8 @@ def update(dt):
     time += dt
     cartpole.dt[-1] =  dt#1.0/100
     old_state = cartpole.state.copy()
-    new_state = cartpole.step(u)
+    cartpole.step(u)
+    new_state = cartpole.state.copy()
     current_traj.append( (old_state, np.clip(u, cartpole.action_range[0], cartpole.action_range[1]), new_state))
 
 def on_key_press(symbol, modifiers):
