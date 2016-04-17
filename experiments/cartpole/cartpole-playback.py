@@ -182,7 +182,7 @@ def update(dt):
     label_time.text = str(time*1.0/20)
     
 def on_key_press(symbol, modifiers):
-    global time, render_screenshots
+    global time, render_screensh6ots
     
     if symbol == key.R:
         time = 0

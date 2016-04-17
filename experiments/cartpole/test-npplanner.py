@@ -11,7 +11,7 @@ import numpy as np
 import pickle
 from itertools import chain
 from rltools.cartpole import Cartpole
-from rltools.npplanning import sparse_build_np_models, build_np_models, find_stoc_plan, build_approx_gauss_models, sample_gaussian
+from rltools.npplanning import sparse_build_np_models, build_np_models, find_stoc_plan, build_approx_gauss_models, sample_gaussian, convert_compressed_to_embed
 
 state_range = Cartpole.state_range
 
@@ -55,9 +55,9 @@ def parse_data_discrete_actions(sample_traj, rew_fn, ter_fn):
 def fourier_features(X, w):
     if X.ndim == 1:
         X = X.reshape((1,-1))
-    features = np.hstack((X, np.ones((X.shape[0], 1)))).dot(w)        
+    features = np.hstack((X, np.zeros((X.shape[0], 1)))).dot(w)        
     features = np.hstack((np.sin(features), np.cos(features)))
-    return features.squeeze()
+    return features.squeeze()/ np.sqrt(w.shape[1])
 
 def kernel(X, Y):
     if X.ndim == 1:
@@ -93,17 +93,20 @@ def cat(sample_traj, rew_fn, ter_fn, plan_length = 200, lamb=0.1, gamma = 0.5, f
     
     if models is None:
         if approx_np:
-            width = np.array([0.5, 0.1, 0.1, 0.05])
+            width = np.array([0.3, 0.1, 0.1, 0.05])
             scale = ((state_range[1] - state_range[0]) * width)
             
-            num_gauss = 100
+            num_gauss = 5000
             w = sample_gaussian(state_range[0].shape[0], num_gauss, scale)   
             phi = lambda X: fourier_features(X, w)
             models = build_approx_gauss_models(scale, 
                                   trans_samples, 
                                   ter_samples, 
-                                  num_gauss = 400,
-                                  phi = phi)
+                                  num_gauss = num_gauss,
+                                  phi = phi,
+                                  k = 300)
+            models = convert_compressed_to_embed(*models)
+                                  
         else:    
             if sparse:
                 models = sparse_build_np_models(kernel, 
@@ -162,6 +165,7 @@ def cat(sample_traj, rew_fn, ter_fn, plan_length = 200, lamb=0.1, gamma = 0.5, f
             traj.append( s_tp1)
         plan += 1.0
         plan /= np.sum(plan, axis=1)[:,None]
+        print 'start'
         plan, alphas, betas = find_stoc_plan(s_tp1, plan_length, len(actions), models, gamma, forward = forward, sparse = sparse, plan = plan, approx_np = approx_np)
         print 'done'
         s_t = s_tp1
@@ -180,7 +184,7 @@ def term_cartpole(s_t):
     return angle< np.pi/12 and np.abs(s_t[3]) < 0.5
     
     
-filename = 'cartpole-test-2.data'
+filename = 'cartpole-test-gus.data'
 with open(filename, 'rb') as f:
     sample_traj = pickle.load(f)
 
@@ -189,9 +193,9 @@ traj, models, plan = cat(sample_traj = sample_traj,
            rew_fn = rew_cartpole,
            ter_fn = term_cartpole,
            plan_length = 100,
-           lamb = .15,
+           lamb = .2,
            gamma = 0.0,
-           forward = True, models= models)
+           forward = True)
 
 
       

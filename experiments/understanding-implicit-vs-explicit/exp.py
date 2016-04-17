@@ -112,27 +112,10 @@ s_range = domain.state_range
 policy = PumpingPolicy()
 width = np.array([0.1, 0.1])
 
-num_gauss = 1000
+num_gauss = 10000
 scale = ((s_range[1] - s_range[0]) * width)
 w = sample_gaussian(s_range[0].shape[0], num_gauss, scale)   
 phi = lambda X: fourier_features(X, w)
-#
-#def kernel(X, Y):
-#    if X.ndim == 1:
-#        X = X.reshape((1,-1))
-#        
-#    if Y.ndim == 1:
-#        Y = Y.reshape((1,-1))
-#    scale = ((s_range[1] - s_range[0]) * width)[None,:,None]
-#        
-#
-#    # first compute the difference between states
-#    diff = X[:,:,None] - Y.T[None,:,:]
-#    
-#    # get the squared distance
-#    dsqr = -((diff/scale)**2).sum(axis=1)
-#    
-#    return np.exp(dsqr).squeeze()
 
 def kernel(X, Y):
     if X.ndim == 1:
@@ -140,7 +123,24 @@ def kernel(X, Y):
         
     if Y.ndim == 1:
         Y = Y.reshape((1,-1))
-    return phi(X).dot(phi(Y).T).squeeze()
+    scale = ((s_range[1] - s_range[0]) * width)[None,:,None]
+        
+
+    # first compute the difference between states
+    diff = X[:,:,None] - Y.T[None,:,:]
+    
+    # get the squared distance
+    dsqr = -((diff/scale)**2).sum(axis=1)
+    
+    return np.exp(dsqr).squeeze()
+
+#def kernel(X, Y):
+#    if X.ndim == 1:
+#        X = X.reshape((1,-1))
+#        
+#    if Y.ndim == 1:
+#        Y = Y.reshape((1,-1))
+#    return phi(X).dot(phi(Y).T).squeeze()
 
 
 
@@ -149,7 +149,7 @@ num_traj = 10
 trans_samples, ter_samples, ter_rew_samples, samples = generate_data(domain, policy, num_traj)
 
 
-lamb = 0.15
+lamb = 0.2
 np_models = build_np_models(kernel, 
                                      trans_samples, 
                                      ter_samples, 
@@ -164,7 +164,8 @@ phi_models = build_approx_gauss_models(scale,
                                   trans_samples, 
                                   ter_samples,
                                   phi = phi,
-                                  lamb = lamb)
+                                  lamb = lamb,
+                                  k = 100)
                                   
 num_points = 100
 ref_point = np.array([-0.3, 0.03])

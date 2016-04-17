@@ -58,16 +58,24 @@ def sample_gaussian(d, num_gauss = 1, scaling = None):
     return w
 
 
-def compress_phi_model(X, Xp, k, lamb):
+def compress_phi_model(X, Xp, R, k, lamb):
     U,S,Vt = np.linalg.svd(X, full_matrices = False)
-    Up, Sp, Vpt = np.linalg.svd(Xp, full_matrices = False)
+#    Up, Sp, Vpt = np.linalg.svd(Xp, full_matrices = False)
     k = min(k, X.shape[0])
-    k2 = min(k, X.shape[0])
+    k2 = min(k, Xp.shape[0])
+    
+    r = Vt[:k,:].T.dot((S[:k]/(S[:k]**2 + lamb))* (U[:,:k].T.dot(R)))
+    
+    
+    Vpt = U[:,:k].T.dot(Xp)
+    S = np.diag(S[:k]/(S[:k]**2 + lamb))
+    return (Vpt.T, S.T, Vt[:k,:]), r
+    
     
 #    S = np.diag(S[:k]/(S[:k]**2 + lamb)).dot(U[:,:k].T.dot(Up[:,:k2].dot(np.diag(Sp[:k2]))))
-#    return Vpt[:k2,:].T, S, Vt[:k,:]
-    S = np.diag(S/(S**2 + lamb)).dot(U.T.dot(Up.dot(np.diag(Sp))))
-    return Vpt.T, S, Vt
+#    return (Vpt[:k2,:].T, S.T, Vt[:k,:]), r
+#    S = np.diag(S/(S**2 + lamb)).dot(U.T.dot(Up.dot(np.diag(Sp))))
+#    return Vpt.T, S.T, Vt
 #    
     
 def build_approx_gauss_models(scale, 
@@ -75,7 +83,7 @@ def build_approx_gauss_models(scale,
                               ter_samples,
                               phi,
                               num_gauss = 200,
-                              k = 500,
+                              k = 200,
                               lamb = 0.15):
                         
     
@@ -86,7 +94,6 @@ def build_approx_gauss_models(scale,
     ra = []
     
     for X, R, Xp, X_term, R_term in zip(Xa, Ra, Xpa, Xa_term, Ra_term):
-        print X.shape, X_term.shape
         if X_term.size > 0:
             phis = phi(np.vstack((X, X_term)))
         else:
@@ -98,10 +105,11 @@ def build_approx_gauss_models(scale,
         
         R = np.hstack((R,R_term))  
         
-        ra.append(np.linalg.lstsq(phis, R, rcond = .0001)[0])
+        F, r = compress_phi_model(phis, phip, R, k, lamb = lamb)
+        ra.append(r)
         #Fa.append(np.linalg.lstsq(phis, phip, rcond = .01)[0].T)
         
-        Fa.append(compress_phi_model(phis, phip, k, lamb = lamb))
+        Fa.append(F)
         
         
         #F = np.linalg.svd( np.linalg.lstsq(phis, phip, rcond = .01)[0].T, full_matrices=0)
@@ -282,9 +290,9 @@ def approx_np_improve_compressed(plan,
                 b = U.dot(S.dot( Vt.dot(beta[t-1,:]))) * new_plan[t-1,0]
                 for F, p in izip(Fa[1:], new_plan[t-1,1:]):
                     U, S, Vt = F
-                    a = U.dot(S.dot(Vt.dot(beta[t-1,:]))) * p
-            va = [ alpha[t+1].dot(F[0].dot(F[1]* F[2].dot(beta[t,:])))*discount + r.dot(beta[t]) for r, F in izip(ra, Fa)]         
-            
+                    b += U.dot(S.dot(Vt.dot(beta[t-1,:]))) * p
+                beta[t,:] = b
+            va = [ alpha[t+1].dot(F[0].dot(F[1].dot(F[2].dot(beta[t,:]))))*discount + r.dot(beta[t]) for r, F in izip(ra, Fa)]         
             a_best = np.argmax(va)
             new_plan[t,:] *= gamma
             new_plan[t,a_best] += (1-gamma)
@@ -297,6 +305,77 @@ def approx_np_improve_compressed(plan,
     #print alpha[0].dot(beta[0]), old_val, old_val <= alpha[0].dot(beta[0])
     
     return new_plan, old_val, alpha, beta
+    
+def convert_compressed_to_embed(Fa, ra, phi):
+    k = len(Fa)
+    Ua = [ Fa[a][0] for a in xrange(k)]
+    Va = [ Fa[a][1].dot(Fa[a][2]) for a in xrange(k)]
+
+    Kab = np.empty(shape = (k,k), dtype = 'O')
+    thetas = np.empty(shape = (k,k), dtype = 'O') 
+    for a in xrange(k):
+        for b in xrange(k):
+            Kab[a,b] = Va[a].dot(Ua[b])
+            thetas[a,b] = ra[a].dot(Ua[b])
+            
+    return Va, Kab, thetas, ra, phi
+            
+    
+def approx_embed_improve(plan,
+                         gamma,
+                         Va,
+                         Kab,
+                         thetas,
+                         ra,
+                         phi,
+                         x_1,
+                         alphas = None,
+                         betas = None,
+                         forward = True):
+                             
+
+    H = plan.shape[0] - 1
+    k = plan.shape[1]
+    if alphas is None:
+        alphas = np.empty(k, dtype='O')
+        for a in xrange(k):                     
+            alphas[a] = np.zeros((H+1, Kab[a,0].shape[0]))
+    if betas is None:
+        betas = np.empty(k, dtype='O')
+        for a in xrange(k):                     
+            betas[a] = np.zeros((H, Kab[0,a].shape[1]))
+    new_plan = plan.copy()
+    
+    phi_0 = phi(x_1)
+    for a in xrange(k):
+        betas[a][0,:] = Va[a].dot(phi_0)
+        alphas[a][H,:] = sum( [plan[H][b] * thetas[b,a] for b in xrange(k)])
+    
+    if forward:
+        for t in xrange(H, 0, -1):
+            for a in xrange(k):
+                alphas[a][ t-1,:] = sum( [plan[t-1][b] * (alphas[b][t].dot(Kab[b,a]) + thetas[b,a]) for b in xrange(k)])
+                
+        for t in xrange(0, H):
+            vals = np.zeros(k)
+            if t > 0:
+                for a in xrange(k):
+                    betas[a][t,:] = sum( [new_plan[t-1][b] * Kab[a,b].dot(betas[b][t-1]) for b in xrange(k)])
+                for a in xrange(k):
+                    vals[a] = alphas[a][ t+1].dot(betas[a][t,:]) + sum( [thetas[a,b].dot(betas[b][t-1]) * new_plan[t-1][b] for b in xrange(k)])
+            else:
+                for a in xrange(k):
+                    vals[a] = alphas[a][ t+1].dot(betas[a][t,:]) + ra[a].dot(phi_0)       
+                old_val = plan[0].dot(vals)
+            a_best = np.argmax(vals)
+            new_plan[t,:] *= gamma
+            new_plan[t,a_best] += (1-gamma)
+            
+        
+    else:
+        raise Exception('Not implemented')
+
+    return new_plan, old_val, alphas, betas
     
 @profile        
 def non_param_improve(plan, 
@@ -462,11 +541,12 @@ def check_convergence(p0, p1):
     return converged
 
 @profile
-def find_stoc_plan(x_1, H, num_actions, models, gamma, approx_np = True, forward = True, sparse = False, plan = None):
+def find_stoc_plan(x_1, H, num_actions, models, gamma, approx_np = True, forward = True, sparse = False, plan = None, alphas = None, betas = None):
     
     
     if approx_np:
-        improve_step = approx_np_improve
+        improve_step = approx_embed_improve
+        #improve_step = approx_np_improve_compressed
     else:
         if sparse:
             improve_step = sparse_non_param_improve
