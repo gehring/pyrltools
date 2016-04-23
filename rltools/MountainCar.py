@@ -58,7 +58,7 @@ class MountainCar(object):
         self.state[:] = np.clip(self.state, *self.state_range)
         if self.state[0] <= self.min_pos and self.state[1] < 0:
             self.state[1] = 0
-
+            
     def inGoal(self):
         return self.state[0] >= self.goal_pos
 

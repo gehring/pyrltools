@@ -54,7 +54,8 @@ def sample_gaussian(d, num_gauss = 1, scaling = None):
     if scaling is not None:
         w = w/scaling[:,None]
         
-    w = np.vstack((w, np.random.uniform(-np.pi, np.pi, size = (1, num_gauss))))
+    #w = np.vstack((w, np.random.uniform(-np.pi, np.pi, size = (1, num_gauss))))
+    w = np.vstack((w, np.zeros((1, num_gauss))))
     return w
 
 

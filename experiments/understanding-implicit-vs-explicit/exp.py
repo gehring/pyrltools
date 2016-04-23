@@ -20,10 +20,15 @@ def compute_vis_np(model, X, x0):
     kernel, Kab, Da, Dainv, Ra, Kterma, D_ter, R_ter, Xa, Xpa = model
     
     num_act = len(Da)
-    betas = [ lu_solve(Da[a], kernel(Xa[a], x0)) for a in xrange(num_act) ]
+#    betas = [ lu_solve(Da[a], kernel(Xa[a], x0)) for a in xrange(num_act) ]
+#    
+#    # drop values corresponding to terminal states
+#    vals = [ kernel(X, Xp).dot(b[:Xp.shape[0]]) for b, Xp in izip(betas, Xpa) ]
+    betas = [ [lu_solve(Da[a], kernel(Xa[a], x)) for x in X] for a in xrange(num_act) ]
     
     # drop values corresponding to terminal states
-    vals = [ kernel(X, Xp).dot(b[:Xp.shape[0]]) for b, Xp in izip(betas, Xpa) ]
+    vals = [ np.array([Ra[a].dot(lu_solve(Da[a], Kab[a,a].dot(b))) for b in betas[a] ]) for a in xrange(num_act) ]
+    
 
     return vals
     
@@ -34,8 +39,8 @@ def compute_vis_explicit( model, X, x0):
 def compute_vis_explicit_compressed( model, X, x0):
     Fa, ra, phi = model
     U,S, V = Fa[0]
-    print U.shape, S.shape, V.shape
-    return [ phi(X).dot(U.dot(S.dot(Vt.dot(phi(x0))))) for U,S,Vt in Fa]
+    #return [ phi(X).dot(U.dot(S.dot(Vt.dot(phi(x0))))) for U,S,Vt in Fa
+    return [ r.dot(U.dot(S.dot(Vt.dot(phi(X).T)))) for (U,S,Vt), r in zip(Fa, ra)]
 
 def generate_data(domain, policy, num_traj):
     samples = []
@@ -69,7 +74,7 @@ def generate_data(domain, policy, num_traj):
     for i in xrange(3):
         X, R, Xp = zip(*sample_a[i])
         sample_a[i] = (np.array(X), np.zeros_like(np.array(R)), np.array(Xp))
-    #         sample_a[i] = (np.array(X), np.array(R), np.array(Xp))
+        #sample_a[i] = (np.array(X), np.array(R), np.array(Xp))
     
         if len(term_sample_a[i]) > 0:
             X, R = zip(*term_sample_a[i])
@@ -97,11 +102,22 @@ def create_Xpa(trans_samples):
 def plot_samples(S, Sp):
     lines = [ [x0, x1] for x0,x1 in zip(S, Sp) if x1 is not None]
     
-    sample_color = [(0,0,0,0.6)]*len(lines)
+    sample_color = [(0,0,1.0,0.8)]*len(lines)
     
 #     print traj, len(traj)
     lc = mc.LineCollection(lines, color = sample_color, linewidths=2)
     plt.gca().add_collection(lc)
+
+def get_next_state(domain, state, action):
+    domain.reset()
+    domain.state = state.copy()
+    return domain.step(action)[1]
+    
+def display_arrows(states, next_states):
+    ax = plt.gca()
+    for s_t, s_tp1 in izip(states, next_states):
+        if s_tp1 is not None:
+            ax.arrow(s_t[0], s_t[1], s_tp1[0] -s_t[0], s_tp1[1]- s_t[1], head_length = 0.01, fc = 'k', ec='k', width=0.0001)
 
 #############################################################################
 #############################################################################
@@ -112,9 +128,12 @@ s_range = domain.state_range
 policy = PumpingPolicy()
 width = np.array([0.1, 0.1])
 
-num_gauss = 10000
+num_gauss = 10
 scale = ((s_range[1] - s_range[0]) * width)
-w = sample_gaussian(s_range[0].shape[0], num_gauss, scale)   
+w = sample_gaussian(s_range[0].shape[0], num_gauss, scale)
+#w = np.random.rand(2, num_gauss)
+#w = w/scale[:,None]
+#w = np.vstack((w, np.zeros((1, num_gauss))))   
 phi = lambda X: fourier_features(X, w)
 
 def kernel(X, Y):
@@ -144,7 +163,7 @@ def kernel(X, Y):
 
 
 
-num_traj = 10
+num_traj = 1
 
 trans_samples, ter_samples, ter_rew_samples, samples = generate_data(domain, policy, num_traj)
 
@@ -168,7 +187,19 @@ phi_models = build_approx_gauss_models(scale,
                                   k = 100)
                                   
 num_points = 100
-ref_point = np.array([-0.3, 0.03])
+ref_point = np.array([-0.3, 0.05])
+
+arrow_grid = 10
+x = np.linspace(domain.state_range[0][0], domain.state_range[1][0], arrow_grid)
+y = np.linspace(domain.state_range[0][1], domain.state_range[1][1], arrow_grid)
+X, Y = np.meshgrid(x, y)
+states = np.hstack((X.reshape(-1,1), Y.reshape(-1,1)))
+next_state=[]
+for a in xrange(3):
+    next_state.append([])
+    for s in states:
+        next_state[a].append(get_next_state(domain, s, domain.discrete_actions[a]))
+
 
 x = np.linspace(domain.state_range[0][0], domain.state_range[1][0], num_points)
 y = np.linspace(domain.state_range[0][1], domain.state_range[1][1], num_points)
@@ -181,10 +212,13 @@ i = 1
 for a in xrange(3):
     plt.subplot(2, 3, i)
     i += 1
-    c = plt.pcolormesh(X, Y, vals[a].reshape((num_points, -1)))
+    c = plt.pcolormesh(X, Y, vals[a].reshape((num_points, -1)), cmap='Oranges')
+    display_arrows(states, next_state[a])
     Xa, R, Xpa = zip(*trans_samples)
     plot_samples(Xa[a], Xpa[a])
-    plt.plot([ref_point[0]], [ref_point[1]], 'ko')
+    n_state = get_next_state(domain, ref_point, domain.discrete_actions[a])
+    #plt.plot([ref_point[0]], [ref_point[1]], 'r*')
+    plt.plot([n_state[0]], [n_state[1]], 'ro')
     plt.title('np, actions ' + str(a))
     f.colorbar(c)
     
@@ -193,10 +227,10 @@ vals = compute_vis_explicit_compressed(phi_models, np.hstack((X.reshape(-1,1), Y
 for a in xrange(3):
     plt.subplot(2, 3, i)
     i += 1
-    c = plt.pcolormesh(X, Y, vals[a].reshape((num_points, -1)))
+    c = plt.pcolormesh(X, Y, vals[a].reshape((num_points, -1)), cmap='Oranges')
     Xa, R, Xpa = zip(*trans_samples)
     plot_samples(Xa[a], Xpa[a])
-    plt.plot([ref_point[0]], [ref_point[1]], 'ko')
+    plt.plot([ref_point[0]], [ref_point[1]], 'ro')
     plt.title('phis, actions ' + str(a))
     f.colorbar(c)
 #plt.tight_layout()
