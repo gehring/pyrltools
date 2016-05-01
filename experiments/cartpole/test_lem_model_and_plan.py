@@ -18,7 +18,7 @@ import pickle
 from itertools import chain
 from rltools.cartpole import Cartpole
 from rltools.npplanning import sample_gaussian
-from rltools.planner import EmbeddedAgent
+from rltools.planner import LEMAgent
 
 state_range = Cartpole.state_range
 
@@ -79,7 +79,7 @@ def term_cartpole(s_t):
 width = np.array([0.3, 0.1, 0.1, 0.05])
 scale = ((state_range[1] - state_range[0]) * width)
 
-num_gauss = 10000
+num_gauss = 10
 w = sample_gaussian(state_range[0].shape[0], num_gauss, scale)   
 phi = lambda X: fourier_features(X, w)
 
@@ -90,7 +90,7 @@ with open(filename, 'rb') as f:
 (parsed_samples, term_samples, term_rew_samples), actions = parse_data_discrete_actions(sample_traj, rew_cartpole, term_cartpole)
 Xa_t, Ra, Xa_tp1 = zip(*parsed_samples)
 Xa_term, Ra_term = zip(*term_samples)
-agent = EmbeddedAgent(plan_horizon = 150, 
+agent = LEMAgent(plan_horizon = 150, 
                       dim = num_gauss*2, 
                       num_actions = 3,
                       Xa_t = Xa_t,
@@ -98,10 +98,8 @@ agent = EmbeddedAgent(plan_horizon = 150,
                       Ra = Ra,
                       Xa_term = Xa_term,
                       Ra_term = Ra_term,
-                      max_rank = 300,
                       blend_coeff = 0.0,
-                      phi = phi,
-                      update_models = True)
+                      phi = phi)
 
 cartpole = Cartpole(m_c = 1,
                  m_p = 1,
@@ -129,7 +127,9 @@ for i in xrange(2000):
     traj.append(x_t)
     if x_tp1 is None:
         break
-                      
+
+with open('lem-test-traj.data', 'wb') as f:
+    pickle.dump(traj, f)          
                       
 """
 plan_horizon,

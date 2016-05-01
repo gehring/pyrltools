@@ -18,7 +18,9 @@ def traj_from_data(sample_data, i):
 #    sample_traj = pickle.load(f)
 #    
 #traj = traj_from_data(sample_traj, 0)    
-
+filename = 'lem-test-traj.data'
+with open(filename, 'rb') as f:
+    traj = pickle.load(f)
 
 time =0
 
