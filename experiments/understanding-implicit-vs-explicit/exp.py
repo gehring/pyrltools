@@ -4,6 +4,8 @@ Created on Tue Apr  5 16:16:12 2016
 
 @author: cgehri
 """
+import matplotlib
+matplotlib.use('Agg')
 from itertools import izip
 from scipy.linalg import lu_solve
 
@@ -42,23 +44,26 @@ def compute_vis_explicit_compressed( model, X, x0):
     #return [ phi(X).dot(U.dot(S.dot(Vt.dot(phi(x0))))) for U,S,Vt in Fa
     return [ r.dot(U.dot(S.dot(Vt.dot(phi(X).T)))) for (U,S,Vt), r in zip(Fa, ra)]
 
-def generate_data(domain, policy, num_traj):
+def generate_data(domain, policy, num_traj, average = False):
     samples = []
     actions = domain.discrete_actions
-    for i in xrange(num_traj):
+    for i in xrange(num_traj-1):
         s_t = domain.reset()
         while s_t is not None:
             if np.random.rand(1) < 0.05:
                 a = 1#np.random.randint(3)
             else:
-                a = 2 if s_t[1] >= 0 else 0
+                a = 2 if s_t[1] > 0 else 0
             r_t, s_tp1 = domain.step(actions[a])
             samples.append((s_t, a, r_t, s_tp1))
             s_t = s_tp1
     domain.random_start= False        
     s_t = domain.reset()
     while s_t is not None:
-        a = 2 if s_t[1] >= 0 else 0
+        if np.random.rand(1) < 0.1:
+            a = 1#np.random.randint(3)
+        else:
+            a = 2 if s_t[1] > 0 else 0
         r_t, s_tp1 = domain.step(actions[a])
         samples.append((s_t, a, r_t, s_tp1))
         s_t = s_tp1
@@ -70,20 +75,29 @@ def generate_data(domain, policy, num_traj):
             sample_a[a_t].append((s_t, r_t, s_tp1))
         else:
             term_sample_a[a_t].append((s_t, r_t))
-            
+
     for i in xrange(3):
         X, R, Xp = zip(*sample_a[i])
-        sample_a[i] = (np.array(X), np.zeros_like(np.array(R)), np.array(Xp))
-        #sample_a[i] = (np.array(X), np.array(R), np.array(Xp))
+        #sample_a[i] = [np.array(X), np.zeros_like(np.array(R)), np.array(Xp)]
+        sample_a[i] = [np.array(X), np.array(R), np.array(Xp)]
     
         if len(term_sample_a[i]) > 0:
             X, R = zip(*term_sample_a[i])
-            term_sample_a[i] = (np.array(X), np.ones_like(np.array(R)))
+            term_sample_a[i] = [np.array(X), np.ones_like(np.array(R))]
     #         term_sample_a[i] = (np.array(X), np.array(R))
         else:
-            term_sample_a[i] = (np.array([[]]), np.array([]))
+            term_sample_a[i] = [np.array([[]]), np.array([])]
          
-        
+    if average:
+        Xa, Ra, Xpa = zip(*sample_a)
+        Xa_term, Ra_term = zip(*term_sample_a)
+        avgrew = np.mean(np.hstack((np.hstack(Ra), np.hstack(Ra_term))))
+
+        for i in xrange(3):
+            sample_a[i][1] -= avgrew
+            term_sample_a[i][1] -= avgrew
+    
+
     term_rew_samples = (sample_a[0][0], np.zeros_like(sample_a[0][1]))
     return sample_a, term_sample_a, term_rew_samples, samples
 
@@ -117,121 +131,137 @@ def display_arrows(states, next_states):
     ax = plt.gca()
     for s_t, s_tp1 in izip(states, next_states):
         if s_tp1 is not None:
-            ax.arrow(s_t[0], s_t[1], s_tp1[0] -s_t[0], s_tp1[1]- s_t[1], head_length = 0.01, fc = 'k', ec='k', width=0.0001)
+            ax.arrow(s_t[0], s_t[1], s_tp1[0] -s_t[0], s_tp1[1]- s_t[1], head_length = 0.02, fc = 'k', ec='k', width=0.0001)
 
 #############################################################################
 #############################################################################
+def create_graph(filename, average = False, use_kernel = False, num_basis = 10):
 
+    domain = MountainCar(random_start = True, max_episode = 1000)
+    s_range = domain.state_range
+    policy = PumpingPolicy()
+    width = np.array([0.1, 0.1])
 
-domain = MountainCar(random_start = True, max_episode = 1000)
-s_range = domain.state_range
-policy = PumpingPolicy()
-width = np.array([0.1, 0.1])
+    num_gauss = num_basis
+    scale = ((s_range[1] - s_range[0]) * width)
+    w = sample_gaussian(s_range[0].shape[0], num_gauss, scale)
+    #w = np.random.rand(2, num_gauss)
+    #w = w/scale[:,None]
+    #w = np.vstack((w, np.zeros((1, num_gauss))))   
+    phi = lambda X: fourier_features(X, w)
 
-num_gauss = 10
-scale = ((s_range[1] - s_range[0]) * width)
-w = sample_gaussian(s_range[0].shape[0], num_gauss, scale)
-#w = np.random.rand(2, num_gauss)
-#w = w/scale[:,None]
-#w = np.vstack((w, np.zeros((1, num_gauss))))   
-phi = lambda X: fourier_features(X, w)
+    def kernel(X, Y):
+        if X.ndim == 1:
+            X = X.reshape((1,-1))
+            
+        if Y.ndim == 1:
+            Y = Y.reshape((1,-1))
+        scale = ((s_range[1] - s_range[0]) * width)[None,:,None]
+            
 
-def kernel(X, Y):
-    if X.ndim == 1:
-        X = X.reshape((1,-1))
+        # first compute the difference between states
+        diff = X[:,:,None] - Y.T[None,:,:]
         
-    if Y.ndim == 1:
-        Y = Y.reshape((1,-1))
-    scale = ((s_range[1] - s_range[0]) * width)[None,:,None]
+        # get the squared distance
+        dsqr = -((diff/scale)**2).sum(axis=1)
         
+        return np.exp(dsqr).squeeze()
 
-    # first compute the difference between states
-    diff = X[:,:,None] - Y.T[None,:,:]
-    
-    # get the squared distance
-    dsqr = -((diff/scale)**2).sum(axis=1)
-    
-    return np.exp(dsqr).squeeze()
-
-#def kernel(X, Y):
-#    if X.ndim == 1:
-#        X = X.reshape((1,-1))
-#        
-#    if Y.ndim == 1:
-#        Y = Y.reshape((1,-1))
-#    return phi(X).dot(phi(Y).T).squeeze()
+    #def kernel(X, Y):
+    #    if X.ndim == 1:
+    #        X = X.reshape((1,-1))
+    #        
+    #    if Y.ndim == 1:
+    #        Y = Y.reshape((1,-1))
+    #    return phi(X).dot(phi(Y).T).squeeze()
 
 
 
-num_traj = 1
+    num_traj = 1
 
-trans_samples, ter_samples, ter_rew_samples, samples = generate_data(domain, policy, num_traj)
-
-
-lamb = 0.2
-np_models = build_np_models(kernel, 
-                                     trans_samples, 
-                                     ter_samples, 
-                                     ter_rew_samples, 
-                                     lamb)
-                                    
-np_models = list(np_models)
-np_models.append(create_Xpa(trans_samples))                                     
-                                     
-                                     
-phi_models = build_approx_gauss_models(scale, 
-                                  trans_samples, 
-                                  ter_samples,
-                                  phi = phi,
-                                  lamb = lamb,
-                                  k = 100)
-                                  
-num_points = 100
-ref_point = np.array([-0.3, 0.05])
-
-arrow_grid = 10
-x = np.linspace(domain.state_range[0][0], domain.state_range[1][0], arrow_grid)
-y = np.linspace(domain.state_range[0][1], domain.state_range[1][1], arrow_grid)
-X, Y = np.meshgrid(x, y)
-states = np.hstack((X.reshape(-1,1), Y.reshape(-1,1)))
-next_state=[]
-for a in xrange(3):
-    next_state.append([])
-    for s in states:
-        next_state[a].append(get_next_state(domain, s, domain.discrete_actions[a]))
+    trans_samples, ter_samples, ter_rew_samples, samples = generate_data(domain, policy, num_traj, average)
 
 
-x = np.linspace(domain.state_range[0][0], domain.state_range[1][0], num_points)
-y = np.linspace(domain.state_range[0][1], domain.state_range[1][1], num_points)
-X, Y = np.meshgrid(x, y)
-vals = compute_vis_np(np_models, np.hstack((X.reshape(-1,1), Y.reshape(-1,1))), ref_point)
+    lamb = 0.2
+    np_models = build_np_models(kernel, 
+                                         trans_samples, 
+                                         ter_samples, 
+                                         ter_rew_samples, 
+                                         lamb)
+                                        
+    np_models = list(np_models)
+    np_models.append(create_Xpa(trans_samples))                                     
+                                         
+                                         
+    phi_models = build_approx_gauss_models(scale, 
+                                      trans_samples, 
+                                      ter_samples,
+                                      phi = phi,
+                                      lamb = lamb,
+                                      k = 100)
+                                      
+    num_points = 100
+    ref_point = np.array([-0.3, 0.05])
 
-f = plt.figure()
+    arrow_grid = 10
+    x = np.linspace(domain.state_range[0][0], domain.state_range[1][0], arrow_grid)
+    y = np.linspace(domain.state_range[0][1], domain.state_range[1][1], arrow_grid)
+    X, Y = np.meshgrid(x, y)
+    states = np.hstack((X.reshape(-1,1), Y.reshape(-1,1)))
+    next_state=[]
+    for a in xrange(3):
+        next_state.append([])
+        for s in states:
+            next_state[a].append(get_next_state(domain, s, domain.discrete_actions[a]))
 
-i = 1
-for a in xrange(3):
-    plt.subplot(2, 3, i)
-    i += 1
-    c = plt.pcolormesh(X, Y, vals[a].reshape((num_points, -1)), cmap='Oranges')
-    display_arrows(states, next_state[a])
-    Xa, R, Xpa = zip(*trans_samples)
-    plot_samples(Xa[a], Xpa[a])
-    n_state = get_next_state(domain, ref_point, domain.discrete_actions[a])
-    #plt.plot([ref_point[0]], [ref_point[1]], 'r*')
-    plt.plot([n_state[0]], [n_state[1]], 'ro')
-    plt.title('np, actions ' + str(a))
-    f.colorbar(c)
-    
 
-vals = compute_vis_explicit_compressed(phi_models, np.hstack((X.reshape(-1,1), Y.reshape(-1,1))), ref_point)
-for a in xrange(3):
-    plt.subplot(2, 3, i)
-    i += 1
-    c = plt.pcolormesh(X, Y, vals[a].reshape((num_points, -1)), cmap='Oranges')
-    Xa, R, Xpa = zip(*trans_samples)
-    plot_samples(Xa[a], Xpa[a])
-    plt.plot([ref_point[0]], [ref_point[1]], 'ro')
-    plt.title('phis, actions ' + str(a))
-    f.colorbar(c)
-#plt.tight_layout()
-plt.show()
+    x = np.linspace(domain.state_range[0][0], domain.state_range[1][0], num_points)
+    y = np.linspace(domain.state_range[0][1], domain.state_range[1][1], num_points)
+    X, Y = np.meshgrid(x, y)
+    f = plt.figure(figsize=(10,3))
+    plt.subplots_adjust(wspace = 0.3)
+        
+    i = 1
+    if use_kernel:
+        vals = compute_vis_np(np_models, np.hstack((X.reshape(-1,1), Y.reshape(-1,1))), ref_point)
+        for a in xrange(3):
+            if a == 1:
+                continue
+            plt.subplot(1, 2, i)
+            i += 1
+            c = plt.pcolormesh(X, Y, vals[a].reshape((num_points, -1)), cmap='Oranges')
+            display_arrows(states, next_state[a])
+            Xa, R, Xpa = zip(*trans_samples)
+            plot_samples(Xa[a], Xpa[a])
+            n_state = get_next_state(domain, ref_point, domain.discrete_actions[a])
+            #plt.plot([n_state[0]], [n_state[1]], 'ro')
+            plt.title('actions ' + str(a))
+            f.colorbar(c)
+
+        
+    else:
+        vals = compute_vis_explicit_compressed(phi_models, np.hstack((X.reshape(-1,1), Y.reshape(-1,1))), ref_point)
+        for a in xrange(3):
+            if a == 1:
+                continue
+            plt.subplot(1, 2, i)
+            i += 1
+            c = plt.pcolormesh(X, Y, vals[a].reshape((num_points, -1)), cmap='Oranges')
+            display_arrows(states, next_state[a])
+            Xa, R, Xpa = zip(*trans_samples)
+            plot_samples(Xa[a], Xpa[a])
+            #plt.plot([ref_point[0]], [ref_point[1]], 'ro')
+            plt.title('actions ' + str(a))
+            f.colorbar(c)
+
+
+    plt.savefig(filename)
+    plt.close()
+#plt.show()
+
+# create_graph('exp-rkhs-avg.png', average = True, use_kernel = True)
+# create_graph('exp-rkhs-neg.png', average = False, use_kernel = True)
+# create_graph('exp-fourier-5000-neg.png', average = False, use_kernel = False, num_basis  = 5000)
+# create_graph('exp-fourier-5000-avg.png', average = True, use_kernel = False, num_basis  = 5000)
+# create_graph('exp-fourier-10-neg.png', average = False, use_kernel = False, num_basis  = 10)
+create_graph('exp-fourier-10-avg.png', average = True, use_kernel = False, num_basis  = 10)

@@ -252,7 +252,7 @@ class CompressedModel:
              
         return Kab, Da, wa, Vas
         
-    def update_embedded_model(self, action, Kab, Da, wa, Vas, Uas, rank = None):
+    def update_embedded_model(self, action, Kab, Da, wa, Vas, rank = None):
         if self.compress_end_states:
             raise NotImplementedError()     
         if rank is None:
@@ -272,8 +272,6 @@ class CompressedModel:
             Kab = np.empty((k,k), dtype='O')
         if Vas is None:
             Vas = np.empty((k,), dtype='O')
-        if Ua is None:
-            Ua = np.empty((k,), dtype='O')
         
         a = action
         Ua, Sa, Va = Ma[a]
@@ -281,8 +279,7 @@ class CompressedModel:
         Sa = Sa[:rank]
         Va = Va[:,:rank]
         
-        Vas[a] = Va.copy()
-        Uas[a] = Ua.copy()
+        Vas[action] = Va.copy()
         
         Da[a] = Sa/(Sa**2 + lamb)
         wa[a] = self.Ra[a].get_matrix(Ua.shape[0]).squeeze().dot(Ua)
@@ -294,7 +291,7 @@ class CompressedModel:
             X_tp1 = self.Xa_tp1[b].get_matrix(Ub.shape[0])
             Kab[a,b] = Va.T.dot(X_tp1.T.dot(Ub))
                 
-        return Kab, Da, wa, Vas, Uas
+        return Kab, Da, wa, Vas
                 
             
 class BufferedRowCollector:
