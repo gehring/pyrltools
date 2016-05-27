@@ -79,7 +79,7 @@ def term_cartpole(s_t):
 width = np.array([0.3, 0.1, 0.1, 0.05])
 scale = ((state_range[1] - state_range[0]) * width)
 
-num_gauss = 10
+num_gauss = 60
 w = sample_gaussian(state_range[0].shape[0], num_gauss, scale)   
 phi = lambda X: fourier_features(X, w)
 
@@ -99,7 +99,8 @@ agent = LEMAgent(plan_horizon = 150,
                       Xa_term = Xa_term,
                       Ra_term = Ra_term,
                       blend_coeff = 0.0,
-                      phi = phi)
+                      phi = phi,
+                      use_average_reward=False)
 
 cartpole = Cartpole(m_c = 1,
                  m_p = 1,
@@ -118,7 +119,7 @@ domain.start_state[:] = [0.0, 0.2, 0.0, 0.0]
 x_tp1 = domain.reset()[1]
 x_t, a_t, r_t = [None]*3
 traj = []                
-for i in xrange(2000):
+for i in xrange(1500):
     print 'step'
     agent.step(x_t, a_t, r_t, x_tp1)
     x_t = x_tp1

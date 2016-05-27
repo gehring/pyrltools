@@ -4,8 +4,8 @@ Created on Tue Apr  5 16:16:12 2016
 
 @author: cgehri
 """
-import matplotlib
-matplotlib.use('Agg')
+#import matplotlib
+#matplotlib.use('Agg')
 from itertools import izip
 from scipy.linalg import lu_solve
 
@@ -40,7 +40,7 @@ def compute_vis_explicit( model, X, x0):
     
 def compute_vis_explicit_compressed( model, X, x0):
     Fa, ra, phi = model
-    U,S, V = Fa[0]
+    #U,S, V = Fa[0]
     #return [ phi(X).dot(U.dot(S.dot(Vt.dot(phi(x0))))) for U,S,Vt in Fa
     return [ r.dot(U.dot(S.dot(Vt.dot(phi(X).T)))) for (U,S,Vt), r in zip(Fa, ra)]
 
@@ -198,7 +198,7 @@ def create_graph(filename, average = False, use_kernel = False, num_basis = 10):
                                       ter_samples,
                                       phi = phi,
                                       lamb = lamb,
-                                      k = 100)
+                                      k = 500)
                                       
     num_points = 100
     ref_point = np.array([-0.3, 0.05])
@@ -254,14 +254,14 @@ def create_graph(filename, average = False, use_kernel = False, num_basis = 10):
             plt.title('actions ' + str(a))
             f.colorbar(c)
 
-
-    plt.savefig(filename)
-    plt.close()
+    plt.show()
+#    plt.savefig(filename)
+#    plt.close()
 #plt.show()
 
 # create_graph('exp-rkhs-avg.png', average = True, use_kernel = True)
 # create_graph('exp-rkhs-neg.png', average = False, use_kernel = True)
-# create_graph('exp-fourier-5000-neg.png', average = False, use_kernel = False, num_basis  = 5000)
+create_graph('exp-fourier-5000-neg.png', average = False, use_kernel = False, num_basis  = 5000)
 # create_graph('exp-fourier-5000-avg.png', average = True, use_kernel = False, num_basis  = 5000)
 # create_graph('exp-fourier-10-neg.png', average = False, use_kernel = False, num_basis  = 10)
-create_graph('exp-fourier-10-avg.png', average = True, use_kernel = False, num_basis  = 10)
+#create_graph('exp-fourier-10-avg.png', average = True, use_kernel = False, num_basis  = 10)

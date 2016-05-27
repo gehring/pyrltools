@@ -321,7 +321,26 @@ def convert_compressed_to_embed(Fa, ra, phi):
             thetas[a,b] = ra[a].dot(Ua[b])
             
     return Va, Kab, thetas, ra, phi
-            
+    
+def create_old_embed(Xa, ratio_a, Xp, R, k, lamb, phi):
+    Fa = []
+    ra = []
+    for X, ratio in zip(Xa, ratio_a):
+        Xpa = ratio[:,None] * Xp
+        Ra = ratio*R
+        U,S,V = X
+        k = min(k, U.shape[0])
+        k2 = min(k, Xpa.shape[0])
+        print U.shape, S.shape, V.shape, Ra.shape
+        
+        r = V[:,:k].dot((S[:k]/(S[:k]**2 + lamb))* (U[:,:k].T.dot(Ra)))
+        
+        
+        Vpt = U[:,:k].T.dot(Xpa)
+        S = np.diag(S[:k]/(S[:k]**2 + lamb))
+        Fa.append((Vpt.T, S.T, V[:,:k].T))
+        ra.append(r)
+    return convert_compressed_to_embed(Fa, ra, phi)
     
 def approx_embed_improve(plan,
                          gamma,

@@ -96,7 +96,7 @@ def cat(sample_traj, rew_fn, ter_fn, plan_length = 200, lamb=0.1, gamma = 0.5, f
             width = np.array([0.3, 0.1, 0.1, 0.05])
             scale = ((state_range[1] - state_range[0]) * width)
             
-            num_gauss = 5000
+            num_gauss = 4000
             w = sample_gaussian(state_range[0].shape[0], num_gauss, scale)   
             phi = lambda X: fourier_features(X, w)
             models = build_approx_gauss_models(scale, 
@@ -163,6 +163,7 @@ def cat(sample_traj, rew_fn, ter_fn, plan_length = 200, lamb=0.1, gamma = 0.5, f
             break
         else:
             traj.append( s_tp1)
+        plan[:-1,:] = plan[1:,:]
         plan += 1.0
         plan /= np.sum(plan, axis=1)[:,None]
         print 'start'
@@ -184,7 +185,7 @@ def term_cartpole(s_t):
     return angle< np.pi/12 and np.abs(s_t[3]) < 0.5
     
     
-filename = 'cartpole-test-gus.data'
+filename = 'cartpole-test-2.data'
 with open(filename, 'rb') as f:
     sample_traj = pickle.load(f)
 

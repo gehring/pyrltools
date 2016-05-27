@@ -18,9 +18,32 @@ import pickle
 from itertools import chain
 from rltools.cartpole import Cartpole
 from rltools.npplanning import sample_gaussian
-from rltools.planner import EmbeddedAgent
+from rltools.planner import SingleEmbeddedAgent, DebugEmbeddedAgent
 
 state_range = Cartpole.state_range
+
+def get_XAXtp1_samples(sample_traj, rew_fn, ter_fn):
+    X_t = []
+    A_t = []
+    X_tp1 = []
+    X_term = []
+    A_term = []
+    R_t = []
+    R_term = []
+    for s_t, a, s_tp1 in chain(*sample_traj):
+        if s_tp1 is None or ter_fn(s_tp1):
+            X_term.append(s_t)
+            R_term.append(rew_fn(s_t, s_tp1))
+            A_term.append(a)
+        else:
+            X_t.append(s_t)
+            R_t.append(rew_fn(s_t, s_tp1))
+            A_t.append(a)
+            X_tp1.append(s_tp1)
+    return (np.array(X_t), np.array(A_t), np.array(R_t), np.array(X_tp1),
+            np.array(X_term), np.array(A_term), np.array(R_term))
+        
+        
 
 def parse_data_discrete_actions(sample_traj, rew_fn, ter_fn):
     data = list(chain(*sample_traj))
@@ -75,11 +98,12 @@ def term_cartpole(s_t):
     angle = np.pi - angle if angle > np.pi else angle
     return angle< np.pi/12 and np.abs(s_t[3]) < 0.5
 
+np.random.seed(10)
 
 width = np.array([0.3, 0.1, 0.1, 0.05])
 scale = ((state_range[1] - state_range[0]) * width)
 
-num_gauss = 10000
+num_gauss = 4000
 w = sample_gaussian(state_range[0].shape[0], num_gauss, scale)   
 phi = lambda X: fourier_features(X, w)
 
@@ -87,21 +111,43 @@ filename = 'cartpole-test-2.data'
 with open(filename, 'rb') as f:
     sample_traj = pickle.load(f)
 
-(parsed_samples, term_samples, term_rew_samples), actions = parse_data_discrete_actions(sample_traj, rew_cartpole, term_cartpole)
-Xa_t, Ra, Xa_tp1 = zip(*parsed_samples)
-Xa_term, Ra_term = zip(*term_samples)
-agent = EmbeddedAgent(plan_horizon = 150, 
-                      dim = num_gauss*2, 
-                      num_actions = 3,
-                      Xa_t = Xa_t,
-                      Xa_tp1 = Xa_tp1,
-                      Ra = Ra,
-                      Xa_term = Xa_term,
-                      Ra_term = Ra_term,
-                      max_rank = 300,
-                      blend_coeff = 0.0,
-                      phi = phi,
-                      update_models = True)
+#(parsed_samples, term_samples, term_rew_samples), actions = parse_data_discrete_actions(sample_traj, rew_cartpole, term_cartpole)
+#Xa_t, Ra, Xa_tp1 = zip(*parsed_samples)
+#Xa_term, Ra_term = zip(*term_samples)
+X_t, A_t, R_t, X_tp1, X_term, A_term, R_term = get_XAXtp1_samples(sample_traj, rew_cartpole, term_cartpole)
+actions = np.array([np.array([-3.]),
+          np.array([0.]),
+          np.array([3.])])
+          
+def single_action_kernel(i):
+    return lambda b: np.exp(-np.sum(((actions[i][None,:]-b)/6.0)**2, axis=1)/(0.5**2))
+    #return lambda b: (actions[i][None,:] == b).astype('float').squeeze()
+
+action_kernels = [ single_action_kernel(i) for i in xrange(len(actions))]
+#action_kernels = [ lambda b: a[None,:] == b for a in actions]
+
+#print [a[None,:] == actions for a in actions]
+#print action_kernels[0](actions)
+print [a_k(actions) for a_k in action_kernels]
+
+agent = SingleEmbeddedAgent(plan_horizon = 100,
+                 dim = num_gauss*2, 
+                 X_t = X_t,
+                 A_t = A_t, 
+                 X_tp1 = X_tp1, 
+                 R_t = R_t,
+                 X_term = X_term,
+                 A_term = A_term,
+                 R_term = R_term,
+                 max_rank = 300,
+                 blend_coeff = 0.2,
+                 phi = phi,
+                 action_kernels = action_kernels,
+                 actions = actions,
+                 learning_rate = 0.01,
+                 discount = 0.99,
+                 update_models = True,
+                 use_valuefn = True)
 
 cartpole = Cartpole(m_c = 1,
                  m_p = 1,
@@ -122,13 +168,18 @@ x_t, a_t, r_t = [None]*3
 traj = []                
 for i in xrange(2000):
     print 'step'
+    if x_t is not None and x_tp1 is not None:
+        r_t = rew_cartpole(x_t, x_tp1)
     agent.step(x_t, a_t, r_t, x_tp1)
     x_t = x_tp1
     a_t = agent.get_action()
-    r_t, x_tp1 = domain.step(actions[a_t])
+    r_t, x_tp1 = domain.step(a_t)
     traj.append(x_t)
     if x_tp1 is None:
         break
+                      
+with open('scompressLEM-test-traj.data', 'wb') as f:
+    pickle.dump(traj, f)          
                       
                       
 """

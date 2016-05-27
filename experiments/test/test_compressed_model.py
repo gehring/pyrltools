@@ -5,7 +5,7 @@ Created on Sun Apr 17 17:07:53 2016
 @author: cgehri
 """
 
-from rltools.model import CompressedModel
+from rltools.model import CompressedModel, CompressedMatrix
 import numpy as np
 
 
@@ -34,7 +34,7 @@ model = CompressedModel(dim = 200,
 U,S,V = model.Ma[0]
 print 'svd is close to original', np.allclose(U.dot(np.diag(S).dot(V.T)), A[0])
 
-Kab, Da, wa, Va = model.generate_embedded_model()
+Kab, Da, wa, Va, Ua = model.generate_embedded_model()
 
 Ub, Sb, Vbt = np.linalg.svd(A[0], full_matrices = False)
 print 'S close:', np.allclose(S, Sb)
@@ -50,3 +50,10 @@ F = ridge_reg(A[0], B[0], lamb = lamb).T
 theta = ridge_reg(A[0], r[0], lamb = lamb)
 
 print theta.dot(F.dot(vec))
+
+print "testing compressed matrix:"
+
+M = CompressedMatrix(200, 200, True)
+M.add_rows(A[0])
+Ahat = M.get_updated_full_matrix()
+print np.allclose(Ahat, A[0])

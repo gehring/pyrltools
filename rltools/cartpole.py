@@ -6,8 +6,8 @@ class Cartpole(object):
     xmax = 20
     xmin = -20
 
-    umax = 10
-    umin = -10
+    umax = 3
+    umin = -3
 
     dt = np.array([0, 0.01])
 
