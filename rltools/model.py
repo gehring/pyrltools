@@ -254,6 +254,7 @@ class CompressedModel:
              
         return Kab, Da, wa, Vas, Uas
         
+        
     def update_embedded_model(self, action, Kab, Da, wa, Vas, Uas, rank = None):
         if self.compress_end_states:
             raise NotImplementedError()     
@@ -524,11 +525,14 @@ class SingleCompressModel():
                  R_t = None,
                  X_tp1 = None, 
                  keep_all_samples = True,
-                 compress_end_states = False):
+                 compress_end_states = False,
+                 differential_model = False):
                      
         if compress_end_states:
             raise NotImplementedError() 
                      
+        self.dim = dim
+        self.diff_model = differential_model
         self.max_rank = max_rank
         self.lamb = lamb
         self.keep_all_samples = keep_all_samples
@@ -568,9 +572,16 @@ class SingleCompressModel():
         
         if self.keep_all_samples:
             self.X_t.add_rows(X_t)
-            self.X_tp1.add_rows(X_tp1)
+            if self.diff_model:
+                self.X_tp1.add_rows(X_tp1 - X_t)
+            else:
+                self.X_tp1.add_rows(X_tp1)
         elif not self.compress_end_states:
-            self.X_tp1.add_rows(X_tp1)
+            if self.diff_model:
+                self.X_tp1.add_rows(X_tp1 - X_t)
+            else:
+                self.X_tp1.add_rows(X_tp1)
+                
         self.A_t.add_rows(A_t)
         self.R_t.add_rows(R_t)
         
@@ -595,6 +606,46 @@ class SingleCompressModel():
 
 
     
+    def generate_explicit_model(self,
+                                action_kernels,
+                                Fa = None,
+                                wa = None,
+                                value_fn = None):
+             
+        Ma = [ self.get_actions_model(a_k) for a_k in action_kernels]
+        k = len(Ma)
+        
+        if value_fn is not None:
+            d = k + 1
+        else:
+            d = k
+            
+        n = Ma[0][2].shape[0]
+                       
+        if Fa is None:
+            Fa = np.zeros((d, n, n))
+        if wa is None:
+            wa = np.zeros((d,n))
+        
+        lamb = self.lamb        
+        if not Ma[0] is None:
+            R = self.R_t.get_matrix(Ma[0][0].shape[0]).squeeze()
+        
+            if not self.compress_end_states:
+                X_tp1 = self.X_tp1.get_matrix(Ma[0][0].shape[0])        
+            
+            for a in xrange(k):
+                Ua, Sa, Va, impor_ratio_a = Ma[a]
+                invSa = Sa/(Sa**2 + lamb)
+                Xinv = Ua.dot(np.diag(invSa).dot(Va.T))
+                Fa[a] = (X_tp1.T * impor_ratio_a[None,:]).dot(Xinv)
+                wa[a] = (R * impor_ratio_a).dot(Xinv)
+                
+            if value_fn is not None:
+                wa[-1] = value_fn
+                
+        return Fa, wa
+    
     """
     Return a model embedded on the right singular vectors of the sampled
     start states.
@@ -606,6 +657,7 @@ class SingleCompressModel():
                                 wa = None,
                                 Vas = None,
                                 Uas = None,
+                                Vab = None,
                                 value_fn = None,
                                 max_rank = None):
         if self.compress_end_states:
@@ -633,6 +685,8 @@ class SingleCompressModel():
             Kab = np.empty((d,d), dtype='O')
         if Vas is None:
             Vas = np.empty((d,), dtype='O')
+        if Vab is None:
+            Vab = np.empty((d,d), dtype='O')
         if Uas is None:
             Uas = np.empty((d,), dtype='O')
         if Ma[0] is None:
@@ -641,9 +695,10 @@ class SingleCompressModel():
             for a in xrange(d):
                 Da[a] = np.zeros(1)
                 wa[a] = np.zeros(1)
-                Vas[a] = np.zeros((1,1))
+                Vas[a] = np.zeros((self.dim,1))
                 Uas[a] = np.zeros((1,1))
                 for b in xrange(d):
+                    Vab[a,b] = np.zeros((1,1))
                     Kab[a,b] = np.zeros((1,1))
 
         else:
@@ -672,14 +727,19 @@ class SingleCompressModel():
                     Vb = Vb[:,:rank]
                     Xb_tp1 = X_tp1 * impor_ratio_b[:,None]
                     Kab[a,b] = Va.T.dot(Xb_tp1.T.dot(Ub))
+                    Vab[a,b] = Va.T.dot(Vb)
     
                 if value_fn is not None:
+                    U,S,V = self.CompressedX_t.matrices
                     Kab[a,-1] = np.zeros(Kab[a,0].shape)
+                    Vab[a,-1] = np.zeros(Kab[a,0].shape)
             if value_fn is not None:
                 Kab[-1,-1] = np.zeros(Kab[a,0].shape)
+                Vab[-1,-1] = np.zeros(Kab[a,0].shape)
                 U,S,V = self.CompressedX_t.matrices
                 Da[-1] = S/(S**2 + lamb)
                 wa[-1] = value_fn.dot(V)/Da[-1]
+#                wa[-1] = value_fn/Da[-1]
                 
                 Ua = U[:,:rank]
                 Sa = S[:rank]
@@ -696,6 +756,7 @@ class SingleCompressModel():
                     Vb = Vb[:,:rank]
                     Xb_tp1 = X_tp1 * impor_ratio_b[:,None]
                     Kab[a,b] = Va.T.dot(Xb_tp1.T.dot(Ub))
+                    Vab[a,b] = Va.T.dot(Vb)
 
              
-        return Kab, Da, wa, Vas, Uas
+        return Kab, Da, wa, Vas, Uas, Vab

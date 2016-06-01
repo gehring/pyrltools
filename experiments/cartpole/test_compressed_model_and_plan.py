@@ -18,7 +18,7 @@ import pickle
 from itertools import chain
 from rltools.cartpole import Cartpole
 from rltools.npplanning import sample_gaussian
-from rltools.planner import SingleEmbeddedAgent, DebugEmbeddedAgent
+from rltools.planner import SingleEmbeddedAgent, CompressedLEMAgent
 
 state_range = Cartpole.state_range
 
@@ -103,7 +103,7 @@ np.random.seed(10)
 width = np.array([0.3, 0.1, 0.1, 0.05])
 scale = ((state_range[1] - state_range[0]) * width)
 
-num_gauss = 4000
+num_gauss = 2000
 w = sample_gaussian(state_range[0].shape[0], num_gauss, scale)   
 phi = lambda X: fourier_features(X, w)
 
@@ -129,7 +129,8 @@ action_kernels = [ single_action_kernel(i) for i in xrange(len(actions))]
 #print [a[None,:] == actions for a in actions]
 #print action_kernels[0](actions)
 print [a_k(actions) for a_k in action_kernels]
-
+#SingleEmbeddedAgent
+#CompressedLEMAgent
 agent = SingleEmbeddedAgent(plan_horizon = 100,
                  dim = num_gauss*2, 
                  X_t = X_t,
@@ -146,8 +147,9 @@ agent = SingleEmbeddedAgent(plan_horizon = 100,
                  actions = actions,
                  learning_rate = 0.01,
                  discount = 0.99,
-                 update_models = True,
-                 use_valuefn = True)
+                 update_models = False,
+                 use_valuefn = False,
+                 use_diff_model = True)
 
 cartpole = Cartpole(m_c = 1,
                  m_p = 1,
@@ -166,7 +168,7 @@ domain.start_state[:] = [0.0, 0.2, 0.0, 0.0]
 x_tp1 = domain.reset()[1]
 x_t, a_t, r_t = [None]*3
 traj = []                
-for i in xrange(2000):
+for i in xrange(300):
     print 'step'
     if x_t is not None and x_tp1 is not None:
         r_t = rew_cartpole(x_t, x_tp1)
