@@ -11,7 +11,7 @@ from scipy.sparse.linalg import splu
 from scipy.spatial.distance import pdist, squareform
 
 from scikits.sparse.cholmod import cholesky
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 # import cvxpy
 

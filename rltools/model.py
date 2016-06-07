@@ -431,11 +431,20 @@ class CompressedMatrix(object):
             n = 0
                 
         self.matrices = self.__update_matrix(A[:n+self.count,:self.count], B[:,:self.count])
+        self.matrices = self.__ortho(*self.matrices)
         A = np.zeros((self.matrices[0].shape[0]+self.max_rank, self.matrices[2].shape[0]))
         B[:,:] = 0.0
         self.count = 0
         self.ab_buffer = (A,B)
         return self.matrices
+        
+    def __ortho(self, U, S, V):
+        Qu, Ru = np.linalg.qr(U, mode='reduced')
+        Qv, Rv = np.linalg.qr(V, mode='reduced')
+        U, S, V = np.linalg.svd(Ru.dot(Rv.T), full_matrices = False)
+        
+        return Qu.dot(U), S, Qv.dot(V)
+        
         
     def __update_matrix(self, A, B):
         if self.matrices is not None:
@@ -738,8 +747,8 @@ class SingleCompressModel():
                 Vab[-1,-1] = np.zeros(Kab[a,0].shape)
                 U,S,V = self.CompressedX_t.matrices
                 Da[-1] = S/(S**2 + lamb)
-                wa[-1] = value_fn.dot(V)/Da[-1]
-#                wa[-1] = value_fn/Da[-1]
+#                wa[-1] = value_fn.dot(V)/Da[-1]
+                wa[-1] = value_fn[:V.shape[0]]/Da[-1]
                 
                 Ua = U[:,:rank]
                 Sa = S[:rank]

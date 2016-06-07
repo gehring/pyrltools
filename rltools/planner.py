@@ -399,10 +399,13 @@ class SingleEmbeddedAgent(PlanningAgent):
         self.max_rank = max_rank
         self.learning_rate = learning_rate
         self.use_diff_model = use_diff_model
+        self.dim = dim
 
         self.use_valuefn = use_valuefn
         if use_valuefn:
-            self.theta = np.zeros(dim)
+            self.theta = np.zeros(max_rank)
+#            self.theta = np.zeros(dim)
+#            self.theta[-1] = -100*np.sqrt(2000)
         if X_t is None:
             self.model = SingleCompressModel(dim = dim,
                                 max_rank = max_rank,
@@ -445,16 +448,9 @@ class SingleEmbeddedAgent(PlanningAgent):
         self.action_kernels = action_kernels
         self.alphas = np.empty(k, dtype='O')
         self.betas = np.empty(k, dtype='O')
-        self.embedded_models = (None, None,None, None, None, None)
-        Kab, Da, wa, Vas, Uas, Vab = self.embedded_models
+
         self.embedded_models = self.model.generate_embedded_model(
-            action_kernels, 
-            Kab, 
-            Da, 
-            wa, 
-            Vas, 
-            Uas,
-            Vab,
+            action_kernels = action_kernels, 
             max_rank = self.max_rank,
             value_fn = self.theta if self.use_valuefn else None)
 
@@ -471,10 +467,13 @@ class SingleEmbeddedAgent(PlanningAgent):
             self.plan[0,-1] = 0
     
     def step(self, x_t, a_t, r_t, x_tp1):
+        if x_t is None:
+            self.reset()
+            
         if not x_t is None:
             # update models only if 'update_model' is True, if the compressed model
             # does an update, update the embedded models too.
-            if self.update_models and self.model.add_samples(self.phi(x_t), a_t, np.array(r_t), self.phi(x_tp1)) :
+            if self.update_models and self.model.add_samples(self.phi(x_t), a_t, np.array(r_t), self.phi(x_tp1) if x_tp1 is not None else np.zeros(self.dim) ) :
                 Kab, Da, wa, Vas, Uas, Vab = self.embedded_models
                 self.embedded_models = self.model.generate_embedded_model(
                     self.action_kernels, 
@@ -492,34 +491,53 @@ class SingleEmbeddedAgent(PlanningAgent):
                     self.betas[a] = np.zeros((self.H, Kab[0,a].shape[1]))
 
         
-        
         # update value function if it is currently being used
         if x_t is not None and self.use_valuefn:
-            phi_t = self.phi(x_t)
-            V_t = self.theta.dot(phi_t)
-            
-            delta =  self.plan_val - V_t
-            self.theta += self.learning_rate * delta * phi_t
-            
-            V_tp1 = self.discount*self.phi(x_tp1).dot(self.theta) if x_tp1 is not None else 0
-            delta = r_t + V_tp1 - V_t
-            #self.theta += self.learning_rate/2 * delta * phi_t
+            pass
+#            phi_t = self.phi(x_t)
+#            V_t = self.theta.dot(phi_t)
+#            
+#            delta =  self.plan_val - V_t
+##            self.theta += self.learning_rate * delta * phi_t
+#            V_tp1 = self.discount*self.phi(x_tp1).dot(self.theta) if x_tp1 is not None else 0
+#            delta = r_t + V_tp1 - V_t
+#            self.theta += self.learning_rate * delta * phi_t
+#            print V_t, delta
+        
             
         # plan for next action
         if x_tp1 is not None:
             self.x_t = x_tp1.copy()
             self.plan[:-1,:] = self.plan[1:,:]
             self.plan[-1,:] = 1.0/self.plan.shape[1]
-            self.plan = self.plan*0.5 + 0.5/self.plan.shape[1]
+            self.plan = self.plan*0.0 + 1.0/self.plan.shape[1]
             if self.use_valuefn:
                 self.plan[0,:-1] += self.plan[0,-1]/(self.plan.shape[1]-1)
                 self.plan[0,-1] = 0.0
                 
             self.improve_plan()
             
-            if self.use_valuefn:
-                self.plan[0,:-1] += self.plan[0,-1]/(self.plan.shape[1]-1)
-                self.plan[0,-1] = 0.0
+#            if self.use_valuefn:
+#                self.plan[0,:-1] += self.plan[0,-1]/(self.plan.shape[1]-1)
+#                self.plan[0,-1] = 0.0
+                
+        # update value function if it is currently being used
+        if x_t is not None and self.use_valuefn:
+            Kab, Da, wa, Va, Ua, Vab = self.embedded_models
+            vals = np.array([np.sum(self.alphas[a] * self.betas[a], axis = 1) for a in xrange(len(self.actions) + 1)])
+            planned_val = np.sum(vals.T * self.plan, axis = 1)
+            estimated_val = vals[-1]
+            decay = 0.99
+            deltas = (planned_val - estimated_val) * decay**np.arange(self.H)
+#            deltas = (planned_val - estimated_val)
+#            deltas[-1] = 0
+#            deltas[1:] = deltas[1:] - self.discount * deltas[:-1]
+            dtheta = Da[-1]*np.sum(deltas[:,None] * self.betas[-1], axis=0)
+#            dtheta = Va[-1].dot(np.sum(deltas[:,None] * self.betas[-1], axis=0))
+            self.theta[:dtheta.shape[0]] += self.learning_rate*dtheta
+            print vals[:,0], deltas[0], vals[:,1], deltas[1]
+#            print self.theta.dot(Va[-1].dot(Va[-1].T.dot(self.phi(x_t)))), vals[-1,0]
+        
     
     def get_action(self, t = 0):
         bins = np.add.accumulate(self.plan[t])
@@ -533,7 +551,12 @@ class SingleEmbeddedAgent(PlanningAgent):
         H = self.H
         k = alphas.shape[0]
         for a in xrange(k):
-            alphas[a][H-1,:] = wa[a]*Da[a] + ((self.discount * (wa[-1]*Da[-1]).dot(Kab[-1,a]))*Da[a] if self.use_valuefn else 0 )# assuming terminal reward is zero if not using value function
+            next_val = 0
+            if self.use_valuefn:
+                next_val = (self.discount * (wa[-1]*Da[-1]).dot(Kab[-1,a]))*Da[a]
+                if self.use_diff_model:
+                    next_val += self.discount * (wa[-1]*Da[-1]).dot(Vab[-1,a])
+            alphas[a][H-1,:] = wa[a]*Da[a] + next_val # assuming terminal reward is zero if not using value function
             betas[a][0,:] = Va[a].T.dot(self.phi(self.x_t))
             
             
@@ -568,7 +591,11 @@ class SingleEmbeddedAgent(PlanningAgent):
         if improve:
             for a in xrange(k):
                 vals[a] = alphas[a][H-1,:].dot(betas[a][H-1,:])
-            a_best = np.argwhere(vals == np.amax(vals)).flatten()
+            if H-1 == 0 and self.use_valuefn:
+                    choice_vals = vals[:-1]
+            else:
+                choice_vals = vals
+            a_best = np.argwhere(choice_vals == np.amax(choice_vals)).flatten()
             new_plan[H-1,:] *= gamma
             new_plan[H-1,a_best] += (1-gamma)/a_best.shape[0]
             
@@ -580,7 +607,11 @@ class SingleEmbeddedAgent(PlanningAgent):
                 vals[a] = alphas[a][t,:].dot(betas[a][t,:])
             
             if improve:
-                a_best = np.argwhere(vals == np.amax(vals)).flatten() 
+                if t == 0 and self.use_valuefn:
+                    choice_vals = vals[:-1]
+                else:
+                    choice_vals = vals
+                a_best = np.argwhere(choice_vals == np.amax(choice_vals)).flatten() 
                 new_plan[t,:] *= gamma
                 new_plan[t,a_best] += (1-gamma)/a_best.shape[0]
                 
@@ -604,7 +635,11 @@ class SingleEmbeddedAgent(PlanningAgent):
         for a in xrange(k):
                 vals[a] = betas[a][0,:].dot(alphas[a][0,:])
         if improve:
-            a_best = np.argwhere(vals == np.amax(vals)).flatten()
+            if self.use_valuefn:
+                    choice_vals = vals[:-1]
+            else:
+                choice_vals = vals
+            a_best = np.argwhere(choice_vals == np.amax(choice_vals)).flatten()
             new_plan[0,:] *= gamma
             new_plan[0,a_best] += (1-gamma)/a_best.shape[0]
             
@@ -618,7 +653,11 @@ class SingleEmbeddedAgent(PlanningAgent):
                 vals[a] = betas[a][t,:].dot(alphas[a][t,:])
                 
             if improve:
-                a_best = np.argwhere(vals == np.amax(vals)).flatten()  
+                if t == 0 and self.use_valuefn:
+                    choice_vals = vals[:-1]
+                else:
+                    choice_vals = vals
+                a_best = np.argwhere(choice_vals == np.amax(choice_vals)).flatten()  
                 new_plan[t,:] *= gamma
                 new_plan[t,a_best] += (1-gamma)/a_best.shape[0]
                 
